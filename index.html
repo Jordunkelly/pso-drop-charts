@@ -3,26 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PSO-BB Brotherhood Dashboard</title>
+    <title>PSO-BB Brotherhood Drop Tool</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <style>
         :root { 
             --bg: #0d1117; --panel: #161b22; --border: #30363d; --text: #c9d1d9; 
-            --blue: #58a6ff; --gold: #d4af37; --uber: #ff79c6; --god: #ffb86c; --support: #50fa7b;
-            --mag-color: #ff7b72; --green: #2ea043;
+            --blue: #58a6ff; --gold: #d4af37; --uber: #ff79c6; --god: #ffb86c;
         }
         
-        body { background-color: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; transition: background-color 0.5s; overflow-x: hidden; }
+        body { background-color: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; overflow-x: hidden; }
         
         /* --- NAVIGATION --- */
-        .main-nav { background: #010409; border-bottom: 1px solid var(--border); display: flex; padding: 10px 20px; gap: 10px; position: sticky; top: 0; z-index: 2000; align-items: center; flex-wrap: wrap; }
-        .nav-tab { padding: 10px 15px; cursor: pointer; border-radius: 6px; font-weight: bold; transition: 0.2s; color: var(--text); font-size: 0.9em; }
-        .nav-tab.active { background: var(--blue); color: white; }
+        .main-nav { background: #010409; border-bottom: 1px solid var(--border); display: flex; padding: 10px 20px; position: sticky; top: 0; z-index: 2000; align-items: center; }
+        .nav-links { display: flex; gap: 15px; align-items: center; }
+        .nav-link { color: var(--text); text-decoration: none; font-weight: bold; padding: 8px 12px; border-radius: 6px; transition: 0.2s; font-size: 0.9em; }
+        .nav-link:hover { background: rgba(255,255,255,0.1); }
+        .nav-link.active { background: var(--blue); color: white; }
+        
         .class-selector-wrapper { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 
-        .content-section { padding: 10px; display: none; }
-        .content-section.active { display: block; }
+        .content-section { padding: 10px; }
 
         /* --- MOBILE FRIENDLY CONTROLS --- */
         .controls { 
@@ -30,64 +31,48 @@
             display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px;
             position: sticky; top: 60px; z-index: 1500;
         }
-        /* Search box takes full width of the grid */
         #nameSearch { grid-column: span 2; }
-        
-        input, select { 
-            width: 100%; padding: 12px; background: var(--bg); border: 1px solid var(--border); 
-            color: white; border-radius: 6px; box-sizing: border-box; 
-            font-size: 16px; /* CRITICAL: Prevents iOS auto-zoom on focus */
-        }
+        input, select { width: 100%; padding: 12px; background: var(--bg); border: 1px solid var(--border); color: white; border-radius: 6px; font-size: 16px; box-sizing: border-box; }
 
-        /* --- TABLE SCROLLING --- */
+        /* --- TABLE & SCROLLING --- */
         .table-container { overflow-x: auto; width: 100%; border-radius: 8px; border: 1px solid var(--border); -webkit-overflow-scrolling: touch; }
         table { width: 100%; border-collapse: collapse; background: var(--panel); min-width: 600px; }
         th { background: #21262d; color: var(--blue); padding: 12px; text-align: left; font-size: 0.8em; position: sticky; top: 0; z-index: 1000; }
         td { padding: 10px; border-bottom: 1px solid var(--border); font-size: 0.85em; }
         
-        .item-wrapper { position: relative; display: inline-block; }
         .item-name-text { cursor: pointer; color: white; font-weight: bold; border-bottom: 1px dashed var(--blue); }
         
-        .tier-tag { padding: 2px 4px; border-radius: 4px; font-size: 0.65em; font-weight: bold; margin-left: 5px; text-transform: uppercase; }
-        .tier-UBER { background: var(--uber); color: black; }
-        .tier-SPLUS { background: var(--god); color: black; }
+        /* TIER BADGES */
+        .tier-tag { padding: 2px 4px; border-radius: 4px; font-size: 0.65em; font-weight: bold; margin-left: 5px; text-transform: uppercase; color: black; }
+        .tier-S { background: var(--god); }
+        .tier-A { background: var(--gold); }
+        .tier-B { background: var(--blue); }
+        
         .class-val-badge { border: 1px solid var(--text); color: var(--text); font-size: 0.6em; padding: 1px 4px; border-radius: 3px; margin-left: 5px; }
 
-        /* --- MAG TIMER --- */
-        .mag-layout { display: flex; justify-content: center; align-items: center; flex-direction: column; gap: 15px; margin-top: 15px; }
-        .timer-card { background: var(--panel); padding: 1.5rem; border-radius: 20px; border: 2px solid var(--border); text-align: center; width: 100%; max-width: 340px; }
-        #timer-display { font-size: 3.5rem; font-weight: bold; font-family: 'Courier New', monospace; margin: 10px 0; }
-        
         .tag { padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #fff; font-size: 0.8em; }
         .row-rare { background-color: rgba(168, 85, 247, 0.1) !important; }
         .rare-badge { background: #a855f7; color: #fff; padding: 2px 4px; border-radius: 4px; font-size: 0.65em; font-weight: bold; margin-left: 5px; }
 
-        /* =========================================
-           MOBILE RESPONSIVE OVERRIDES
-           ========================================= */
         @media (max-width: 768px) {
-            .controls {
-                grid-template-columns: 1fr; /* Stack everything in 1 column on small phones */
-                position: relative; top: 0; padding: 10px;
-            }
+            .controls { grid-template-columns: 1fr; position: relative; top: 0; }
             #nameSearch { grid-column: span 1; }
-            
-            .main-nav { padding: 5px 10px; }
-            .class-selector-wrapper { width: 100%; justify-content: space-between; margin-top: 5px; padding: 5px 0; border-top: 1px solid var(--border); }
-            #globalClassSelector { width: auto; min-width: 120px; }
-
-            .col-ep, .col-map { display: none; } /* Hide less vital info to save width */
+            .col-ep, .col-map { display: none; }
+            .nav-links { gap: 5px; }
+            .nav-link { padding: 6px 8px; font-size: 0.8em; }
         }
     </style>
 </head>
 <body>
 
 <nav class="main-nav">
-    <div class="nav-tab active" onclick="switchTab('drop-tool')">Drops</div>
-    <div class="nav-tab" onclick="switchTab('mag-tool')">Mag</div>
+    <div class="nav-links">
+        <a href="index.html" class="nav-link active">Drop Charts</a>
+        <a href="mag.html" class="nav-link">Mag Tool</a>
+    </div>
     <div class="class-selector-wrapper">
-        <label style="font-size: 0.75em; font-weight: bold; color: var(--gold)">VIEW AS:</label>
-        <select id="globalClassSelector" onchange="applyFilters()">
+        <label style="font-size: 0.7em; font-weight: bold; color: var(--gold)">VIEW AS:</label>
+        <select id="globalClassSelector" onchange="applyFilters()" style="width: auto; padding: 5px; font-size: 14px;">
             <option value="HUNTER">HUNTER</option>
             <option value="RANGER">RANGER</option>
             <option value="FORCE">FORCE</option>
@@ -95,12 +80,12 @@
     </div>
 </nav>
 
-<div id="drop-tool" class="content-section active">
+<div class="content-section">
     <div class="controls">
         <input type="text" id="nameSearch" placeholder="Search Item Name...">
-        <select id="tierFilter"><option value="">Tiers</option><option value="UBER">UBER</option><option value="SPLUS">S+</option></select>
-        <select id="diffFilter"><option value="">Diffs</option></select>
-        <select id="idFilter"><option value="">IDs</option></select>
+        <select id="tierFilter"><option value="">All Tiers</option></select>
+        <select id="diffFilter"><option value="">All Diffs</option></select>
+        <select id="idFilter"><option value="">All IDs</option></select>
     </div>
     
     <div class="table-container">
@@ -112,7 +97,7 @@
                     <th class="col-map">Map</th>
                     <th>Entity</th>
                     <th>Item Name</th>
-                    <th>Rate (%)</th>
+                    <th>Rate & Odds</th>
                     <th>ID</th>
                 </tr>
             </thead>
@@ -121,70 +106,116 @@
     </div>
 </div>
 
-<div id="mag-tool" class="content-section">
-    <div class="mag-layout">
-        <div class="timer-card" id="magCard">
-            <div id="magStatus" style="font-size: 0.8rem; color: var(--blue); font-weight: 800; text-transform: uppercase;">Ready</div>
-            <div id="timer-display">03:30</div>
-            <button onclick="startMagTimer()" style="width:100%; padding:15px; background:#21262d; color:var(--blue); border:1px solid var(--blue); border-radius:8px; font-weight:bold; cursor:pointer;">START CYCLE</button>
-        </div>
-    </div>
-</div>
-
 <script>
     const SECTION_ID_COLORS = { Viridia: "#22C55E", Greenill: "#16A34A", Skyly: "#38BDF8", Bluefull: "#2563EB", Purplenum: "#A855F7", Pinkal: "#EC4899", Redria: "#EF4444", Oran: "#F97316", Yellowboze: "#FACC15", Whitill: "#E5E7EB" };
+    
+    // Updated URLs
     const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS-nCzkALWoSyKOLXNORN_zgy2ONKn4Hcwi-jQNHCgmEW8DJ7yX3AyO9Uod44ecEUwklr76Dw4-p1o0/pub?gid=0&single=true&output=csv';
-    let masterData = [], magTime = 210, magInterval;
+    const tierTableUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS-nCzkALWoSyKOLXNORN_zgy2ONKn4Hcwi-jQNHCgmEW8DJ7yX3AyO9Uod44ecEUwklr76Dw4-p1o0/pub?gid=292779988&single=true&output=csv';
+
+    let masterData = [];
+    let globalTierMap = new Map();
+    let tierModMap = new Map();
 
     function normName(s) { return String(s || "").trim().toUpperCase().replace(/\s+/g, " "); }
-    function esc(v) { return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
+    function esc(v) { return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
     function init() {
-        Papa.parse(csvUrl, { download: true, header: true, complete: function(results) {
-            const sections = new Set(), diffs = new Set();
-            masterData = (results.data || []).filter(r => (r.Name || "").trim()).map(row => {
-                const n = normName(row.Name);
-                if (row.SectionID) sections.add(String(row.SectionID).trim());
-                if (row.Difficulty) diffs.add(String(row.Difficulty).trim());
-                return { ...row, NormName: n };
-            });
-            const populate = (id, set, lbl) => $(id).empty().append(`<option value="">${lbl}</option>`).append(Array.from(set).sort().map(v => `<option value="${v}">${v}</option>`));
-            populate('#diffFilter', diffs, 'Diffs'); populate('#idFilter', sections, 'IDs');
-            applyFilters();
-        }});
+        // Step 1: Load updated Tier Table
+        Papa.parse(tierTableUrl, {
+            download: true,
+            header: true,
+            complete: function(tierResults) {
+                tierResults.data.forEach(row => {
+                    const name = normName(row['ITEM NAME']);
+                    if (name) {
+                        globalTierMap.set(name, row['TIER RANK']); 
+                        tierModMap.set(name, parseInt(row['TIER MOD']) || 0); 
+                    }
+                });
+                fetchDropData();
+            }
+        });
+    }
+
+    function fetchDropData() {
+        Papa.parse(csvUrl, {
+            download: true,
+            header: true,
+            complete: function(results) {
+                const sections = new Set(), diffs = new Set(), tiers = new Set();
+                masterData = (results.data || []).filter(r => (r.Name || "").trim()).map(row => {
+                    const n = normName(row.Name);
+                    if (row.SectionID) sections.add(row.SectionID.trim());
+                    if (row.Difficulty) diffs.add(row.Difficulty.trim());
+                    
+                    const tier = globalTierMap.get(n) || "";
+                    if (tier) tiers.add(tier);
+
+                    return { ...row, NormName: n, Tier: tier };
+                });
+
+                populateSelect('#tierFilter', Array.from(tiers).sort(), 'Tiers');
+                populateSelect('#diffFilter', Array.from(diffs).sort(), 'Diffs');
+                populateSelect('#idFilter', Array.from(sections).sort(), 'IDs');
+                applyFilters();
+            }
+        });
+    }
+
+    function populateSelect(id, values, label) {
+        $(id).empty().append(`<option value="">All ${label}</option>`);
+        values.forEach(v => $(id).append(`<option value="${v}">${v}</option>`));
     }
 
     function applyFilters() {
-        const name = normName($('#nameSearch').val()), diff = $('#diffFilter').val(), id = $('#idFilter').val();
-        renderTable(masterData.filter(r => r.NormName.includes(name) && (!diff || r.Difficulty === diff) && (!id || r.SectionID === id)));
+        const name = normName($('#nameSearch').val());
+        const tier = $('#tierFilter').val();
+        const diff = $('#diffFilter').val();
+        const id = $('#idFilter').val();
+
+        renderTable(masterData.filter(r => 
+            r.NormName.includes(name) && 
+            (!tier || r.Tier === tier) && 
+            (!diff || r.Difficulty === diff) && 
+            (!id || r.SectionID === id)
+        ));
     }
 
     function renderTable(data) {
         const tbody = $('#dropTable tbody');
         const RARE_ENEMIES = new Set(["HILDEBLUE", "RAPPY", "NAR LILY", "POUILLY SLIME", "MERICAR", "MERISSA AA", "PAZUZU", "DORPHON ECLAIR", "KONDRIEU"]);
         tbody.empty();
+
         data.forEach(row => {
-            const n = row.NormName, entRaw = (row.Entity || "").trim(), isRare = RARE_ENEMIES.has(entRaw.toUpperCase());
+            const n = row.NormName;
+            const entRaw = (row.Entity || "").trim();
+            const isRare = RARE_ENEMIES.has(entRaw.toUpperCase().replace(/_/g, " "));
+            const mod = tierModMap.get(n) || 0;
+
+            let classVal = "B VAL";
+            if (mod >= 120) classVal = "S+ VAL";
+            else if (mod >= 80) classVal = "S VAL";
+            else if (mod >= 40) classVal = "A VAL";
+
             const pct = parseFloat(row['Current %'] || 0);
             const odds = `1 in ${Math.round(100/pct).toLocaleString()}`;
-            
+            const tierBadge = row.Tier ? `<span class="tier-tag tier-${esc(row.Tier)}">${row.Tier}</span>` : "";
+
             tbody.append(`<tr class="${isRare ? 'row-rare' : ''}">
                 <td class="col-ep">${esc(row.Episode)}</td>
                 <td><strong>${esc(row.Difficulty).charAt(0)}</strong></td>
                 <td class="col-map">${esc(row.Map)}</td>
                 <td>${esc(entRaw)} ${isRare ? '<span class="rare-badge">R</span>' : ''}</td>
-                <td><span class="item-name-text">${esc(row.Name)}</span></td>
+                <td><span class="item-name-text">${esc(row.Name)}</span> ${tierBadge} <span class="class-val-badge">${classVal}</span></td>
                 <td>${pct >= 1 ? pct.toFixed(1) : pct.toFixed(4)}% <br><small style="opacity:0.6">${odds}</small></td>
                 <td><span class="tag" style="background:${SECTION_ID_COLORS[row.SectionID] || '#333'}">${esc(row.SectionID).charAt(0)}</span></td>
             </tr>`);
         });
     }
 
-    function switchTab(tabId) { $('.content-section, .nav-tab').removeClass('active'); $(`#${tabId}, .nav-tab[onclick*="${tabId}"]`).addClass('active'); }
-    function startMagTimer() { magTime = 210; clearInterval(magInterval); magInterval = setInterval(() => { magTime--; if (magTime <= 0) clearInterval(magInterval); updateMagDisplay(); }, 1000); }
-    function updateMagDisplay() { const m = Math.floor(magTime/60), s = magTime%60; $('#timer-display').text(`${m}:${s.toString().padStart(2,'0')}`); }
-
-    $(document).ready(() => { init(); $('input, select').on('change keyup', applyFilters); });
+    $(document).ready(init);
+    $('input, select').on('change keyup', applyFilters);
 </script>
 </body>
 </html>
