@@ -16,7 +16,7 @@
       user-select: none; 
       position: sticky; 
       top: 0; 
-      background: #21262d; /* Match existing th background */
+      background: #21262d; 
       z-index: 10;
     }
     th:hover { 
@@ -89,7 +89,7 @@
         }).catch(function () {});
     })();
 
-    // --- COLORS & GLOBALS ---
+    // --- CONFIG ---
     var SECTION_ID_COLORS = {
       Viridia: "#22C55E", Greenill: "#16A34A", Skyly: "#38BDF8", Bluefull: "#2563EB",
       Purplenum: "#A855F7", Pinkal: "#EC4899", Redria: "#EF4444", Oran: "#F97316",
@@ -100,11 +100,9 @@
     var tierTableUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS-nCzkALWoSyKOLXNORN_zgy2ONKn4Hcwi-jQNHCgmEW8DJ7yX3AyO9Uod44ecEUwklr76Dw4-p1o0/pub?gid=292779988&single=true&output=csv";
 
     var masterData = [];
-    var currentFilteredData = []; // Holds the currently visible rows for sorting
+    var currentFilteredData = [];
     var globalTierMap = new Map();
-    
-    // Sort State
-    var currentSort = { col: null, dir: 'asc' }; 
+    var currentSort = { col: null, dir: 'asc' };
 
     function normName(s) { return String(s || "").trim().toUpperCase().replace(/\s+/g, " "); }
     function esc(v) { return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
@@ -128,7 +126,7 @@
         download: true, header: true,
         complete: function (results) {
           var sections = new Set(), diffs = new Set(), tiers = new Set();
-
+          
           masterData = (results.data || [])
             .filter(function (r) { return (r.Name || "").trim(); })
             .map(function (row) {
@@ -177,41 +175,31 @@
         return okName && okTier && okDiff && okId;
       });
 
-      // Maintain sort if active, otherwise render default
-      if (currentSort.col) {
-        sortData(currentSort.col, currentSort.dir, false);
-      } else {
-        renderTable(currentFilteredData);
-      }
+      if (currentSort.col) sortData(currentSort.col, currentSort.dir, false);
+      else renderTable(currentFilteredData);
     }
 
     // --- SORTING ---
     function sortData(column, direction, updateUI) {
       var isAsc = direction === 'asc';
-
       currentFilteredData.sort(function(a, b) {
         var valA = a[column] || "";
         var valB = b[column] || "";
 
-        // 1. Difficulty Sort (Custom Order)
         if (column === "Difficulty") {
            var diffOrder = ["Normal", "Hard", "Very Hard", "Ultimate"];
            var idxA = diffOrder.indexOf(valA.trim());
            var idxB = diffOrder.indexOf(valB.trim());
-           // If not found, push to end
-           if(idxA === -1) idxA = 99; 
-           if(idxB === -1) idxB = 99;
+           if(idxA === -1) idxA = 99; if(idxB === -1) idxB = 99;
            return isAsc ? idxA - idxB : idxB - idxA;
         }
 
-        // 2. Numeric Sort (Rate)
         if (column === "Current %") {
           var numA = parseFloat(valA) || 0;
           var numB = parseFloat(valB) || 0;
           return isAsc ? numA - numB : numB - numA;
         }
 
-        // 3. Default String Sort
         return isAsc ? valA.toString().localeCompare(valB) : valB.toString().localeCompare(valA);
       });
 
@@ -219,11 +207,10 @@
         $('th').removeClass('asc desc');
         $('th[data-sort="' + column + '"]').addClass(direction);
       }
-      
       renderTable(currentFilteredData);
     }
 
-    // --- RENDER ---
+    // --- RENDER TABLE (WITH FIXED ODDS MATH) ---
     function renderTable(data) {
       var tbody = $("#dropTable tbody");
       var RARE_ENEMIES = new Set([
@@ -237,22 +224,33 @@
         var entRaw = (row.Entity || "").trim();
         var isRare = RARE_ENEMIES.has(entRaw.toUpperCase().replace(/_/g, " "));
     
-        // Clean Rate Logic
+        // 1. READ RAW RATE
         var rawRate = parseFloat(row["Current %"] || "0");
         var displayRate = "";
         var oddsVal = 0;
 
+        // 2. DISPLAY & CALCULATION LOGIC
         if (rawRate > 1) {
-            // Percentage (e.g. 87.5000) -> 87.5%
+            // Percentage (e.g. 87.5)
             displayRate = parseFloat(rawRate.toFixed(2)) + "%"; 
-            oddsVal = 100 / rawRate;
+            oddsVal = 100 / rawRate; 
         } else {
-            // Decimal (e.g. 0.0078) -> 0.0078
+            // Decimal (e.g. 0.00781)
             displayRate = parseFloat(rawRate.toFixed(9)); 
             oddsVal = (rawRate > 0) ? (1 / rawRate) : 0;
         }
 
-        var odds = (rawRate > 0) ? "1 in " + Math.round(oddsVal).toLocaleString() : "N/A";
+        // 3. ODDS FORMATTING (FIX FOR 67% -> 1 in 1.49)
+        var oddsDisplay = "";
+        if (oddsVal > 10) {
+             // For 1 in 100, 1 in 128, etc. Round it.
+             oddsDisplay = Math.round(oddsVal).toLocaleString();
+        } else {
+             // For high rates (e.g. 1 in 1.49), show precision.
+             oddsDisplay = parseFloat(oddsVal.toFixed(2)).toString();
+        }
+
+        var odds = (rawRate > 0) ? "1 in " + oddsDisplay : "N/A";
     
         var rawTier = row.Tier ? row.Tier.trim() : "";
         var tierBadge = rawTier ? '<span class="tier-tag tier-' + rawTier.toLowerCase() + '">' + esc(rawTier) + "</span>" : "";
@@ -277,21 +275,14 @@
         );
       });
     }
-
+    
     // --- EVENTS ---
     $(document).ready(init);
     $(document).on("change keyup", "input, select", applyFilters);
-
-    // Header Click -> Sort
     $('th[data-sort]').on('click', function() {
         var col = $(this).data('sort');
         var dir = 'asc';
-        
-        // If clicking the same column, toggle direction
-        if (currentSort.col === col && currentSort.dir === 'asc') {
-            dir = 'desc';
-        }
-        
+        if (currentSort.col === col && currentSort.dir === 'asc') dir = 'desc';
         currentSort = { col: col, dir: dir };
         sortData(col, dir, true);
     });
