@@ -1256,23 +1256,112 @@
                     }
                 } else {
                     if (this.playerClass === 'hunter') {
-                        // Hunters fire large sabers.  Increase the height
-                        // dramatically as levels increase to emphasise area
-                        // control.  Hunters remain 'normal' weapon type; at
-                        // level 10 the saber becomes a laser.
-                        bulletProps.w = 12;
-                        bulletProps.h = 50 + (lvl * 6);
-                        bulletProps.s = 6;
-                        bulletProps.life = 60;
-                        bulletProps.color = '#f97316';
-                        if (lvl >= 4) offsets = [-25, 25];
-                        if (lvl >= 7) offsets = [-35, 0, 35];
-                        if (lvl >= 10) {
-                            bulletProps.h = 120;
+                        /*
+                         * Hunters have multiple melee archetypes: saber (default), hammer,
+                         * spear and spin.  Each weapon type produces its own attack pattern
+                         * that evolves with level.  Instead of automatically turning into a
+                         * continuous laser at level 10, sabers graduate to a spin attack,
+                         * unleashing radial slashes.
+                         */
+                        // Determine the active hunter weapon; treat 'normal' as 'saber'
+                        const ht = this.player.weaponType || 'saber';
+                        // Short alias for the current level
+                        const l = lvl;
+                        if (ht === 'spin') {
+                            // Spin: emit an 8‑direction radial burst of slashes.  Bullets are
+                            // wide arcs that travel away from the player.  Use a moderate
+                            // speed so the player can reposition between spins.
+                            const count = 8;
+                            const size = 40; // size of each slash sprite
+                            const speed = 6;
+                            const colour = '#f97316';
+                            for (let i = 0; i < count; i++) {
+                                const angle = (i / count) * Math.PI * 2;
+                                this.bullets.push({
+                                    x: this.player.x + this.player.w/2 - size/2,
+                                    y: this.player.y + this.player.h/2 - size/2,
+                                    w: size,
+                                    h: size,
+                                    vx: Math.cos(angle) * speed,
+                                    vy: Math.sin(angle) * speed,
+                                    piercing: true,
+                                    homing: false,
+                                    life: 60,
+                                    color: colour
+                                });
+                            }
+                            return;
+                        } else if (ht === 'hammer') {
+                            // Hammer: heavy, sweeping arcs.  The arc width and number of
+                            // swings increase with level.  Offsets determine vertical
+                            // placement; speed is slower for weight.  At max level the
+                            // hammer unleashes a wider spread of arcs.
+                            bulletProps.color = '#f59e0b';
+                            // Base dimensions
+                            bulletProps.h = 30 + l * 2;
+                            bulletProps.w = 50 + l * 4;
+                            bulletProps.s = 4 + (l >= 7 ? 1 : 0);
+                            bulletProps.life = 60;
+                            bulletProps.piercing = false;
+                            offsets = [0];
+                            if (l >= 4) offsets = [-20, 20];
+                            if (l >= 7) offsets = [-30, 0, 30];
+                            if (l >= 10) offsets = [-40, -20, 0, 20, 40];
+                        } else if (ht === 'spear') {
+                            // Spear: long, piercing thrusts.  Increase height and speed with
+                            // level.  At higher levels, thrusts widen and multiple spears
+                            // stab simultaneously.
+                            bulletProps.color = '#84cc16';
+                            bulletProps.w = 16;
+                            bulletProps.h = 80 + l * 6;
+                            bulletProps.s = 7 + (l >= 7 ? 1 : 0);
+                            bulletProps.life = 60;
                             bulletProps.piercing = true;
-                            this.player.weaponType = 'laser';
+                            offsets = [0];
+                            if (l >= 4) offsets = [-20, 20];
+                            if (l >= 7) offsets = [-30, 0, 30];
+                            if (l >= 10) {
+                                bulletProps.h = 150;
+                                offsets = [-40, -20, 0, 20, 40];
+                            }
                         } else {
-                            this.player.weaponType = 'normal';
+                            // Saber (default): sweeping blades.  Grow taller and add more
+                            // slashes as you level.  At max level, convert to spin
+                            // automatically for a burst attack.
+                            bulletProps.color = '#f97316';
+                            bulletProps.w = 12;
+                            bulletProps.h = 40 + l * 6;
+                            bulletProps.s = 6;
+                            bulletProps.life = 60;
+                            bulletProps.piercing = false;
+                            offsets = [0];
+                            if (l >= 4) offsets = [-20, 20];
+                            if (l >= 7) offsets = [-30, -10, 10, 30];
+                            if (l >= 10) {
+                                // Promote to spin at max level.  Reset the level to 10 to
+                                // prevent repeated promotions.
+                                this.player.weaponType = 'spin';
+                                // Immediately spawn a spin attack and skip the normal slashes.
+                                const count = 8;
+                                const size = 40;
+                                const speed = 6;
+                                for (let i = 0; i < count; i++) {
+                                    const angle = (i / count) * Math.PI * 2;
+                                    this.bullets.push({
+                                        x: this.player.x + this.player.w/2 - size/2,
+                                        y: this.player.y + this.player.h/2 - size/2,
+                                        w: size,
+                                        h: size,
+                                        vx: Math.cos(angle) * speed,
+                                        vy: Math.sin(angle) * speed,
+                                        piercing: true,
+                                        homing: false,
+                                        life: 60,
+                                        color: '#f97316'
+                                    });
+                                }
+                                return;
+                            }
                         }
                     } else if (this.playerClass === 'ranger') {
                         /* Rangers have multiple gun types.  Determine
@@ -1460,11 +1549,12 @@
                 do {
                     type = pool[Math.floor(Math.random() * pool.length)];
                     attempts++;
-                    // If the chosen type is an elite, allow it only about 10% of
+                    // If the chosen type is an elite, allow it only about 20% of
                     // the time to maintain rarity.  On subsequent attempts we
                     // progressively relax the condition to avoid an infinite
-                    // loop in edge cases.
-                } while (enemyData[type] && enemyData[type].isElite && Math.random() > (0.1 + attempts * 0.05) && attempts < 5);
+                    // loop in edge cases.  Increasing the base chance (from 10%
+                    // to 20%) makes elite fights more frequent.
+                } while (enemyData[type] && enemyData[type].isElite && Math.random() > (0.2 + attempts * 0.05) && attempts < 5);
                 // Fall back to a default type if selection fails
                 if (!type || !enemyData[type]) type = 'rappy';
                 const def = enemyData[type];
