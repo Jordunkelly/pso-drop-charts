@@ -59,22 +59,25 @@
     </style>
 </head>
 <body>
-
-<nav class="main-nav">
-    <div class="nav-links">
-        <a href="index.html" class="nav-link active">Drop Charts</a>
-        <a href="mag.html" class="nav-link">Mag Tool</a>
-        <a href="booma.html" class="nav-link">?</a>
-    </div>
-    <div class="class-selector-wrapper">
-        <label style="font-size: 0.7em; font-weight: bold; color: var(--gold)">VIEW AS:</label>
-        <select id="globalClassSelector" onchange="applyFilters()">
-            <option value="HUNTER">HUNTER</option>
-            <option value="RANGER">RANGER</option>
-            <option value="FORCE">FORCE</option>
-        </select>
-    </div>
-</nav>
+<script>
+    fetch('nav.html')
+    .then(res => res.text())
+    .then(data => {
+        document.getElementById('nav-placeholder').innerHTML = data;
+        
+        // AUTOMATIC ACTIVE CLASS LOGIC
+        // This detects which page you are on and highlights the correct tab
+        const currentPage = window.location.pathname.split("/").pop() || "index.html";
+        const navLinks = document.querySelectorAll('.nav-link');
+        
+        navLinks.forEach(link => {
+            if (link.getAttribute('href') === currentPage) {
+                link.classList.add('active');
+            }
+        });
+    });
+</script>
+<div id="nav-placeholder"></div>
 
 <div class="content-section">
     <div class="controls">
@@ -217,6 +220,7 @@
 </script>
 </body>
 </html>
+
 
 
 
