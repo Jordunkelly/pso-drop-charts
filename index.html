@@ -177,32 +177,25 @@
         var entRaw = (row.Entity || "").trim();
         var isRare = RARE_ENEMIES.has(entRaw.toUpperCase().replace(/_/g, " "));
     
-        // 1. Get the Raw String directly from CSV to display exactly what you see in the sheet
-        var rawPctStr = row["Current %"] || "0";
-        var pct = parseFloat(rawPctStr);
-        
-        // 2. Logic for Display & Odds
-        // If > 1, it's a Percentage (e.g. 87.5). Add "%" and calc odds as 100/pct.
-        // If <= 1, it's a Raw Probability (e.g. 0.0078125). Show raw number and calc odds as 1/pct.
-        var pctText = "";
+        // 1. READ RAW: Grab the exact string from the CSV. No dividing.
+        var rawRate = row["Current %"] || "0"; 
+        var val = parseFloat(rawRate);
+
+        // 2. CALCULATE ODDS (1 in X)
+        // If val > 1, treat as Percentage (e.g. 88 -> 100/88)
+        // If val <= 1, treat as Decimal (e.g. 0.0078 -> 1/0.0078)
         var oddsVal = 0;
-
-        if (pct > 1) {
-            pctText = rawPctStr + "%"; 
-            oddsVal = 100 / pct;
-        } else {
-            pctText = rawPctStr; // Read it raw (no %)
-            oddsVal = (pct > 0) ? (1 / pct) : 0;
+        if (val > 1) {
+            oddsVal = 100 / val;
+        } else if (val > 0) {
+            oddsVal = 1 / val;
         }
-
-        var odds = (pct > 0) ? "1 in " + Math.round(oddsVal).toLocaleString() : "N/A";
+        var odds = (val > 0) ? "1 in " + Math.round(oddsVal).toLocaleString() : "N/A";
     
         var rawTier = row.Tier ? row.Tier.trim() : "";
         var tierBadge = rawTier ? '<span class="tier-tag tier-' + rawTier.toLowerCase() + '">' + esc(rawTier) + "</span>" : "";
-    
         var wikiSlug = encodeURIComponent(nameStr.replace(/\s+/g, "_"));
         var wikiUrl = "https://wiki.pioneer2.net/w/" + wikiSlug;
-    
         var section = (row.SectionID || "").trim();
         var bg = SECTION_ID_COLORS[section] || "#333";
     
@@ -216,7 +209,8 @@
               '<a href="' + wikiUrl + '" target="_blank" class="wiki-link">' + esc(nameStr) + "</a>" +
               tierBadge +
             "</td>" +
-            '<td data-label="Rate">' + pctText + ' <br><small style="opacity:0.6">' + esc(odds) + "</small></td>" +
+            // DISPLAY RAW RATE + CALCULATED ODDS
+            '<td data-label="Rate">' + esc(rawRate) + ' <br><small style="opacity:0.6">' + esc(odds) + "</small></td>" +
             '<td data-label="ID"><span class="tag" style="background:' + bg + '">' + esc(section) + "</span></td>" +
           "</tr>"
         );
@@ -228,6 +222,7 @@
   </script>
 </body>
 </html>
+
 
 
 
