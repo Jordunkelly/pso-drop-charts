@@ -98,4 +98,156 @@ body {
 
 .tier-tag.tier-s { background-color: #d122e3 !important; }
 .tier-tag.tier-a { background-color: #2ea043 !important; }
-.tier-tag.tier-b { backgr
+.tier-tag.tier-b { background-color: #1f6feb !important; }
+.tier-tag.tier-c { background-color: #6e7681 !important; }
+.tier-tag.tier-e { background-color: #a371f7 !important; }
+
+/* Controls */
+.controls {
+  background: var(--panel);
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+  position: sticky;
+  top: 60px;
+  z-index: 1500;
+}
+
+#nameSearch { grid-column: span 2; }
+
+input, select {
+  width: 100%;
+  padding: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: #fff;
+  border-radius: 6px;
+  font-size: 16px;
+}
+
+/* Table */
+.table-container {
+  overflow-x: auto;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  -webkit-overflow-scrolling: touch;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--panel);
+  min-width: 600px;
+}
+
+th {
+  background: #21262d;
+  color: var(--blue);
+  padding: 12px;
+  text-align: left;
+  font-size: 0.8em;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85em;
+  vertical-align: top;
+}
+
+/* Links and badges */
+.wiki-link {
+  color: #fff;
+  font-weight: 800;
+  text-decoration: none;
+  border-bottom: 1px dashed var(--blue);
+  display: inline-block;
+}
+
+.wiki-link:active { color: var(--blue); }
+
+.row-rare { background-color: rgba(168, 85, 247, 0.1) !important; }
+
+.rare-badge {
+  background: #a855f7;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.65em;
+  font-weight: 800;
+  margin-left: 6px;
+}
+
+.tag {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 800;
+  color: #fff;
+  font-size: 0.8em;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .main-nav { padding: 10px; }
+  .nav-links { gap: 8px; }
+  .nav-link { padding: 8px 10px; font-size: 0.85em; }
+  .nav-text { display: none; }
+
+  .controls {
+    grid-template-columns: 1fr;
+    position: relative;
+    top: 0;
+  }
+
+  #nameSearch { grid-column: span 1; }
+
+  /* Keep these hidden for tablet width table view */
+  .col-ep, .col-map { display: none; }
+}
+
+@media (max-width: 640px) {
+  /* Card table */
+  table { min-width: 0; }
+  #dropTable thead { display: none; }
+
+  #dropTable tr {
+    display: block;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--panel);
+  }
+
+  #dropTable td {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  #dropTable td:last-child { border-bottom: 0; }
+
+  #dropTable td::before {
+    content: attr(data-label);
+    font-weight: 800;
+    opacity: 0.75;
+    padding-right: 12px;
+    white-space: nowrap;
+  }
+
+  /* Re show Ep and Map in card view */
+  #dropTable td.col-ep,
+  #dropTable td.col-map { display: flex; }
+}
