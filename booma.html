@@ -238,6 +238,7 @@
                 <div>
                     SCORE: <span id="score">0</span>
                     &nbsp;|&nbsp; LVL: <span id="level">1</span>
+                    &nbsp;|&nbsp; LIVES: <span id="lives">0</span>
                     &nbsp;|&nbsp; <span id="dmg-mult" style="color:#facc15; font-weight:bold;">DMG: x1.00</span>
                 </div>
                 <div>
@@ -257,7 +258,7 @@
                         HUNTER<br><span style="font-size:0.7em">Wave Attack<br>5 Lives</span>
                     </button>
                     <button class="button btn-ranger" onclick="startGame('ranger')">
-                        RANGER<br><span style="font-size:0.7em">Bullet Hell<br>Fast Speed</span>
+                        RANGER<br><span style="font-size:0.7em">Bullet Hell<br>3 Lives</span>
                     </button>
                     <button class="button btn-force" onclick="startGame('force')">
                         FORCE<br><span style="font-size:0.7em">Homing Techs<br>1 Life</span>
@@ -287,6 +288,19 @@
                 const link = document.querySelector('a[href="booma.html"]');
                 if (link) link.classList.add('active');
             }).catch(e => console.log("Nav not found"));
+        // Preload map background image and cropping coordinates for each area.  This
+        // composite image contains four quadrants representing Forest, Caves,
+        // Mines and Ruins. Each quadrant is 768x512 pixels in the 1536x1024 image.
+        const areaBackgroundImg = new Image();
+        areaBackgroundImg.src = 'areas_background.png';
+        // Source coordinates for cropping each area from the composite image.
+        const areaCoords = {
+            forest: { sx: 0,   sy: 0   },
+            caves:  { sx: 768, sy: 0   },
+            mines:  { sx: 0,   sy: 512 },
+            ruins:  { sx: 768, sy: 512 }
+        };
+
         class Game {
             constructor(canvas, playerClass) {
                 this.canvas = canvas;
@@ -337,6 +351,15 @@
                 this.enemyBullets = [];
                 this.blastEnergy = 0;
                 this.bossSpawnedForLevel = false;
+                // Current area (used to change background). Initially start in forest.
+                this.area = 'forest';
+                // Colours representing each map area. These can be tuned to taste.
+                this.areaColors = {
+                    forest: '#052e16', // dark green
+                    caves: '#0e2433',  // deep blue
+                    mines: '#2e2e2e',  // dark grey
+                    ruins: '#40263e'   // purple
+                };
                 this.input = { up: false, down: false, left: false, right: false, shoot: false, blast: false };
                 this.lastTouchEnd = 0;
                 this.isTouchActive = false;
@@ -352,6 +375,10 @@
                     rare: () => this.playSfx(1200, 'square', 1.0, 0.3)
                 };
                 this.initInputs();
+                // Store a reference to the global background image. It will
+                // load asynchronously; when complete the render method will
+                // draw the appropriate quadrant based on the current area.
+                this.backgroundImg = areaBackgroundImg;
             }
             initInputs() {
                 window.addEventListener('keydown', (e) => {
@@ -466,6 +493,17 @@
                     this.level++;
                     this.spawnRate = Math.max(15, this.spawnRate - 5);
                     this.bossSpawnedForLevel = false;
+                }
+                // Determine the current map area based on the player's level.
+                // Levels 1–4: forest, 5–9: caves, 10–14: mines, 15+: ruins.
+                if (this.level < 5) {
+                    this.area = 'forest';
+                } else if (this.level < 10) {
+                    this.area = 'caves';
+                } else if (this.level < 15) {
+                    this.area = 'mines';
+                } else {
+                    this.area = 'ruins';
                 }
                 if (!this.bossSpawnedForLevel) {
                     if (this.level === 5) this.spawnBossSequence('Dragon', 'dragon', '#eab308');
@@ -647,6 +685,8 @@
                 document.getElementById('score').textContent = this.score;
                 let lvlDisplay = this.player.weaponLevel >= 10 ? "10 (MAX)" : this.player.weaponLevel;
                 document.getElementById('level').textContent = lvlDisplay;
+                // Update lives display
+                document.getElementById('lives').textContent = this.player.lives;
                 document.getElementById('dmg-mult').textContent = "DMG: x" + this.player.damageMultiplier.toFixed(2);
                 document.getElementById('blast-fill').style.width = Math.min(this.blastEnergy, 100) + '%';
                 let syncPct = (this.player.syncTimer / this.player.maxSync) * 100;
@@ -655,8 +695,19 @@
             render() {
                 const ctx = this.ctx;
                 ctx.clearRect(0, 0, this.width, this.height);
-                ctx.fillStyle = '#0a0e1a';
-                ctx.fillRect(0, 0, this.width, this.height);
+                // Draw background depending on loaded image. If the composite
+                // image is ready, crop the appropriate quadrant according to
+                // the current area. Otherwise fall back to a solid colour.
+                if (this.backgroundImg && this.backgroundImg.complete) {
+                    const coord = areaCoords[this.area] || { sx: 0, sy: 0 };
+                    const sw = 768;
+                    const sh = 512;
+                    ctx.drawImage(this.backgroundImg, coord.sx, coord.sy, sw, sh,
+                                  0, 0, this.width, this.height);
+                } else {
+                    ctx.fillStyle = this.areaColors[this.area] || '#0a0e1a';
+                    ctx.fillRect(0, 0, this.width, this.height);
+                }
                 ctx.save();
                 if (this.player.invincible > 0 && Math.floor(this.frame / 5) % 2 === 0) ctx.globalAlpha = 0.5;
                 if (this.playerClass === 'hunter') ctx.fillStyle = '#f97316';
@@ -690,6 +741,17 @@
                         ctx.fillRect(b.x, b.y, b.w, b.h);
                     }
                 });
+                // If the hunter's weapon type has become a continuous laser, draw
+                // the beam across the screen so it is visually apparent.
+                if (this.player.weaponType === 'laser') {
+                    const xStart = this.player.x + this.player.w;
+                    const beamY = this.player.y + this.player.h * 0.25;
+                    const beamH = this.player.h * 0.5;
+                    ctx.fillStyle = '#58a6ff';
+                    ctx.globalAlpha = 0.6;
+                    ctx.fillRect(xStart, beamY, this.width - xStart, beamH);
+                    ctx.globalAlpha = 1.0;
+                }
                 this.enemies.forEach(e => {
                     ctx.fillStyle = e.color;
                     ctx.fillRect(e.x, e.y, e.w, e.h);
@@ -700,9 +762,12 @@
                 });
                 this.powerUps.forEach(p => {
                     ctx.fillStyle = p.color;
-                    if (p.type === 'rare') {
+                    // Rare drops (types starting with 'rare') are drawn as glowing
+                    // rectangles using their own colour. Other powerups are drawn
+                    // as circles.
+                    if (p.type && p.type.startsWith('rare')) {
                         ctx.shadowBlur = 15;
-                        ctx.shadowColor = '#ef4444';
+                        ctx.shadowColor = p.color;
                         ctx.fillRect(p.x, p.y, p.w, p.h);
                         ctx.shadowBlur = 0;
                     } else {
@@ -797,21 +862,24 @@
                 let type = 'weapondata';
                 let color = '#f97316';
                 /*
-                 * Rares now come in three flavours – one for each archetype. The
-                 * random number thresholds have been adjusted so that 3% of
-                 * spawns are rare drops (split evenly between types). Healing
-                 * items still occur 20% of the time, blast energy 10%, and
-                 * weapon data covers the remainder.
+                 * Rares now come in three flavours – one for each archetype.  Rare
+                 * drops are intentionally scarce; only about 1 % of spawns result in
+                 * any rare (split evenly between hunter/ranger/force types).  Heal
+                 * pickups occur roughly 5 %, blast pickups about 6 %, and
+                 * weapon data fills the rest.
                  */
-                if (rand < 0.03) {
+                if (rand < 0.01) {
+                    // Rare drops are much less frequent (1% chance total). Choose one of three types.
                     const rareTypes = ['rare-hunter','rare-ranger','rare-force'];
                     type = rareTypes[Math.floor(Math.random() * rareTypes.length)];
                     const colorMap = { 'rare-hunter':'#ef4444', 'rare-ranger':'#22c55e', 'rare-force':'#a855f7' };
                     color = colorMap[type];
-                } else if (rand < 0.2) {
+                } else if (rand < 0.06) {
+                    // Heal drops occur 5% of the time
                     type = 'heal';
                     color = '#34d399';
-                } else if (rand < 0.3) {
+                } else if (rand < 0.12) {
+                    // Blast energy drops occur 6% of the time
                     type = 'blast';
                     color = '#f472b6';
                 }
@@ -915,7 +983,9 @@
                         color: '#f97316'
                     });
                     // Occasionally drop an extra random power up (heal, blast, or rare)
-                    if (Math.random() < 0.1) {
+                    // Lower the chance to 5% to prevent the screen from
+                    // overflowing with items.
+                    if (Math.random() < 0.05) {
                         this.spawnPowerUp();
                     }
                 }
