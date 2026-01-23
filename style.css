@@ -1,249 +1,248 @@
-:root {
-  --bg: #0d1117;
-  --panel: #161b22;
-  --border: #30363d;
-  --text: #c9d1d9;
-  --blue: #58a6ff;
-  --gold: #d4af37;
-  --row-hover: rgba(56, 139, 253, 0.1);
-}
+    /* =========================================
+       1. RESET & CORE THEME
+       ========================================= */
+    :root {
+      --bg: #0d1117;          /* Dark Grey Background */
+      --panel: #161b22;       /* Slightly Lighter Panel */
+      --border: #30363d;      /* Border Color */
+      --text: #c9d1d9;        /* Light Grey Text */
+      --blue: #58a6ff;        /* PSO Blue */
+      --highlight: rgba(88, 166, 255, 0.15);
+    }
 
-* { box-sizing: border-box; }
+    * { box-sizing: border-box; }
 
-body {
-  background-color: var(--bg);
-  color: var(--text);
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-  margin: 0;
-  padding: 0;
-  font-size: 14px; /* Base size */
-}
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      margin: 0;
+      padding: 0;
+      font-size: 14px;
+      line-height: 1.5;
+    }
 
-/* --- NAV --- */
-.main-nav {
-  background: #010409;
-  border-bottom: 1px solid var(--border);
-  padding: 10px 20px;
-  position: sticky;
-  top: 0;
-  z-index: 2000;
-  display: flex;
-  justify-content: center;
-}
+    /* --- NAV --- */
+    .main-nav {
+      background: #010409;
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      height: 50px;
+      position: sticky;
+      top: 0;
+      z-index: 2000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
 
-.nav-links { display: flex; gap: 15px; }
-.nav-link {
-  color: var(--text);
-  text-decoration: none;
-  font-weight: 700;
-  padding: 8px 12px;
-  border-radius: 6px;
-  transition: 0.2s;
-}
-.nav-link:hover { background: rgba(255,255,255,0.1); }
-.nav-link.active { background: var(--blue); color: #fff; }
+    .nav-links { display: flex; gap: 20px; }
+    .nav-link {
+      color: var(--text);
+      text-decoration: none;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+    .nav-link:hover { background: rgba(255,255,255,0.1); }
+    .nav-link.active { background: var(--blue); color: #fff; }
 
-/* --- CONTROLS --- */
-.content-section { padding: 20px; max-width: 1200px; margin: 0 auto; }
+    /* --- LAYOUT --- */
+    .content-section {
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
 
-.controls {
-  background: var(--panel);
-  padding: 15px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr; /* Desktop Layout */
-  gap: 10px;
-  margin-bottom: 20px;
-  position: sticky;
-  top: 60px; /* Below Nav */
-  z-index: 1500;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-}
+    /* --- CONTROLS --- */
+    .controls {
+      background: var(--panel);
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr; /* Desktop: Search is wider */
+      gap: 10px;
+      margin-bottom: 20px;
+      position: sticky;
+      top: 60px; /* Sits below sticky nav */
+      z-index: 1500;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
 
-input, select {
-  width: 100%;
-  padding: 10px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: #fff;
-  border-radius: 6px;
-  font-size: 14px;
-}
-input:focus, select:focus { outline: 2px solid var(--blue); border-color: transparent; }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: #fff;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    input:focus, select:focus {
+      outline: 2px solid var(--blue);
+      border-color: transparent;
+    }
 
-/* --- TABLE --- */
-.table-container {
-  overflow-x: auto;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-}
+    /* --- TABLE (DESKTOP) --- */
+    .table-container {
+      overflow-x: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+    }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--panel);
-  min-width: 700px; /* Force scroll on mid-size screens */
-}
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 800px; /* Forces scroll on small desktops if needed */
+    }
 
-th {
-  background: #21262d;
-  color: var(--blue);
-  padding: 12px;
-  text-align: left;
-  font-weight: 700;
-  white-space: nowrap;
-}
+    th {
+      background: #21262d;
+      color: var(--blue);
+      padding: 12px;
+      text-align: left;
+      font-weight: 700;
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    th:hover { background: #30363d; color: #fff; }
 
-td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: middle;
-}
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
 
-tr:hover { background-color: var(--row-hover); }
+    tr:hover { background-color: var(--highlight); }
 
-/* --- BADGES & TAGS --- */
-.wiki-link {
-  color: #fff;
-  font-weight: 700;
-  text-decoration: none;
-  border-bottom: 1px dashed var(--blue);
-}
-.wiki-link:hover { color: var(--blue); }
+    /* --- BADGES & TAGS --- */
+    .wiki-link {
+      color: #fff;
+      font-weight: 700;
+      text-decoration: none;
+      border-bottom: 1px dashed var(--border);
+    }
+    .wiki-link:hover { color: var(--blue); border-color: var(--blue); }
 
-.tag {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 4px;
-  color: #fff;
-  font-weight: 700;
-  font-size: 0.85em;
-  text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
-}
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.85em;
+      text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+    }
 
-.tier-tag {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.75em;
-  font-weight: 800;
-  margin-left: 8px;
-  text-transform: uppercase;
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.2);
-}
-.tier-tag.tier-s { background: #d122e3; }
-.tier-tag.tier-a { background: #2ea043; }
-.tier-tag.tier-b { background: #1f6feb; }
-.tier-tag.tier-c { background: #6e7681; }
-.tier-tag.tier-e { background: #a371f7; }
-.tier-tag.tier-u { 
-  background: linear-gradient(135deg, #ff8c00, #b8860b);
-  border-color: #ffd700;
-  color: #fff;
-  font-size: 0; /* Hide 'U' text */
-}
-.tier-tag.tier-u::after { content: "UBER"; font-size: 10px; letter-spacing: 1px; }
+    .tier-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.75em;
+      font-weight: 800;
+      margin-left: 8px;
+      text-transform: uppercase;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .tier-tag.tier-s { background: #d122e3; }
+    .tier-tag.tier-a { background: #2ea043; }
+    .tier-tag.tier-b { background: #1f6feb; }
+    .tier-tag.tier-c { background: #6e7681; }
+    .tier-tag.tier-e { background: #a371f7; }
+    .tier-tag.tier-u { 
+      background: linear-gradient(135deg, #ff8c00, #b8860b);
+      border-color: #ffd700;
+      font-size: 0; 
+      padding: 2px 6px;
+    }
+    .tier-tag.tier-u::after { content: "UBER"; font-size: 10px; letter-spacing: 1px; }
 
-.rare-badge {
-  background: #a855f7;
-  color: #fff;
-  font-size: 0.7em;
-  padding: 2px 5px;
-  border-radius: 4px;
-  margin-left: 5px;
-  font-weight: 800;
-}
-.row-rare { background: rgba(168, 85, 247, 0.05); }
+    .rare-badge {
+      background: #a855f7;
+      color: #fff;
+      font-size: 0.7em;
+      padding: 2px 5px;
+      border-radius: 4px;
+      margin-left: 5px;
+      font-weight: 800;
+      display: inline-block;
+    }
+    .row-rare { background: rgba(168, 85, 247, 0.05); }
 
+    #loading { text-align: center; padding: 40px; color: var(--text); font-style: italic; }
 
-/* =========================================
-   MOBILE OPTIMIZATION (Card View)
-   ========================================= */
-@media (max-width: 768px) {
-  .content-section { padding: 10px; }
-  
-  /* Stack controls vertically */
-  .controls {
-    grid-template-columns: 1fr; 
-    position: static; /* Un-stick controls so they scroll away */
-    gap: 8px;
-    padding: 10px;
-  }
-  
-  /* Hide Desktop Table Headers */
-  thead { display: none; }
+    /* =========================================
+       2. MOBILE OPTIMIZATION (THE FIX)
+       ========================================= */
+    @media (max-width: 768px) {
+      .content-section { padding: 10px; }
+      
+      /* Un-stick controls on mobile to save screen space */
+      .controls {
+        grid-template-columns: 1fr; /* Stack inputs vertically */
+        position: static; 
+        gap: 8px;
+        padding: 12px;
+      }
+      
+      /* HIDE TABLE HEADER */
+      thead { display: none; }
 
-  /* Table becomes Block layout */
-  table, tbody, tr, td { display: block; width: 100%; min-width: 0; }
-  
-  /* Row -> Card */
-  tr {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    margin-bottom: 12px;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-    padding: 4px 0;
-  }
-  
-  /* Cell -> Flex Row */
-  td {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-    padding: 8px 12px;
-    text-align: right;
-    min-height: 30px;
-  }
-  td:last-child { border-bottom: none; }
+      /* TURN TABLE INTO BLOCKS */
+      table, tbody, tr, td {
+        display: block;
+        width: 100%;
+      }
+      
+      /* CARDS */
+      tr {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        margin-bottom: 15px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      }
+      
+      /* ROWS INSIDE CARDS */
+      td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: right;
+        padding: 8px 12px;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        min-height: 35px;
+      }
+      td:last-child { border-bottom: none; }
 
-  /* Labels (pseudo-element from data-label) */
-  td::before {
-    content: attr(data-label);
-    color: var(--blue);
-    font-weight: 700;
-    text-transform: uppercase;
-    font-size: 0.7em;
-    text-align: left;
-    margin-right: 15px;
-    flex: 0 0 auto; /* Don't shrink label */
-  }
+      /* LABELS (e.g. "RATE", "MAP") */
+      td::before {
+        content: attr(data-label);
+        font-weight: 800;
+        color: var(--blue);
+        text-transform: uppercase;
+        font-size: 0.7em;
+        text-align: left;
+        flex: 0 0 auto; /* Do not shrink label */
+        margin-right: 15px;
+      }
 
-  /* --- MICRO SIZING FOR MOBILE --- */
-  
-  /* Wrap long text (Item Names / IDs) */
-  td > * {
-    max-width: 70%; /* Leave 30% for the label */
-    overflow-wrap: anywhere; 
-  }
-
-  /* Shrink Pills/Badges */
-  .tag { padding: 2px 6px; font-size: 0.75em; }
-  
-  /* Tier Tags: Micro Mode */
-  .tier-tag {
-    margin-left: 5px;
-    padding: 1px 6px;
-    font-size: 0.65em;
-    vertical-align: middle;
-  }
-  .tier-tag.tier-u { padding: 1px 6px; }
-  .tier-tag.tier-u::after { font-size: 9px; }
-
-  /* Rare Badge: Micro Mode */
-  .rare-badge {
-    font-size: 0.6em;
-    padding: 1px 4px;
-    vertical-align: text-top;
-  }
-
-  /* Make Link Text Responsive */
-  .wiki-link {
-    font-size: 0.95em;
-    line-height: 1.3;
-    display: inline-block;
-  }
-}
+      /* TEXT WRAPPING FIX */
+      td > * {
+        text-align: right;
+        overflow-wrap: anywhere; /* Forces long text like IDs to break */
+        max-width: 65%;          /* Prevents overlap with label */
+      }
+      
+      /* Mobile Font Adjustments */
+      .wiki-link { font-size: 1.1em; } 
+      .tag { padding: 2px 6px; font-size: 0.75em; }
+    }
