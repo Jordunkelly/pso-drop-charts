@@ -6,165 +6,99 @@
     <title>Mag Defender - Arcade Edition</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .game-container { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: calc(100vh - 60px); overflow: hidden; background: #010409; }
+        .game-container { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: calc(100vh - 80px); overflow: hidden; }
         #gameCanvas { background: #161b22; border: 4px solid #30363d; border-radius: 8px; width: 90vw; max-width: 800px; height: 400px; cursor: crosshair; }
-        .game-ui { text-align: center; margin-top: 10px; }
-        .score-board { font-family: 'Courier New', monospace; font-size: 2.5rem; color: #d4af37; text-shadow: 2px 2px #000; }
-        .controls-hint { font-size: 0.9rem; color: #58a6ff; margin-top: 5px; font-weight: bold; }
+        .score-board { font-family: 'Courier New', monospace; font-size: 2.5rem; color: #d4af37; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
-<script>
-    fetch('nav.html')
-    .then(res => res.text())
-    .then(data => {
-        document.getElementById('nav-placeholder').innerHTML = data;
-        
-        // AUTOMATIC ACTIVE CLASS LOGIC
-        // This detects which page you are on and highlights the correct tab
-        const currentPage = window.location.pathname.split("/").pop() || "booma.html";
-        const navLinks = document.querySelectorAll('.nav-link');
-        
-        navLinks.forEach(link => {
-            if (link.getAttribute('href') === currentPage) {
-                link.classList.add('active');
-            }
-        });
-    });
-</script>
 <div id="nav-placeholder"></div>
 
 <div class="game-container">
     <div class="score-board">SCORE: <span id="scoreVal">00000</span></div>
     <canvas id="gameCanvas" width="800" height="400"></canvas>
-    <div class="game-ui">
-        <p class="controls-hint">TAP/SPACE: SWIM UP &nbsp; | &nbsp; SHIFT/CLICK: FIRE PHOTON BULLET</p>
-        <button id="reloadBtn" onclick="resetGame()" style="margin-top: 5px; border-color: #d4af37; color: #d4af37; padding: 10px 20px; cursor:pointer; font-weight:bold; background:#161b22;">RELOAD MISSION</button>
+    <div style="text-align: center; margin-top: 15px;">
+        <p style="font-size: 0.9rem; color: #58a6ff; font-weight: bold;">HOLD SPACE: SWIM UP | SHIFT: FIRE PHOTON BULLET</p>
+        <button onclick="resetGame()" style="border-color: #d4af37; color: #d4af37; padding: 10px 20px; cursor:pointer; background:#161b22;">RELOAD MISSION</button>
     </div>
 </div>
 
 <script>
+    // --- LOAD NAVIGATION ---
+    fetch('nav.html').then(res => res.text()).then(data => {
+        document.getElementById('nav-placeholder').innerHTML = data;
+        document.getElementById('link-booma').classList.add('active');
+    });
+
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const scoreElement = document.getElementById('scoreVal');
 
+    // Theme object fixes the 'Unexpected token var' error
+    const theme = { blue: '#58a6ff', gold: '#d4af37', mag: '#ff7b72', rappy: '#facc15' };
     let score = 0, gameActive = true, frame = 0, audioCtx;
-    let bullets = [], obstacles = [];
+    let bullets = [], obstacles = [], isBoosting = false;
 
-    // Colors from your dashboard theme
-    const theme = { bg: '#0d1117', panel: '#161b22', border: '#30363d', blue: '#58a6ff', gold: '#d4af37' };
-
-    function playSfx(freq, type, dur, vol=0.1) {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
-        osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.start(); osc.stop(audioCtx.currentTime + dur);
-    }
-
-    const player = { x: 100, y: 200, w: 35, h: 35, dy: 0, g: 0.22, lift: -5.5, color: '#ff7b72' };
+    // "Swim" Physics tuning - prevents fast sinking
+    const player = { x: 100, y: 200, w: 35, h: 35, dy: 0, gravity: 0.15, lift: -0.45, maxSpeed: 5 };
 
     function createObstacle() {
-        if (frame % 60 === 0) {
+        if (frame % 70 === 0) {
             const types = ['RAPPY', 'BOOMA', 'GULGUS', 'GATE'];
             const type = types[Math.floor(Math.random() * types.length)];
-            let obs = { x: canvas.width, type: type, speed: 4 + (score/2000), hp: type === 'BOOMA' ? 3 : 1 };
-            
-            if (type === 'GATE') {
-                obs.y = Math.random() * (canvas.height - 150); obs.w = 40; obs.h = 120; obs.isGate = true;
-            } else {
-                obs.y = 50 + Math.random() * 300; obs.w = 40; obs.h = 40;
-                obs.v = type === 'GULGUS' ? (Math.random() - 0.5) * 4 : 0;
-            }
+            let obs = { x: canvas.width, type: type, speed: 3.5 + (score/2000) };
+            if (type === 'GATE') { obs.y = Math.random()*250; obs.w = 40; obs.h = 130; obs.isGate = true; }
+            else { obs.y = 50 + Math.random()*300; obs.w = 40; obs.h = 40; obs.v = type === 'GULGUS' ? (Math.random()-0.5)*3 : 0; }
             obstacles.push(obs);
         }
     }
 
-    function shoot() {
-        if (!gameActive) return;
-        bullets.push({ x: player.x + player.w, y: player.y + player.h/2, s: 8 });
-        playSfx(880, 'sine', 0.1, 0.05);
-    }
-
     function update() {
         if (!gameActive) {
-            ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(0,0, canvas.width, canvas.height);
-            ctx.fillStyle = "white"; ctx.font = "bold 30px Courier New";
-            ctx.textAlign = "center";
-            ctx.fillText("MISSION FAILED - RELOAD?", canvas.width/2, canvas.height/2);
+            ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(0,0, 800, 400);
+            ctx.fillStyle = "white"; ctx.font = "bold 30px Courier New"; ctx.textAlign = "center";
+            ctx.fillText("MISSION FAILED - RELOAD?", 400, 200);
             return;
         }
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Physics logic
-        player.dy += player.g;
+        ctx.clearRect(0, 0, 800, 400);
+        if (isBoosting) player.dy += player.lift;
+        player.dy += player.gravity;
+        if (player.dy > player.maxSpeed) player.dy = player.maxSpeed;
         player.y += player.dy;
+
+        // Player Boundary
         if (player.y < 0) { player.y = 0; player.dy = 0; }
-        if (player.y + player.h > canvas.height) { gameActive = false; playSfx(100, 'sawtooth', 0.5); }
+        if (player.y + player.h > 400) gameActive = false;
 
-        ctx.fillStyle = player.color;
-        ctx.beginPath(); ctx.roundRect(player.x, player.y, player.w, player.h, 10); ctx.fill();
-        ctx.fillStyle = '#000'; ctx.fillRect(player.x + 22, player.y + 12, 6, 3);
-
+        // Draw Player & Objects
+        ctx.fillStyle = theme.mag; ctx.fillRect(player.x, player.y, player.w, player.h);
+        
         bullets.forEach((b, bi) => {
-            b.x += b.s;
-            ctx.fillStyle = theme.blue; ctx.fillRect(b.x, b.y, 15, 4);
-            if (b.x > canvas.width) bullets.splice(bi, 1);
+            b.x += 8; ctx.fillStyle = theme.blue; ctx.fillRect(b.x, b.y, 15, 4);
+            if (b.x > 800) bullets.splice(bi, 1);
         });
 
-        // Varied object types
         obstacles.forEach((o, oi) => {
-            o.x -= o.speed;
-            o.y += (o.v || 0);
-            if (o.type === 'GULGUS' && (o.y < 0 || o.y > 360)) o.v *= -1;
-
-            ctx.fillStyle = o.isGate ? '#58a6ff33' : (o.type === 'BOOMA' ? '#2ea043' : '#facc15');
+            o.x -= o.speed; o.y += (o.v || 0);
+            ctx.fillStyle = o.isGate ? '#58a6ff33' : theme.rappy;
             ctx.fillRect(o.x, o.y, o.w, o.h);
-            if (o.isGate) { ctx.strokeStyle = theme.blue; ctx.strokeRect(o.x, o.y, o.w, o.h); }
-
-            bullets.forEach((b, bi) => {
-                if (!o.isGate && b.x < o.x + o.w && b.x + 15 > o.x && b.y < o.y + o.h && b.y + 4 > o.y) {
-                    o.hp--; bullets.splice(bi, 1);
-                    playSfx(440, 'square', 0.05);
-                    if (o.hp <= 0) { obstacles.splice(oi, 1); score += 50; playSfx(220, 'sine', 0.2); }
-                }
-            });
-
-            if (player.x < o.x + o.w && player.x + player.w > o.x && player.y < o.y + o.h && player.y + player.h > o.y) {
-                gameActive = false; playSfx(150, 'sawtooth', 0.6);
-            }
-            if (o.x + o.w < 0) { obstacles.splice(oi, 1); score += 10; }
+            
+            // Player Collision
+            if (player.x < o.x + o.w && player.x + player.w > o.x && player.y < o.y + o.h && player.y + player.h > o.y) gameActive = false;
         });
 
         scoreElement.textContent = score.toString().padStart(5, '0');
-        frame++; 
-        createObstacle();
-        requestAnimationFrame(update);
+        frame++; createObstacle(); requestAnimationFrame(update);
     }
 
-    // Input logic
-    window.addEventListener('keydown', (e) => {
-        if (e.code === 'Space') { player.dy = player.lift; playSfx(600, 'sine', 0.1, 0.03); }
-        if (e.code === 'ShiftLeft' || e.code === 'KeyF') shoot();
-    });
-    canvas.addEventListener('mousedown', (e) => { 
-        if (e.button === 0) { player.dy = player.lift; playSfx(600, 'sine', 0.1, 0.03); }
-        else { shoot(); }
-    });
-    canvas.oncontextmenu = (e) => { e.preventDefault(); shoot(); };
-
-    // Function specifically defined to fix "resetGame is not defined" error
-    window.resetGame = function() {
-        score = 0; obstacles = []; bullets = []; gameActive = true; 
-        player.y = 200; player.dy = 0; frame = 0; 
-        update(); 
-    }
-
+    // Input Handling
+    window.addEventListener('keydown', (e) => { if (e.code === 'Space') isBoosting = true; if (e.code === 'ShiftLeft') bullets.push({x: player.x+35, y: player.y+17}); });
+    window.addEventListener('keyup', (e) => { if (e.code === 'Space') isBoosting = false; });
+    
+    // Explicitly define resetGame to fix ReferenceError
+    window.resetGame = function() { location.reload(); };
     update();
 </script>
 </body>
