@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mag Runner - Easter Egg</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: calc(100vh - 60px);
+            overflow: hidden;
+        }
+
+        #gameCanvas {
+            background: var(--panel);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 95%;
+            cursor: pointer;
+        }
+
+        .game-ui {
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .score-board {
+            font-family: 'Courier New', monospace;
+            font-size: 1.5rem;
+            color: var(--gold);
+            margin-bottom: 10px;
+        }
+
+        .instructions {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            color: var(--text);
+        }
+    </style>
+</head>
+<body>
+
+<nav class="main-nav">
+    <div class="nav-links">
+        <a href="index.html" class="nav-link">Drop Charts</a>
+        <a href="mag.html" class="nav-link">Mag Tool</a>
+        <a href="egg.html" class="nav-link active">?</a>
+    </div>
+</nav>
+
+<div class="game-container">
+    <div class="score-board">SCORE: <span id="score">00000</span></div>
+    <canvas id="gameCanvas" width="600" height="200"></canvas>
+    <div class="game-ui">
+        <p class="instructions">PRESS SPACE OR TAP TO JUMP</p>
+        <button onclick="resetGame()" style="margin-top: 10px; border-color: var(--blue); color: var(--blue);">RESTART MISSION</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreElement = document.getElementById('score');
+
+    let score = 0;
+    let gameActive = true;
+    let frame = 0;
+
+    // Colors from your theme
+    const colors = {
+        mag: '#ff7b72',
+        rappy: '#facc15',
+        ground: '#30363d'
+    };
+
+    const player = {
+        x: 50,
+        y: 150,
+        width: 30,
+        height: 30,
+        dy: 0,
+        jumpForce: 12,
+        gravity: 0.6,
+        grounded: false
+    };
+
+    const obstacles = [];
+
+    function drawPlayer() {
+        ctx.fillStyle = colors.mag;
+        ctx.beginPath();
+        ctx.roundRect(player.x, player.y, player.width, player.height, 8);
+        ctx.fill();
+        
+        // Eyes
+        ctx.fillStyle = '#000';
+        ctx.fillRect(player.x + 18, player.y + 10, 5, 2);
+    }
+
+    function createObstacle() {
+        if (frame % 100 === 0) {
+            obstacles.push({
+                x: canvas.width,
+                y: 160,
+                width: 20,
+                height: 20,
+                speed: 5 + (score / 500) // Speed increases over time
+            });
+        }
+    }
+
+    function drawObstacles() {
+        ctx.fillStyle = colors.rappy;
+        obstacles.forEach((obs, index) => {
+            obs.x -= obs.speed;
+            
+            // Draw a little Rappy triangle
+            ctx.beginPath();
+            ctx.moveTo(obs.x, obs.y + obs.height);
+            ctx.lineTo(obs.x + obs.width / 2, obs.y);
+            ctx.lineTo(obs.x + obs.width, obs.y + obs.height);
+            ctx.fill();
+
+            // Collision Check
+            if (player.x < obs.x + obs.width &&
+                player.x + player.width > obs.x &&
+                player.y < obs.y + obs.height &&
+                player.y + player.height > obs.y) {
+                gameActive = false;
+            }
+
+            if (obs.x + obs.width < 0) {
+                obstacles.splice(index, 1);
+                score += 10;
+            }
+        });
+    }
+
+    function update() {
+        if (!gameActive) {
+            ctx.fillStyle = "rgba(0,0,0,0.5)";
+            ctx.fillRect(0,0, canvas.width, canvas.height);
+            ctx.fillStyle = "white";
+            ctx.font = "20px Arial";
+            ctx.fillText("GAME OVER - SHIP DISCONNECTED", 150, 100);
+            return;
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw Ground
+        ctx.strokeStyle = colors.ground;
+        ctx.beginPath();
+        ctx.moveTo(0, 180);
+        ctx.lineTo(canvas.width, 180);
+        ctx.stroke();
+
+        // Player Jump Physics
+        player.dy += player.gravity;
+        player.y += player.dy;
+
+        if (player.y + player.height > 180) {
+            player.y = 180 - player.height;
+            player.dy = 0;
+            player.grounded = true;
+        }
+
+        drawPlayer();
+        createObstacle();
+        drawObstacles();
+
+        scoreElement.textContent = score.toString().padStart(5, '0');
+        frame++;
+        requestAnimationFrame(update);
+    }
+
+    function jump() {
+        if (player.grounded && gameActive) {
+            player.dy = -player.jumpForce;
+            player.grounded = false;
+        }
+        if (!gameActive) resetGame();
+    }
+
+    function resetGame() {
+        score = 0;
+        obstacles.length = 0;
+        gameActive = true;
+        player.y = 150;
+        frame = 0;
+        update();
+    }
+
+    window.addEventListener('keydown', (e) => { if (e.code === 'Space') jump(); });
+    canvas.addEventListener('touchstart', jump);
+    canvas.addEventListener('mousedown', jump);
+
+    update();
+</script>
+</body>
+</html>
