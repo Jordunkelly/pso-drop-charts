@@ -1,0 +1,43 @@
+/* --- UNIVERSAL THEME & RESET --- */
+:root { 
+    --bg: #0d1117; --panel: #161b22; --border: #30363d; --text: #c9d1d9; 
+    --blue: #58a6ff; --gold: #d4af37; --uber: #ff79c6; --god: #ffb86c;
+}
+
+body { 
+    background-color: var(--bg); color: var(--text); 
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+    margin: 0; padding: 0; overflow-x: hidden; 
+}
+
+/* --- SHARED NAVIGATION --- */
+.main-nav { 
+    background: #010409; 
+    border-bottom: 1px solid var(--border); 
+    display: flex; padding: 10px 20px; 
+    position: sticky; top: 0; z-index: 2000; 
+    align-items: center; 
+}
+
+.nav-links { display: flex; gap: 15px; align-items: center; }
+
+.nav-link { 
+    color: var(--text); text-decoration: none; font-weight: bold; 
+    padding: 8px 12px; border-radius: 6px; transition: 0.2s; 
+    font-size: 0.9em; 
+}
+
+.nav-link:hover { background: rgba(255,255,255,0.1); }
+
+/* Apply this class to the link for the current page */
+.nav-link.active { background: var(--blue); color: white; }
+
+/* --- MOBILE RESPONSIVE OVERRIDES --- */
+@media (max-width: 768px) {
+    .main-nav { padding: 5px 10px; }
+    .nav-links { gap: 5px; }
+    .nav-link { padding: 6px 8px; font-size: 0.8em; }
+    
+    /* Ensure inputs don't zoom on focus for mobile */
+    input, select { font-size: 16px !important; }
+}
