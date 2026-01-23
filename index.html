@@ -7,30 +7,279 @@
 
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-  <link rel="stylesheet" href="style.css" />
   
   <style>
-    /* Sorting Arrow Styles (Keep minimal inline) */
-    th { cursor: pointer; user-select: none; }
-    th::after { content: ' \21F3'; opacity: 0.3; margin-left: 5px; }
+    /* =========================================
+       CORE STYLES
+       ========================================= */
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --blue: #58a6ff;
+      --gold: #d4af37;
+      --row-hover: rgba(56, 139, 253, 0.1);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      margin: 0;
+      padding: 0;
+      font-size: 14px;
+    }
+
+    /* --- NAV --- */
+    .main-nav {
+      background: #010409;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      position: sticky;
+      top: 0;
+      z-index: 2000;
+      display: flex;
+      justify-content: center;
+      min-height: 50px;
+    }
+
+    .nav-links { display: flex; gap: 15px; align-items: center; }
+    .nav-link {
+      color: var(--text);
+      text-decoration: none;
+      font-weight: 700;
+      padding: 8px 12px;
+      border-radius: 6px;
+      transition: 0.2s;
+    }
+    .nav-link:hover { background: rgba(255,255,255,0.1); }
+    .nav-link.active { background: var(--blue); color: #fff; }
+
+    /* --- LAYOUT --- */
+    .content-section { padding: 20px; max-width: 1200px; margin: 0 auto; }
+
+    /* --- CONTROLS --- */
+    .controls {
+      background: var(--panel);
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr; /* Desktop Layout */
+      gap: 10px;
+      margin-bottom: 20px;
+      position: sticky;
+      top: 60px; /* Below Nav */
+      z-index: 1500;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: #fff;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    input:focus, select:focus { outline: 2px solid var(--blue); border-color: transparent; }
+
+    /* --- TABLE DESKTOP --- */
+    .table-container {
+      overflow-x: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      min-height: 200px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      min-width: 700px;
+    }
+
+    th {
+      background: #21262d;
+      color: var(--blue);
+      padding: 12px;
+      text-align: left;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    
+    /* Sort Icons */
+    th::after { content: ' \21F3'; opacity: 0.3; margin-left: 5px; font-size: 0.8em; }
     th.asc::after { content: ' \2193'; opacity: 1; color: var(--blue); }
     th.desc::after { content: ' \2191'; opacity: 1; color: var(--blue); }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    tr:hover { background-color: var(--row-hover); }
+
+    /* --- BADGES --- */
+    .wiki-link {
+      color: #fff;
+      font-weight: 700;
+      text-decoration: none;
+      border-bottom: 1px dashed var(--blue);
+      transition: color 0.2s;
+    }
+    .wiki-link:hover { color: var(--blue); }
+
+    .tag {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.85em;
+      text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
+    }
+
+    .tier-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.75em;
+      font-weight: 800;
+      margin-left: 8px;
+      text-transform: uppercase;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .tier-tag.tier-s { background: #d122e3; }
+    .tier-tag.tier-a { background: #2ea043; }
+    .tier-tag.tier-b { background: #1f6feb; }
+    .tier-tag.tier-c { background: #6e7681; }
+    .tier-tag.tier-e { background: #a371f7; }
+    .tier-tag.tier-u { 
+      background: linear-gradient(135deg, #ff8c00, #b8860b);
+      border-color: #ffd700;
+      color: #fff;
+      font-size: 0; 
+      padding: 2px 6px;
+    }
+    .tier-tag.tier-u::after { content: "UBER"; font-size: 10px; letter-spacing: 1px; }
+
+    .rare-badge {
+      background: #a855f7;
+      color: #fff;
+      font-size: 0.7em;
+      padding: 2px 5px;
+      border-radius: 4px;
+      margin-left: 5px;
+      font-weight: 800;
+      display: inline-block;
+    }
+    .row-rare { background: rgba(168, 85, 247, 0.05); }
+
+    /* Loading State */
+    #loading { text-align: center; padding: 20px; color: var(--blue); font-weight: bold; }
+
+    /* =========================================
+       MOBILE OPTIMIZATION (Card View)
+       ========================================= */
+    @media (max-width: 768px) {
+      .content-section { padding: 10px; }
+      
+      /* Unstick controls so they scroll away on small screens */
+      .controls {
+        grid-template-columns: 1fr; 
+        position: static; 
+        gap: 8px;
+        padding: 10px;
+      }
+      
+      /* Hide Standard Table Headers */
+      thead { display: none; }
+
+      /* Force Table to Block Layout */
+      table, tbody, tr, td { display: block; width: 100%; min-width: 0; }
+      
+      /* Rows become Cards */
+      tr {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        margin-bottom: 12px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        padding: 4px 0;
+      }
+      
+      /* Cells become Flex Rows */
+      td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        padding: 8px 12px;
+        text-align: right;
+        min-height: 35px;
+      }
+      td:last-child { border-bottom: none; }
+
+      /* Add Labels via CSS */
+      td::before {
+        content: attr(data-label);
+        color: var(--blue);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.7em;
+        text-align: left;
+        margin-right: 15px;
+        flex: 0 0 auto; 
+      }
+
+      /* --- MICRO SIZING --- */
+      /* Text Wrapping */
+      td > * { max-width: 65%; overflow-wrap: anywhere; }
+
+      /* Shrink Elements */
+      .tag { padding: 2px 6px; font-size: 0.75em; }
+      .tier-tag { margin-left: 5px; padding: 1px 6px; font-size: 0.65em; }
+      .tier-tag.tier-u::after { font-size: 9px; }
+      .rare-badge { font-size: 0.6em; padding: 1px 4px; }
+      .wiki-link { font-size: 0.95em; line-height: 1.3; }
+    }
   </style>
 </head>
 
 <body>
-  <div id="nav-placeholder"></div>
+
+  <div id="nav-placeholder">
+    <nav class="main-nav">
+      <div class="nav-links">
+        <a href="index.html" class="nav-link active">Drop Charts</a>
+        <a href="mag.html" class="nav-link">Mag Tool</a>
+      </div>
+    </nav>
+  </div>
 
   <div class="content-section">
     <div class="controls">
-      <input type="text" id="nameSearch" placeholder="Search Item..." autocomplete="off" />
-      <select id="tierFilter"><option value="">Tier</option></select>
-      <select id="diffFilter"><option value="">Diff</option></select>
-      <select id="idFilter"><option value="">Sec ID</option></select>
+      <input type="text" id="nameSearch" placeholder="Search Item Name..." autocomplete="off" />
+      <select id="tierFilter"><option value="">All Tiers</option></select>
+      <select id="diffFilter"><option value="">All Difficulties</option></select>
+      <select id="idFilter"><option value="">All Section IDs</option></select>
     </div>
 
     <div class="table-container">
-      <table id="dropTable">
+      <div id="loading">Loading Data...</div>
+      <table id="dropTable" style="display:none;">
         <thead>
           <tr>
             <th data-sort="Episode">Ep</th>
@@ -49,139 +298,237 @@
   </div>
 
   <script>
-    // --- NAV LOADER ---
-    (function(){
-      $("#nav-placeholder").load("nav.html", function(){
-        var p = window.location.pathname.split("/").pop() || "index.html";
-        $(".nav-link[href='" + p + "']").addClass("active");
-      });
-    })();
-
-    // --- CONFIG ---
+    // --- SETTINGS ---
+    // Section ID Hex Colors
     var SECTION_ID_COLORS = {
       Viridia: "#22C55E", Greenill: "#16A34A", Skyly: "#38BDF8", Bluefull: "#2563EB",
       Purplenum: "#A855F7", Pinkal: "#EC4899", Redria: "#EF4444", Oran: "#F97316",
       Yellowboze: "#FACC15", Whitill: "#E5E7EB"
     };
+
+    // Data Sources
     var csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS-nCzkALWoSyKOLXNORN_zgy2ONKn4Hcwi-jQNHCgmEW8DJ7yX3AyO9Uod44ecEUwklr76Dw4-p1o0/pub?gid=0&single=true&output=csv";
     var tierUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS-nCzkALWoSyKOLXNORN_zgy2ONKn4Hcwi-jQNHCgmEW8DJ7yX3AyO9Uod44ecEUwklr76Dw4-p1o0/pub?gid=292779988&single=true&output=csv";
 
-    var masterData = [], globalTierMap = new Map();
+    // State
+    var masterData = [];
+    var globalTierMap = new Map();
     var currentSort = { col: null, dir: 'asc' };
 
-    // --- INIT ---
-    Papa.parse(tierUrl, {
-      download: true, header: true,
-      complete: function(res) {
-        (res.data||[]).forEach(r => {
-           if(r["ITEM NAME"]) globalTierMap.set(r["ITEM NAME"].trim().toUpperCase(), r["TIER RANK"]);
-        });
-        fetchData();
-      }
+    // --- INITIALIZATION ---
+    $(document).ready(function() {
+      // Try to load external nav, but we have a fallback in HTML just in case
+      $("#nav-placeholder").load("nav.html", function(response, status) {
+        if (status === "success") {
+           var p = window.location.pathname.split("/").pop() || "index.html";
+           $(".nav-link[href='" + p + "']").addClass("active");
+        }
+      });
+
+      // Start Data Load
+      loadTiersThenDrops();
     });
 
-    function fetchData() {
+    // --- DATA LOADING ---
+    function loadTiersThenDrops() {
+      Papa.parse(tierUrl, {
+        download: true,
+        header: true,
+        complete: function(results) {
+          if (results.data) {
+            results.data.forEach(function(row) {
+              if (row["ITEM NAME"]) {
+                var key = row["ITEM NAME"].trim().toUpperCase();
+                globalTierMap.set(key, row["TIER RANK"]);
+              }
+            });
+          }
+          fetchDropData();
+        },
+        error: function(err) { console.error("Tier Load Error:", err); fetchDropData(); }
+      });
+    }
+
+    function fetchDropData() {
       Papa.parse(csvUrl, {
-        download: true, header: true,
-        complete: function(res) {
-          var tiers=new Set(), diffs=new Set(), ids=new Set();
-          
-          masterData = (res.data||[]).filter(r => (r.Name||"").trim()).map(r => {
-            var n = (r.Name||"").toUpperCase().trim();
-            var t = globalTierMap.get(n) || "";
-            if(t) tiers.add(t);
-            if(r.Difficulty) diffs.add(r.Difficulty.trim());
-            if(r.SectionID) ids.add(r.SectionID.trim());
-            return Object.assign({}, r, { _name: n, _tier: t });
-          });
-
-          // Populate Selects
-          popSel("#tierFilter", Array.from(tiers).sort(), "Tier");
-          popSel("#diffFilter", ["Normal","Hard","Very Hard","Ultimate"], "Diff", true);
-          popSel("#idFilter", Array.from(ids).sort(), "ID");
-
-          applyFilters();
-        }
+        download: true,
+        header: true,
+        complete: function(results) {
+          processData(results.data || []);
+        },
+        error: function(err) { $("#loading").text("Error loading data."); }
       });
     }
 
-    function popSel(el, arr, label, fixedOrder) {
-      $(el).empty().append(`<option value="">All ${label}s</option>`);
-      arr.forEach(v => {
-        if(v && (!fixedOrder || masterData.some(r => r.Difficulty === v))) {
-           var txt = (v === "U") ? "UBER" : v;
-           $(el).append(`<option value="${v}">${txt}</option>`);
-        }
+    function processData(rawData) {
+      var tiers = new Set();
+      var diffs = new Set();
+      var ids = new Set();
+
+      masterData = rawData.filter(function(r) {
+        return r.Name && r.Name.trim() !== "";
+      }).map(function(r) {
+        var nameUpper = r.Name.trim().toUpperCase();
+        var tier = globalTierMap.get(nameUpper) || "";
+        
+        if (tier) tiers.add(tier);
+        if (r.Difficulty) diffs.add(r.Difficulty.trim());
+        if (r.SectionID) ids.add(r.SectionID.trim());
+
+        // Pre-calculate search fields
+        return Object.assign({}, r, {
+          _nameUpper: nameUpper,
+          _tier: tier,
+          _diff: r.Difficulty ? r.Difficulty.trim() : "",
+          _id: r.SectionID ? r.SectionID.trim() : ""
+        });
       });
+
+      // Populate Dropdowns
+      populateSelect("#tierFilter", Array.from(tiers).sort(), "Tier");
+      populateSelect("#diffFilter", ["Normal", "Hard", "Very Hard", "Ultimate"], "Diff", true);
+      populateSelect("#idFilter", Array.from(ids).sort(), "ID");
+
+      // Show Table
+      $("#loading").hide();
+      $("#dropTable").show();
+      applyFilters();
     }
 
-    // --- FILTER & RENDER ---
-    function applyFilters() {
-      var sVal = $("#nameSearch").val().toUpperCase().trim();
-      var tVal = $("#tierFilter").val();
-      var dVal = $("#diffFilter").val();
-      var iVal = $("#idFilter").val();
-
-      var filtered = masterData.filter(r => {
-         return (!sVal || r._name.includes(sVal)) &&
-                (!tVal || r._tier === tVal) &&
-                (!dVal || r.Difficulty === dVal) &&
-                (!iVal || r.SectionID === iVal);
-      });
+    // --- UI HELPERS ---
+    function populateSelect(selector, items, label, useFixedOrder) {
+      var $el = $(selector);
+      $el.empty().append('<option value="">All ' + label + 's</option>');
       
-      if(currentSort.col) doSort(filtered);
-      render(filtered);
-    }
+      items.forEach(function(val) {
+        // If strict order is requested, only add if it actually exists in data
+        if (!val) return;
+        if (useFixedOrder && !masterData.some(function(r){ return r._diff === val; })) return;
 
-    function doSort(data) {
-       var c = currentSort.col, d = currentSort.dir === 'asc' ? 1 : -1;
-       data.sort((a,b) => {
-         var va = a[c]||"", vb = b[c]||"";
-         if(c === "Current %") return (parseFloat(va)||0) - (parseFloat(vb)||0) * d;
-         return va.toString().localeCompare(vb) * d;
-       });
-    }
-
-    function render(data) {
-      var tbody = $("#dropTable tbody").empty();
-      var RARE = ["HILDEBLUE","NAR LILY","POUILLY SLIME","AL RAPPY","PAL RAPPY","LOVE RAPPY","MIL LILY"];
-
-      data.forEach(r => {
-         var rate = parseFloat(r["Current %"]||0);
-         var dispRate = (rate > 1) ? rate.toFixed(1)+"%" : rate.toFixed(6);
-         var odds = (rate > 0) ? (rate > 1 ? 100/rate : 1/rate) : 0;
-         var dispOdds = (odds > 10) ? Math.round(odds).toLocaleString() : odds.toFixed(2);
-         var isRare = RARE.some(x => (r.Entity||"").toUpperCase().includes(x));
-         
-         var tierHtml = r._tier ? `<span class="tier-tag tier-${r._tier.toLowerCase()}">${r._tier}</span>` : "";
-         var rareHtml = isRare ? `<span class="rare-badge">R</span>` : "";
-         var wiki = `https://wiki.pioneer2.net/w/${encodeURIComponent(r.Name.trim().replace(/\s+/g,'_'))}`;
-         var idColor = SECTION_ID_COLORS[r.SectionID] || "#555";
-
-         var row = `
-         <tr class="${isRare ? 'row-rare' : ''}">
-           <td data-label="Ep">${r.Episode||""}</td>
-           <td data-label="Diff">${r.Difficulty||""}</td>
-           <td data-label="Map">${r.Map||""}</td>
-           <td data-label="Entity">${r.Entity}${rareHtml}</td>
-           <td data-label="Item"><a href="${wiki}" target="_blank" class="wiki-link">${r.Name}</a>${tierHtml}</td>
-           <td data-label="Rate">${dispRate} <br><small style="opacity:0.6">1/${dispOdds}</small></td>
-           <td data-label="ID"><span class="tag" style="background:${idColor}">${r.SectionID||""}</span></td>
-         </tr>`;
-         tbody.append(row);
+        var display = (val === "U") ? "UBER" : val;
+        $el.append('<option value="' + val + '">' + display + '</option>');
       });
     }
 
-    // --- BINDINGS ---
-    $("input, select").on("change keyup", applyFilters);
-    $("th").click(function(){
-       var col = $(this).data("sort");
-       if(currentSort.col === col) currentSort.dir = currentSort.dir==='asc'?'desc':'asc';
-       else currentSort = {col:col, dir:'asc'};
-       $("th").removeClass("asc desc");
-       $(this).addClass(currentSort.dir);
-       applyFilters();
+    // --- FILTERING ---
+    function applyFilters() {
+      var searchVal = $("#nameSearch").val().toUpperCase().trim();
+      var tierVal = $("#tierFilter").val();
+      var diffVal = $("#diffFilter").val();
+      var idVal = $("#idFilter").val();
+
+      var filtered = masterData.filter(function(r) {
+        var matchName = !searchVal || r._nameUpper.includes(searchVal);
+        var matchTier = !tierVal || r._tier === tierVal;
+        var matchDiff = !diffVal || r._diff === diffVal;
+        var matchId   = !idVal || r._id === idVal;
+        return matchName && matchTier && matchDiff && matchId;
+      });
+
+      if (currentSort.col) {
+        sortDataArray(filtered);
+      }
+      renderTable(filtered);
+    }
+
+    // --- SORTING ---
+    function sortDataArray(data) {
+      var col = currentSort.col;
+      var dir = currentSort.dir === 'asc' ? 1 : -1;
+
+      data.sort(function(a, b) {
+        var valA = a[col] || "";
+        var valB = b[col] || "";
+
+        if (col === "Current %") {
+          return ((parseFloat(valA) || 0) - (parseFloat(valB) || 0)) * dir;
+        }
+        return valA.toString().localeCompare(valB.toString()) * dir;
+      });
+    }
+
+    // --- RENDERING ---
+    function renderTable(data) {
+      var $tbody = $("#dropTable tbody");
+      $tbody.empty();
+
+      var RARE_MOBS = ["HILDEBLUE", "NAR LILY", "POUILLY SLIME", "AL RAPPY", "PAL RAPPY", "LOVE RAPPY", "MIL LILY", "PAZUZU", "DORPHON ECLAIR", "KONDRIEU"];
+
+      // Render top 200 rows to prevent freezing if filter is empty
+      var limit = 200; 
+      var displayData = data.slice(0, limit);
+
+      displayData.forEach(function(r) {
+        // Rate Math
+        var rate = parseFloat(r["Current %"] || 0);
+        var displayRate = (rate > 1) ? rate.toFixed(1) + "%" : rate.toFixed(6);
+        
+        var odds = (rate > 0) ? (rate > 1 ? 100/rate : 1/rate) : 0;
+        var displayOdds = (odds > 10) ? Math.round(odds).toLocaleString() : odds.toFixed(2);
+        
+        // Badges
+        var entityUpper = (r.Entity || "").toUpperCase();
+        var isRare = RARE_MOBS.some(function(x) { return entityUpper.includes(x); });
+        
+        var tierHtml = r._tier ? '<span class="tier-tag tier-' + r._tier.toLowerCase() + '">' + r._tier + '</span>' : '';
+        var rareHtml = isRare ? '<span class="rare-badge">R</span>' : '';
+        
+        var idColor = SECTION_ID_COLORS[r._id] || "#555";
+        
+        // Wiki Link
+        var cleanName = (r.Name || "").trim().replace(/\s+/g, '_');
+        var wikiUrl = "https://wiki.pioneer2.net/w/" + encodeURIComponent(cleanName);
+
+        var rowHtml = `
+          <tr class="${isRare ? 'row-rare' : ''}">
+            <td data-label="Ep">${r.Episode || ""}</td>
+            <td data-label="Diff">${r.Difficulty || ""}</td>
+            <td data-label="Map">${r.Map || ""}</td>
+            <td data-label="Entity">${r.Entity || ""}${rareHtml}</td>
+            <td data-label="Item">
+              <a href="${wikiUrl}" target="_blank" class="wiki-link">${r.Name || ""}</a>
+              ${tierHtml}
+            </td>
+            <td data-label="Rate">
+              ${displayRate} <br>
+              <small style="opacity:0.6">1/${displayOdds}</small>
+            </td>
+            <td data-label="ID">
+              <span class="tag" style="background:${idColor}">${r.SectionID || ""}</span>
+            </td>
+          </tr>
+        `;
+        $tbody.append(rowHtml);
+      });
+
+      if (data.length > limit) {
+        $tbody.append('<tr><td colspan="7" style="text-align:center; opacity:0.5; padding:20px;">' + (data.length - limit) + ' more results hidden. Please refine search.</td></tr>');
+      }
+      
+      if (data.length === 0) {
+        $tbody.append('<tr><td colspan="7" style="text-align:center; padding:20px;">No results found.</td></tr>');
+      }
+    }
+
+    // --- EVENTS ---
+    $("input, select").on("change keyup", function() {
+      applyFilters();
     });
+
+    $("th").on("click", function() {
+      var col = $(this).data("sort");
+      if (currentSort.col === col) {
+        currentSort.dir = (currentSort.dir === 'asc') ? 'desc' : 'asc';
+      } else {
+        currentSort = { col: col, dir: 'asc' };
+      }
+      
+      $("th").removeClass("asc desc");
+      $(this).addClass(currentSort.dir);
+      
+      applyFilters();
+    });
+
   </script>
 </body>
 </html>
