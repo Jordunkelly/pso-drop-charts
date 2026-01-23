@@ -6,24 +6,8 @@
     <title>Mag Runner - Easter Egg</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .game-container {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            min-height: calc(100vh - 60px);
-            overflow: hidden;
-        }
-
-        #gameCanvas {
-            background: var(--panel);
-            border: 2px solid var(--border);
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            max-width: 95%;
-            cursor: pointer;
-        }
-
+        .game-container { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: calc(100vh - 60px); overflow: hidden; }
+        #gameCanvas { background: var(--panel); border: 2px solid var(--border); border-radius: 12px; max-width: 95%; cursor: pointer; }
         .game-ui { text-align: center; margin-top: 15px; }
         .score-board { font-family: 'Courier New', monospace; font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
         .instructions { font-size: 0.8rem; opacity: 0.7; color: var(--text); }
@@ -41,10 +25,10 @@
 
 <div class="game-container">
     <div class="score-board">SCORE: <span id="score">00000</span></div>
-    <canvas id="gameCanvas" width="600" height="250"></canvas>
+    <canvas id="gameCanvas" width="600" height="300"></canvas>
     <div class="game-ui">
-        <p class="instructions">HOLD SPACE/TAP TO FLY • DODGE THE RAPIES & BOOMAS</p>
-        <button onclick="resetGame()" style="margin-top: 10px; border-color: var(--blue); color: var(--blue); cursor:pointer;">RESTART MISSION</button>
+        <p class="instructions">SPACE/TAP TO JUMP (2X) • HOLD TO FLOAT • SHIFT/DOWN TO DUCK</p>
+        <button onclick="resetGame()" style="margin-top: 10px; border-color: var(--blue); color: var(--blue); cursor:pointer;">REBOOT SYSTEM</button>
     </div>
 </div>
 
@@ -53,140 +37,110 @@
     const ctx = canvas.getContext('2d');
     const scoreElement = document.getElementById('score');
 
-    let score = 0, gameActive = true, frame = 0;
-    let audioCtx;
+    let score = 0, gameActive = true, frame = 0, audioCtx;
 
-    // --- SOUND ENGINE ---
-    function playBeep(freq, type, duration) {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    // --- SOUNDS ---
+    function playSfx(freq, type, dur) {
+        if (!audioCtx) audioCtx = new AudioContext();
+        const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+        osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
         gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
         osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.start(); osc.stop(audioCtx.currentTime + duration);
+        osc.start(); osc.stop(audioCtx.currentTime + dur);
     }
 
-    // --- GAME OBJECTS ---
+    // --- PHYSICS & PLAYER ---
     const player = {
-        x: 50, y: 100, w: 30, h: 30,
-        dy: 0, 
-        lift: -0.5,     // Flying force
-        gravity: 0.25,  // Constant fall
-        maxSpeed: 5
+        x: 50, y: 220, w: 30, h: 30, hNormal: 30, hDuck: 15,
+        dy: 0, g: 0.45, jumps: 0, maxJumps: 2, 
+        isFloating: false, isDucking: false
     };
 
     const obstacles = [];
-    const colors = { mag: '#ff7b72', rappy: '#facc15', booma: '#50fa7b', ground: '#30363d' };
-
-    function drawPlayer() {
-        ctx.fillStyle = colors.mag;
-        ctx.beginPath();
-        ctx.roundRect(player.x, player.y, player.w, player.h, 8);
-        ctx.fill();
-        // Eyes
-        ctx.fillStyle = '#000';
-        ctx.fillRect(player.x + 18, player.y + 10, 5, 2);
-    }
+    const colors = { mag: '#ff7b72', rappy: '#facc15', booma: '#50fa7b', bird: '#58a6ff', ground: '#30363d' };
 
     function createObstacle() {
-        if (frame % 80 === 0) {
-            const type = Math.random() > 0.5 ? 'rappy' : 'booma';
-            const size = type === 'rappy' ? 25 : 40;
-            obstacles.push({
-                x: canvas.width,
-                y: Math.random() * (canvas.height - 50),
-                w: size, h: size,
-                type: type,
-                speed: 4 + (score / 1000)
-            });
+        if (frame % 70 === 0) {
+            const types = ['RAPPY', 'BOOMA', 'GULGUS'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            let obs = { x: canvas.width, type: type, speed: 5 + (score/500) };
+            
+            if (type === 'RAPPY') { obs.y = 250; obs.w = 20; obs.h = 20; obs.v = 0; }
+            else if (type === 'BOOMA') { obs.y = 240; obs.w = 30; obs.h = 30; obs.v = 0; }
+            else { // Flying Gulgus
+                obs.y = 150 + Math.random() * 50; obs.w = 25; obs.h = 15;
+                obs.v = (Math.random() - 0.5) * 4; // Moves at diagonal angles
+            }
+            obstacles.push(obs);
         }
     }
 
-    function drawObstacles() {
-        obstacles.forEach((obs, i) => {
-            obs.x -= obs.speed;
-            ctx.fillStyle = colors[obs.type];
-            
-            if (obs.type === 'rappy') {
-                ctx.beginPath(); // Draw Rappy Triangle
-                ctx.moveTo(obs.x, obs.y + obs.h);
-                ctx.lineTo(obs.x + obs.w / 2, obs.y);
-                ctx.lineTo(obs.x + obs.w, obs.y + obs.h);
-                ctx.fill();
-            } else {
-                ctx.fillRect(obs.x, obs.y, obs.w, obs.h); // Draw Booma Square
-            }
-
-            // Collision
-            if (player.x < obs.x + obs.w && player.x + player.w > obs.x &&
-                player.y < obs.y + obs.h && player.y + player.h > obs.y) {
-                gameActive = false;
-                playBeep(150, 'sawtooth', 0.5); // Death sound
-            }
-
-            if (obs.x + obs.w < 0) { obstacles.splice(i, 1); score += 10; }
-        });
-    }
-
-    // --- INPUT HANDLING ---
-    let isBoosting = false;
-    const startBoost = () => { 
-        isBoosting = true; 
-        if(gameActive) playBeep(600, 'sine', 0.1); 
-    };
-    const endBoost = () => { isBoosting = false; };
-
-    window.addEventListener('keydown', (e) => { if (e.code === 'Space') startBoost(); });
-    window.addEventListener('keyup', (e) => { if (e.code === 'Space') endBoost(); });
-    canvas.addEventListener('mousedown', startBoost);
-    window.addEventListener('mouseup', endBoost);
-    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startBoost(); });
-    window.addEventListener('touchend', endBoost);
-
-    // --- CORE LOOP ---
     function update() {
         if (!gameActive) {
-            ctx.fillStyle = "rgba(0,0,0,0.7)";
-            ctx.fillRect(0,0, canvas.width, canvas.height);
-            ctx.fillStyle = "white"; ctx.font = "bold 16px Arial";
-            ctx.fillText("MISSION FAILED - CHIME FOR RESCUE", 160, 120);
+            ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(0,0, canvas.width, canvas.height);
+            ctx.fillStyle = "white"; ctx.fillText("MISSION FAILED", 250, 150);
             return;
         }
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Physics: Gravity vs Lift
-        if (isBoosting) player.dy += player.lift;
-        player.dy += player.gravity;
         
-        // Speed Cap
-        if (player.dy > player.maxSpeed) player.dy = player.maxSpeed;
-        if (player.dy < -player.maxSpeed) player.dy = -player.maxSpeed;
+        // --- PLAYER LOGIC ---
+        player.h = player.isDucking ? player.hDuck : player.hNormal;
         
+        if (player.isFloating && player.dy > 0) player.dy *= 0.85; // Float effect
+        player.dy += player.g;
         player.y += player.dy;
 
-        // Screen Boundaries
-        if (player.y < 0) { player.y = 0; player.dy = 0; }
-        if (player.y + player.h > canvas.height) { gameActive = false; playBeep(100, 'square', 0.3); }
+        // Ground Collision
+        if (player.y + player.h > 270) {
+            player.y = 270 - player.h; player.dy = 0;
+            player.jumps = 0;
+        }
 
-        drawPlayer();
-        createObstacle();
-        drawObstacles();
+        // Draw Player (Mag)
+        ctx.fillStyle = colors.mag;
+        ctx.fillRect(player.x, player.y, player.w, player.h);
 
+        // --- OBSTACLE LOGIC ---
+        obstacles.forEach((o, i) => {
+            o.x -= o.speed;
+            o.y += (o.v || 0);
+            ctx.fillStyle = colors[o.type === 'GULGUS' ? 'bird' : (o.type === 'RAPPY' ? 'rappy' : 'booma')];
+            ctx.fillRect(o.x, o.y, o.w, o.h);
+
+            // Collision
+            if (player.x < o.x + o.w && player.x + player.w > o.x &&
+                player.y < o.y + o.h && player.y + player.h > o.y) {
+                gameActive = false; playSfx(100, 'square', 0.5);
+            }
+            if (o.x + o.w < 0) { obstacles.splice(i, 1); score += 10; }
+        });
+
+        // Draw Ground
+        ctx.fillStyle = colors.ground; ctx.fillRect(0, 270, canvas.width, 30);
+        
         scoreElement.textContent = score.toString().padStart(5, '0');
-        frame++;
-        requestAnimationFrame(update);
+        frame++; requestAnimationFrame(update);
     }
 
-    function resetGame() {
-        score = 0; obstacles.length = 0; gameActive = true;
-        player.y = 100; player.dy = 0; frame = 0;
-        update();
-    }
+    // --- INPUTS ---
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+            if (player.jumps < player.maxJumps) {
+                player.dy = -9; player.jumps++;
+                playSfx(400 + (player.jumps * 100), 'sine', 0.2);
+            }
+            player.isFloating = true;
+        }
+        if (e.code === 'ArrowDown' || e.code === 'ShiftLeft') player.isDucking = true;
+    });
+    window.addEventListener('keyup', (e) => {
+        if (e.code === 'Space') player.isFloating = false;
+        if (e.code === 'ArrowDown' || e.code === 'ShiftLeft') player.isDucking = false;
+    });
 
+    function resetGame() { score = 0; obstacles.length = 0; gameActive = true; update(); }
     update();
 </script>
 </body>
