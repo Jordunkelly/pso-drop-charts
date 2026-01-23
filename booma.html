@@ -485,6 +485,28 @@
                         speed: 2, color: color, canShoot: true, shotTimer: 60
                     };
                     this.enemies.push(boss);
+
+                    // Spawn a handful of add‑on enemies alongside the boss.
+                    // These smaller enemies provide an opportunity to earn
+                    // upgrades during the boss fight.  They are marked with
+                    // alwaysDrops=true so that they will always drop a
+                    // weapon upgrade when defeated.  Their types alternate
+                    // between booma and sinow to introduce variety.
+                    for (let i = 0; i < 3; i++) {
+                        const addType = (i % 2 === 0) ? 'booma' : 'sinow';
+                        let minion = { type: addType, alwaysDrops: true, canShoot: false };
+                        // Position add‑ons slightly off‑screen to the right so they
+                        // enter the battlefield shortly after the boss.  Stagger
+                        // their vertical positions across the screen.
+                        minion.x = this.width + 150 + i * 60;
+                        minion.y = Math.random() * (this.height - 60);
+                        if (addType === 'booma') {
+                            Object.assign(minion, { w: 42, h: 42, hp: 2, maxHp: 2, speed: 2.5, color: '#2ea043', canShoot: false });
+                        } else if (addType === 'sinow') {
+                            Object.assign(minion, { w: 50, h: 50, hp: 3, maxHp: 3, speed: 3.5, color: '#c084fc', canShoot: true });
+                        }
+                        this.enemies.push(minion);
+                    }
                 }, 3000);
             }
             update() {
@@ -563,7 +585,13 @@
                 }
                 let isBossActive = this.enemies.some(e => e.isBoss);
                 if (!isBossActive && this.frame % this.spawnRate === 0) this.spawnEnemy();
-                if (this.frame % 600 === 0) this.spawnPowerUp();
+                // Remove the periodic random power‑up spawns.  Players must now
+                // defeat enemies or boss add‑ons to earn weapon upgrades and
+                // consumables.  This line used to call spawnPowerUp every 600
+                // frames but has been removed in response to feedback that
+                // drop rates were too high and random upgrades undermined
+                // progression.
+                // if (this.frame % 600 === 0) this.spawnPowerUp();
                 this.bullets.forEach((b, i) => {
                     if (b.isGrants) {
                         b.y += 20;
@@ -967,27 +995,32 @@
                     // Award blast energy proportional to enemy max HP
                     this.blastEnergy = Math.min(100, this.blastEnergy + (e.maxHp * 0.5 * this.magRate));
                     /*
-                     * Enemies now drop a weapon upgrade on defeat. The item spawns
-                     * at the enemy's location and uses the same colour and speed
-                     * as standard weapon data. If the player is already at
-                     * maximum weapon level, picking up this item will instead
-                     * grant a damage multiplier bonus.
+                     * When an enemy is defeated there is now only a chance to
+                     * drop a weapon upgrade.  Feedback indicated the previous
+                     * behaviour (100 % drop rate) caused players to max out
+                     * their weapons too quickly.  The dropChance defaults to
+                     * 0.4 (40 %) but can be overridden by the enemy object
+                     * setting alwaysDrops=true.  Boss add‑ons use this flag to
+                     * guarantee a drop.
                      */
-                    this.powerUps.push({
-                        x: e.x,
-                        y: e.y,
-                        w: 24,
-                        h: 24,
-                        type: 'weapondata',
-                        speed: 2,
-                        color: '#f97316'
-                    });
-                    // Occasionally drop an extra random power up (heal, blast, or rare)
-                    // Lower the chance to 5% to prevent the screen from
-                    // overflowing with items.
-                    if (Math.random() < 0.05) {
-                        this.spawnPowerUp();
+                    const dropChance = (e.alwaysDrops ? 1 : 0.4);
+                    if (Math.random() < dropChance) {
+                        this.powerUps.push({
+                            x: e.x,
+                            y: e.y,
+                            w: 24,
+                            h: 24,
+                            type: 'weapondata',
+                            speed: 2,
+                            color: '#f97316'
+                        });
                     }
+                    // Remove the random extra power‑up spawn entirely.  Only
+                    // weapon upgrades (and the occasional heal/blast/rare from
+                    // spawnPowerUp invoked elsewhere) will appear now.
+                    // if (Math.random() < 0.05) {
+                    //     this.spawnPowerUp();
+                    // }
                 }
             }
             takeHit() {
