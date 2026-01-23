@@ -8,10 +8,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* --- Tier Tag Colors --- */
         /* --- PSO Tier Tag Styles --- */
-        
-        /* Base style for all tier tags as seen in inspector */
+
+        /* Base style for all tier tags */
         .tier-tag {
             padding: 2px 8px;
             border-radius: 4px;
@@ -22,42 +21,33 @@
             text-align: center;
             min-width: 20px;
         }
-        
+
         /* UBER - Diablo 4 Legendary Style */
-        /* We use .tier-U (Capital U) to match the HTML output */
-        .tier-tag.tier-U {
+        .tier-tag.tier-u {
             background: linear-gradient(135deg, #ff8c00, #b8860b) !important;
             color: #ffffff !important;
             border: 1px solid #ffd700 !important;
             box-shadow: 0 0 10px #ff8c00, inset 0 0 5px #ffd700 !important;
             text-shadow: 1px 1px 2px #000 !important;
             font-weight: 800 !important;
-            font-size: 0 !important; /* Hides the original "U" letter */
+            font-size: 0 !important; /* Hides original "u" text */
             padding: 2px 10px;
         }
         
-        /* Visually transforms "U" to "UBER" on the dashboard */
-        .tier-tag.tier-U::after {
+        /* Visually transforms "u" to "UBER" */
+        .tier-tag.tier-u::after {
             content: 'UBER';
             font-size: 0.75rem;
             letter-spacing: 0.8px;
         }
         
-        /* S-Tier: Vibrant Purple */
-        .tier-tag.tier-S { background-color: #d122e3 !important; }
-        
-        /* A-Tier: Strong Green */
-        .tier-tag.tier-A { background-color: #2ea043 !important; }
-        
-        /* B-Tier: Solid Blue */
-        .tier-tag.tier-B { background-color: #1f6feb !important; }
-        
-        /* C-Tier: Neutral Grey */
-        .tier-tag.tier-C { background-color: #6e7681 !important; }
-        
-        /* E-Tier: Muted Purple */
-        .tier-tag.tier-E { background-color: #a371f7 !important; }
-        
+        /* Standard Tiers (Now all lowercase) */
+        .tier-tag.tier-s { background-color: #d122e3 !important; }
+        .tier-tag.tier-a { background-color: #2ea043 !important; }
+        .tier-tag.tier-b { background-color: #1f6feb !important; }
+        .tier-tag.tier-c { background-color: #6e7681 !important; }
+        .tier-tag.tier-e { background-color: #a371f7 !important; }
+                
         .class-selector-wrapper { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 
         .content-section { padding: 10px; }
@@ -231,17 +221,20 @@
             const isRare = RARE_ENEMIES.has(entRaw.toUpperCase().replace(/_/g, " "));
             const mod = tierModMap.get(n) || 0;
     
+            /* Commented out class value logic for now
             let classVal = "B VAL";
             if (mod >= 120) classVal = "S+ VAL";
             else if (mod >= 80) classVal = "S VAL";
             else if (mod >= 40) classVal = "A VAL";
+            */
     
             const pct = parseFloat(row['Current %'] || 0);
             const odds = `1 in ${Math.round(100/pct).toLocaleString()}`;
             
-            // FIX: Ensure tier value is trimmed and case-sensitive for the CSS class
-            const tierVal = row.Tier ? row.Tier.trim() : "";
-            const tierBadge = tierVal ? `<span class="tier-tag tier-${esc(tierVal)}">${tierVal}</span>` : "";
+            // Lowercase the tier for CSS class matching
+            const rawTier = row.Tier ? row.Tier.trim() : "";
+            const tierClass = rawTier.toLowerCase(); 
+            const tierBadge = rawTier ? `<span class="tier-tag tier-${tierClass}">${rawTier}</span>` : "";
     
             const wikiSlug = encodeURIComponent(nameStr.replace(/\s+/g, '_'));
             const wikiUrl = `https://wiki.pioneer2.net/w/${wikiSlug}`;
@@ -253,8 +246,8 @@
                 <td>${esc(entRaw)} ${isRare ? '<span class="rare-badge">R</span>' : ''}</td>
                 <td>
                     <a href="${wikiUrl}" target="_blank" class="wiki-link">${esc(nameStr)}</a>
-                    ${tierBadge} <span class="class-val-badge">${classVal}</span>
-                </td>
+                    ${tierBadge} 
+                    </td>
                 <td>${pct >= 1 ? pct.toFixed(1) : pct.toFixed(4)}% <br><small style="opacity:0.6">${odds}</small></td>
                 <td><span class="tag" style="background:${SECTION_ID_COLORS[row.SectionID] || '#333'}">${esc(row.SectionID).charAt(0)}</span></td>
             </tr>`);
@@ -266,6 +259,7 @@
 </script>
 </body>
 </html>
+
 
 
 
