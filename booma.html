@@ -118,16 +118,12 @@
             position: absolute;
             color: #facc15;
             font-weight: bold;
-            font-size: 1.5rem;
-            text-shadow: 0 2px 4px #000;
+            font-size: 1.2rem;
             pointer-events: none;
-            animation: floatUp 1.5s ease-out forwards;
+            animation: floatUp 1s ease-out forwards;
             z-index: 15;
         }
-        @keyframes floatUp { 
-            0% { transform: translateY(0) scale(1); opacity:1; } 
-            100% { transform: translateY(-50px) scale(1.5); opacity:0; } 
-        }
+        @keyframes floatUp { from { transform: translateY(0); opacity:1; } to { transform: translateY(-30px); opacity:0; } }
 
         .hud {
             display: flex;
@@ -286,6 +282,7 @@
     </div>
 
     <script>
+        // CONFIG
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx6T_nPSiK2jQIyWI09Jgcf2g8q9F_6JENVPWoaGbWoft2xIGOCJpnbehX2VJwGXpc/exec"; 
 
         fetch('nav.html')
@@ -306,9 +303,10 @@
                 this.running = false;
                 this.playerClass = playerClass || 'hunter'; 
                 
+                // Base Player Config
                 this.player = {
                     x: 50, y: this.height / 2 - 20, w: 40, h: 40,
-                    dy: 0, dx: 0, // NEW: Horizontal Velocity
+                    dy: 0, dx: 0, // Enable horizontal movement
                     speed: 5, lives: 3, invincible: 0,
                     weaponLevel: 1, 
                     syncTimer: 1000, 
@@ -318,6 +316,7 @@
                     rareTimer: 0 
                 };
 
+                // Class Stats
                 if (this.playerClass === 'hunter') {
                     this.player.lives = 5; 
                     this.player.speed = 5;
@@ -329,6 +328,7 @@
                     this.magRate = 1.0;
                     this.player.damage = 0.5;
                 } else if (this.playerClass === 'force') {
+                    // MAGE NERF: Glass Cannon
                     this.player.lives = 1; 
                     this.player.speed = 3; 
                     this.magRate = 2.0; 
@@ -349,7 +349,7 @@
                 this.blastEnergy = 0;
                 
                 this.bossSpawnedForLevel = false;
-                this.input = { up: false, down: false, left: false, right: false, shoot: false, blast: false }; // NEW Inputs
+                this.input = { up: false, down: false, left: false, right: false, shoot: false, blast: false };
                 this.lastTouchEnd = 0;
                 this.isTouchActive = false;
                 
@@ -373,8 +373,8 @@
                     if (!this.running) return;
                     if (e.code === 'ArrowUp' || e.code === 'KeyW') this.input.up = true;
                     if (e.code === 'ArrowDown' || e.code === 'KeyS') this.input.down = true;
-                    if (e.code === 'ArrowLeft' || e.code === 'KeyA') this.input.left = true; // NEW
-                    if (e.code === 'ArrowRight' || e.code === 'KeyD') this.input.right = true; // NEW
+                    if (e.code === 'ArrowLeft' || e.code === 'KeyA') this.input.left = true;
+                    if (e.code === 'ArrowRight' || e.code === 'KeyD') this.input.right = true;
                     if (e.code === 'Space') this.input.shoot = true;
                     if (e.code === 'ShiftLeft' || e.code === 'KeyX') this.input.blast = true;
                 });
@@ -382,13 +382,12 @@
                     if (!this.running) return;
                     if (e.code === 'ArrowUp' || e.code === 'KeyW') this.input.up = false;
                     if (e.code === 'ArrowDown' || e.code === 'KeyS') this.input.down = false;
-                    if (e.code === 'ArrowLeft' || e.code === 'KeyA') this.input.left = false; // NEW
-                    if (e.code === 'ArrowRight' || e.code === 'KeyD') this.input.right = false; // NEW
+                    if (e.code === 'ArrowLeft' || e.code === 'KeyA') this.input.left = false;
+                    if (e.code === 'ArrowRight' || e.code === 'KeyD') this.input.right = false;
                     if (e.code === 'Space') this.input.shoot = false;
                     if (e.code === 'ShiftLeft' || e.code === 'KeyX') this.input.blast = false;
                 });
 
-                // Touch Controls (Stick to Vertical for simplicity, but Drag moves X too)
                 const getTouchPos = (e) => {
                     const rect = this.canvas.getBoundingClientRect();
                     const scaleY = this.canvas.height / rect.height; 
@@ -433,7 +432,7 @@
 
             handleTouchMove(xPos, yPos) {
                 this.player.y = yPos - (this.player.h / 2);
-                this.player.x = xPos - (this.player.w / 2); // Allow Touch X Movement
+                this.player.x = xPos - (this.player.w / 2);
             }
 
             triggerBlast() {
@@ -458,12 +457,13 @@
             spawnBossSequence(name, type, color) {
                 this.bossSpawnedForLevel = true;
                 const warning = document.getElementById('boss-warning');
-                warning.innerHTML = `WARNING<br>${name.toUpperCase()}`;
-                warning.style.display = 'block';
+                if(warning) warning.style.display = 'block';
+                if(warning) warning.innerHTML = `WARNING<br>${name.toUpperCase()}`;
+                
                 this.sounds.warning();
                 this.enemies = []; 
                 setTimeout(() => {
-                    warning.style.display = 'none';
+                    if(warning) warning.style.display = 'none';
                     let baseHp = 800;
                     if (type === 'dragon' && this.level === 5) baseHp = 1500; 
                     let hp = baseHp + (this.level * 250);
@@ -493,10 +493,12 @@
                     else if (this.level === 20) this.spawnBossSequence('Dark Falz', 'falz', '#c084fc');
                 }
 
+                // Rare Timer
                 if (this.player.rareTimer > 0) {
                     this.player.rareTimer--;
                     if (this.player.rareTimer === 0) {
-                        document.getElementById('rare-notification').style.display = 'none';
+                        const rareNotif = document.getElementById('rare-notification');
+                        if(rareNotif) rareNotif.style.display = 'none';
                     } else if (this.playerClass === 'force' && this.player.rareTimer % 15 === 0) {
                         if(this.enemies.length > 0) {
                             let target = this.enemies[Math.floor(Math.random() * this.enemies.length)];
@@ -510,6 +512,7 @@
                     }
                 }
 
+                // Sync Timer
                 if (this.player.syncTimer > 0) {
                     this.player.syncTimer--;
                 } else {
@@ -522,20 +525,19 @@
                 }
 
                 if (!this.isTouchActive) {
-                    // Y Axis
                     if (this.input.up) this.player.dy = -this.player.speed;
                     else if (this.input.down) this.player.dy = this.player.speed;
                     else this.player.dy = 0;
                     this.player.y += this.player.dy;
 
-                    // X Axis (NEW)
+                    // X Movement
                     if (this.input.left) this.player.dx = -this.player.speed;
                     else if (this.input.right) this.player.dx = this.player.speed;
                     else this.player.dx = 0;
                     this.player.x += this.player.dx;
                 }
                 
-                // Screen Boundaries
+                // Screen Bounds
                 this.player.y = Math.max(0, Math.min(this.height - this.player.h, this.player.y));
                 this.player.x = Math.max(0, Math.min(this.width - this.player.w, this.player.x));
 
@@ -565,8 +567,9 @@
                                 }
                             });
                             if (nearest) {
+                                // Turn Rate Limit
                                 let dy = nearest.y - b.y;
-                                let turnSpeed = 1.0; 
+                                let turnSpeed = 1.5; 
                                 if (Math.abs(dy) < turnSpeed) b.y += dy;
                                 else b.y += Math.sign(dy) * turnSpeed;
                             }
@@ -669,16 +672,27 @@
 
                 if (this.player.invincible > 0) this.player.invincible--;
                 
-                // --- HUD UPDATE ---
-                document.getElementById('score').textContent = this.score;
-                let lvlDisplay = this.player.weaponLevel >= 10 ? "10 (MAX)" : this.player.weaponLevel;
-                document.getElementById('level').textContent = lvlDisplay;
+                // --- SAFELY UPDATE HUD ---
+                const scoreEl = document.getElementById('score');
+                if(scoreEl) scoreEl.textContent = this.score;
                 
-                document.getElementById('dmg-mult').textContent = "DMG: x" + this.player.damageMultiplier.toFixed(2);
-                document.getElementById('lives').textContent = this.player.lives;
-                document.getElementById('blast-fill').style.width = Math.min(this.blastEnergy, 100) + '%';
-                let syncPct = (this.player.syncTimer / this.player.maxSync) * 100;
-                document.getElementById('sync-fill').style.width = syncPct + '%';
+                const lvlEl = document.getElementById('level');
+                if(lvlEl) lvlEl.textContent = this.player.weaponLevel >= 10 ? "10 (MAX)" : this.player.weaponLevel;
+                
+                const dmgEl = document.getElementById('dmg-mult');
+                if(dmgEl) dmgEl.textContent = "DMG: x" + this.player.damageMultiplier.toFixed(2);
+                
+                const livesEl = document.getElementById('lives');
+                if(livesEl) livesEl.textContent = this.player.lives;
+                
+                const blastEl = document.getElementById('blast-fill');
+                if(blastEl) blastEl.style.width = Math.min(this.blastEnergy, 100) + '%';
+                
+                const syncEl = document.getElementById('sync-fill');
+                if(syncEl) {
+                    let syncPct = (this.player.syncTimer / this.player.maxSync) * 100;
+                    syncEl.style.width = syncPct + '%';
+                }
             }
 
             render() {
@@ -870,7 +884,6 @@
                 const el = document.createElement('div');
                 el.className = 'dmg-float';
                 el.innerText = text;
-                // Use this.canvas to get offset
                 el.style.left = (this.canvas.offsetLeft + x) + 'px';
                 el.style.top = (this.canvas.offsetTop + y) + 'px';
                 document.getElementById('dmg-container').appendChild(el);
@@ -938,6 +951,7 @@
 
             fetchHighScores() {
                 const lbContent = document.getElementById('lb-content');
+                if(!lbContent) return;
                 lbContent.innerHTML = "Loading...";
                 
                 fetch(SCRIPT_URL + "?action=get", { mode: 'cors' })
