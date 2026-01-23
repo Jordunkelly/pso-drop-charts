@@ -4,6 +4,8 @@
     --blue: #58a6ff; --gold: #d4af37; --uber: #ff79c6; --god: #ffb86c;
 }
 
+* { box-sizing: border-box; } /* Prevents padding from breaking widths */
+
 body { 
     background-color: var(--bg); color: var(--text); 
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
@@ -14,30 +16,52 @@ body {
 .main-nav { 
     background: #010409; 
     border-bottom: 1px solid var(--border); 
-    display: flex; padding: 10px 20px; 
-    position: sticky; top: 0; z-index: 2000; 
+    display: flex; 
+    flex-wrap: wrap; /* Allows items to move to next line if space runs out */
+    justify-content: space-between; /* Pushes links to left and selectors to right */
     align-items: center; 
+    padding: 10px 20px; 
+    position: sticky; top: 0; z-index: 2000; 
 }
 
-.nav-links { display: flex; gap: 15px; align-items: center; }
+.nav-links { 
+    display: flex; 
+    gap: 15px; 
+    align-items: center; 
+}
 
 .nav-link { 
     color: var(--text); text-decoration: none; font-weight: bold; 
     padding: 8px 12px; border-radius: 6px; transition: 0.2s; 
     font-size: 0.9em; 
+    white-space: nowrap; /* Prevents text inside links from wrapping */
 }
 
 .nav-link:hover { background: rgba(255,255,255,0.1); }
-
-/* Apply this class to the link for the current page */
 .nav-link.active { background: var(--blue); color: white; }
 
 /* --- MOBILE RESPONSIVE OVERRIDES --- */
 @media (max-width: 768px) {
-    .main-nav { padding: 5px 10px; }
-    .nav-links { gap: 5px; }
-    .nav-link { padding: 6px 8px; font-size: 0.8em; }
+    .main-nav { 
+        padding: 10px; 
+        justify-content: center; /* Center everything on mobile */
+        gap: 10px;
+    }
     
-    /* Ensure inputs don't zoom on focus for mobile */
-    input, select { font-size: 16px !important; }
+    .nav-links { 
+        width: 100%; /* Forces links to occupy their own line if needed */
+        justify-content: center;
+        gap: 8px;
+        order: 2; /* Moves links below the logo or class-selector if they share space */
+    }
+
+    .nav-link { 
+        padding: 8px 10px; 
+        font-size: 0.85em; 
+        flex: 1; /* Makes links grow equally to fill the width */
+        text-align: center;
+    }
+    
+    /* Prevents Safari/iOS from zooming in on input focus */
+    input, select { font-size: 16px !important; width: 100%; }
 }
