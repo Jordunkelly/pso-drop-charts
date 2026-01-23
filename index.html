@@ -223,27 +223,29 @@
         const tbody = $('#dropTable tbody');
         const RARE_ENEMIES = new Set(["HILDEBLUE", "RAPPY", "NAR LILY", "POUILLY SLIME", "MERICAR", "MERISSA AA", "PAZUZU", "DORPHON ECLAIR", "KONDRIEU"]);
         tbody.empty();
-
+    
         data.forEach(row => {
             const nameStr = (row.Name || "").trim();
             const n = row.NormName;
             const entRaw = (row.Entity || "").trim();
             const isRare = RARE_ENEMIES.has(entRaw.toUpperCase().replace(/_/g, " "));
             const mod = tierModMap.get(n) || 0;
-
+    
             let classVal = "B VAL";
             if (mod >= 120) classVal = "S+ VAL";
             else if (mod >= 80) classVal = "S VAL";
             else if (mod >= 40) classVal = "A VAL";
-
+    
             const pct = parseFloat(row['Current %'] || 0);
             const odds = `1 in ${Math.round(100/pct).toLocaleString()}`;
-            const tierBadge = row.Tier ? `<span class="tier-tag tier-${esc(row.Tier)}">${row.Tier}</span>` : "";
-
-            // Dynamic Wiki URL Generation
+            
+            // FIX: Ensure tier value is trimmed and case-sensitive for the CSS class
+            const tierVal = row.Tier ? row.Tier.trim() : "";
+            const tierBadge = tierVal ? `<span class="tier-tag tier-${esc(tierVal)}">${tierVal}</span>` : "";
+    
             const wikiSlug = encodeURIComponent(nameStr.replace(/\s+/g, '_'));
             const wikiUrl = `https://wiki.pioneer2.net/w/${wikiSlug}`;
-
+    
             tbody.append(`<tr class="${isRare ? 'row-rare' : ''}">
                 <td class="col-ep">${esc(row.Episode)}</td>
                 <td><strong>${esc(row.Difficulty).charAt(0)}</strong></td>
@@ -258,12 +260,13 @@
             </tr>`);
         });
     }
-
+    
     $(document).ready(init);
     $('input, select').on('change keyup', applyFilters);
 </script>
 </body>
 </html>
+
 
 
 
