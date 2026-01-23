@@ -73,9 +73,7 @@
             80% { transform: translate(10px, 0); border-color: #ef4444; }
             100% { transform: translate(0, 0); border-color: #30363d; }
         }
-        .shake-effect {
-            animation: damage-shake 0.4s;
-        }
+        .shake-effect { animation: damage-shake 0.4s; }
 
         /* Notifications */
         #boss-warning {
@@ -109,7 +107,7 @@
             gap: 10px;
         }
 
-        /* UI Controls (Buttons + Inputs) */
+        /* UI Controls */
         .controls-area {
             margin-top: 12px;
             display: flex;
@@ -134,12 +132,7 @@
         .button:hover, .button:active { background: var(--primary); color: #fff; }
 
         /* High Score Form */
-        #scoreForm {
-            display: none; /* Hidden by default */
-            flex-direction: row;
-            gap: 10px;
-        }
-        
+        #scoreForm { display: none; flex-direction: row; gap: 10px; }
         #playerName {
             flex: 1;
             padding: 10px;
@@ -149,6 +142,22 @@
             border-radius: 4px;
             font-family: 'Courier New', monospace;
         }
+
+        /* Leaderboard Table */
+        #leaderboard {
+            display: none;
+            margin-top: 15px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+        }
+        .lb-title { color: var(--secondary); font-weight: bold; text-align: center; margin-bottom: 5px; }
+        .lb-row { display: flex; justify-content: space-between; border-bottom: 1px solid #30363d; padding: 4px 0; }
+        .lb-row:last-child { border-bottom: none; }
+        .lb-name { color: var(--primary); }
+        .lb-score { color: #fff; }
 
         .mobile-hint {
             display: none;
@@ -192,6 +201,11 @@
                     <input type="text" id="playerName" placeholder="ENTER NAME" maxlength="10">
                     <button id="submitScoreBtn" class="button" style="width:auto; background:#238636; border-color:#238636; color:white;">SUBMIT SCORE</button>
                 </div>
+
+                <div id="leaderboard">
+                    <div class="lb-title">--- TOP HUNTERS ---</div>
+                    <div id="lb-content">Loading...</div>
+                </div>
             </div>
 
             <div class="mobile-hint">Touch & Drag to Move • Double Tap to Blast</div>
@@ -199,11 +213,9 @@
     </div>
 
     <script>
-        // --- CONFIGURATION ---
-        // I have inserted the URL you provided below:
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxxiFXRcxYNEkE1WzMMRIig9F4FVcpxn4IpE4v23JSP1WYsKSkI98xB_As12bxSUBiK/exec"; 
+        // CONFIG
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx6T_nPSiK2jQIyWI09Jgcf2g8q9F_6JENVPWoaGbWoft2xIGOCJpnbehX2VJwGXpc/exec"; 
 
-        // --- 1. Navigation Loader ---
         fetch('nav.html')
             .then(res => res.text())
             .then(data => {
@@ -213,7 +225,6 @@
                 if (link) link.classList.add('active');
             }).catch(e => console.log("Nav not found"));
 
-        // --- 2. Game Logic ---
         class Game {
             constructor(canvas) {
                 this.canvas = canvas;
@@ -285,12 +296,9 @@
                     e.preventDefault(); 
                     this.isTouchActive = true;
                     this.input.shoot = true; 
-
                     const currentTime = new Date().getTime();
                     const tapLength = currentTime - this.lastTouchEnd;
-                    if (tapLength < 300 && tapLength > 0) {
-                        this.triggerBlast();
-                    }
+                    if (tapLength < 300 && tapLength > 0) this.triggerBlast();
                     this.lastTouchEnd = currentTime;
                     this.handleTouchMove(getTouchPos(e));
                 }, {passive: false});
@@ -341,7 +349,13 @@
                 
                 document.getElementById('canvas').classList.remove('shake-effect');
                 document.getElementById('boss-warning').style.display = 'none';
-                document.getElementById('scoreForm').style.display = 'none'; // Hide form on start
+                document.getElementById('scoreForm').style.display = 'none';
+                document.getElementById('leaderboard').style.display = 'none';
+                
+                // RESET THE SUBMIT BUTTON (FIX FOR YOUR BUG)
+                const submitBtn = document.getElementById('submitScoreBtn');
+                submitBtn.disabled = false;
+                submitBtn.textContent = "SUBMIT SCORE";
             }
 
             loop() {
@@ -361,17 +375,9 @@
                 setTimeout(() => {
                     warning.style.display = 'none';
                     let boss = { 
-                        type: type, 
-                        isBoss: true,
-                        x: this.width + 100, 
-                        y: this.height/2 - 75,
-                        w: 150, h: 150, 
-                        hp: 100 + (this.level * 10), 
-                        maxHp: 100 + (this.level * 10), 
-                        speed: 2, 
-                        color: color, 
-                        canShoot: true,
-                        shotTimer: 60 
+                        type: type, isBoss: true, x: this.width + 100, y: this.height/2 - 75,
+                        w: 150, h: 150, hp: 100 + (this.level * 10), maxHp: 100 + (this.level * 10), 
+                        speed: 2, color: color, canShoot: true, shotTimer: 60 
                     };
                     this.enemies.push(boss);
                 }, 3000);
@@ -428,22 +434,16 @@
                         e.x -= e.speed;
                         if (e.type === 'sinow') e.y += Math.sin(this.frame / 10) * e.speed;
                     }
-                    
                     if (this.checkCollision(e, this.player) && this.player.invincible <= 0) {
                         this.takeHit();
-                        if (!e.isBoss) {
-                            this.enemies.splice(i, 1);
-                            return;
-                        }
+                        if (!e.isBoss) { this.enemies.splice(i, 1); return; }
                     }
                     if (e.x + e.w < 0) this.enemies.splice(i, 1);
-
                     if (e.canShoot) {
                         e.shotTimer--;
                         if (e.shotTimer <= 0) {
                             this.spawnEnemyBullet(e);
-                            let resetTime = e.isBoss ? 50 : 90;
-                            e.shotTimer = resetTime + Math.random() * 30;
+                            e.shotTimer = (e.isBoss ? 50 : 90) + Math.random() * 30;
                         }
                     }
                 });
@@ -565,28 +565,20 @@
                     case 'laser': return;
                 }
                 offsets.forEach(offsetY => {
-                    this.bullets.push({
-                        x: this.player.x + this.player.w,
-                        y: this.player.y + this.player.h / 2 - 2 + offsetY,
-                        w: bulletProps.w, h: bulletProps.h, s: bulletProps.s, piercing: bulletProps.piercing
-                    });
+                    this.bullets.push({ x: this.player.x + this.player.w, y: this.player.y + this.player.h / 2 - 2 + offsetY, w: bulletProps.w, h: bulletProps.h, s: bulletProps.s, piercing: bulletProps.piercing });
                 });
             }
 
             photonBlast() {
                 this.sounds.blast();
                 this.blastEnergy = 0;
-                this.enemies.forEach(e => {
-                    e.hp -= 50;
-                    if(e.hp <= 0) this.killEnemy(e, true); 
-                });
+                this.enemies.forEach(e => { e.hp -= 50; if(e.hp <= 0) this.killEnemy(e, true); });
                 this.enemies = this.enemies.filter(e => e.hp > 0);
             }
 
             spawnEnemy() {
                 const types = ['rappy','booma','sinow'];
                 if (this.level >= 2 && Math.random() < 0.1) types.push('baranz');
-                
                 const type = types[Math.floor(Math.random() * types.length)];
                 let e = { type: type, x: this.width, canShoot: false };
                 
@@ -594,7 +586,6 @@
                 else if (type === 'booma') Object.assign(e, { y: Math.random()*(this.height-50), w: 42, h: 42, hp: 2+Math.floor(this.level/2), maxHp: 2+Math.floor(this.level/2), speed: 2.5, color: '#2ea043' });
                 else if (type === 'sinow') Object.assign(e, { y: Math.random()*(this.height-60), w: 50, h: 50, hp: 4+Math.floor(this.level/2), maxHp: 4+Math.floor(this.level/2), speed: 3.5, color: '#c084fc', canShoot: true });
                 else if (type === 'baranz') Object.assign(e, { y: Math.random()*(this.height-120), w: 80, h: 80, hp: 15+this.level, maxHp: 15+this.level, speed: 1.5, color: '#ef4444', canShoot: true });
-                
                 this.enemies.push(e);
             }
 
@@ -622,16 +613,8 @@
                 else if (e.type === 'baranz') [-2,-1,0,1,2].forEach(vy => b.push({ x: e.x, y: e.y+e.h/2-3, w: 14, h: 6, vx: 5, vy: vy, color: '#ef4444' }));
                 else if (e.type === 'dragon') b.push({ x: e.x, y: e.y+e.h/2-10, w: 40, h: 20, vx: 7, vy: 0, color: '#ff7b72' });
                 else if (e.type === 'derolle') [-3, 0, 3].forEach(vy => b.push({ x: e.x, y: e.y+e.h/2, w: 20, h: 20, vx: 5, vy: vy, color: '#a855f7' }));
-                else if (e.type === 'volopt') {
-                    b.push({ x: e.x, y: e.y+20, w: 30, h: 6, vx: 10, vy: 0, color: '#ef4444' });
-                    b.push({ x: e.x, y: e.y+e.h-20, w: 30, h: 6, vx: 10, vy: 0, color: '#ef4444' });
-                }
-                else if (e.type === 'falz') {
-                    for(let i=0; i<8; i++) {
-                        let angle = (i / 8) * Math.PI * 2;
-                        b.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle)*4 - 2, vy: Math.sin(angle)*4, color: '#e2e8f0' });
-                    }
-                }
+                else if (e.type === 'volopt') { b.push({ x: e.x, y: e.y+20, w: 30, h: 6, vx: 10, vy: 0, color: '#ef4444' }); b.push({ x: e.x, y: e.y+e.h-20, w: 30, h: 6, vx: 10, vy: 0, color: '#ef4444' }); }
+                else if (e.type === 'falz') { for(let i=0; i<8; i++) { let angle = (i / 8) * Math.PI * 2; b.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle)*4 - 2, vy: Math.sin(angle)*4, color: '#e2e8f0' }); } }
                 b.forEach(bullet => this.enemyBullets.push(bullet));
             }
 
@@ -670,7 +653,37 @@
                 
                 document.getElementById('startBtn').textContent = "TRY AGAIN";
                 document.getElementById('startBtn').style.display = 'block';
-                document.getElementById('scoreForm').style.display = 'flex'; // Show Score Form
+                document.getElementById('scoreForm').style.display = 'flex';
+                document.getElementById('leaderboard').style.display = 'block';
+                
+                this.fetchHighScores();
+            }
+
+            fetchHighScores() {
+                const lbContent = document.getElementById('lb-content');
+                lbContent.innerHTML = "Loading...";
+                
+                fetch(SCRIPT_URL + "?action=get", { mode: 'cors' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.length === 0) {
+                        lbContent.innerHTML = "<div style='text-align:center; padding:10px;'>No scores yet. Be the first!</div>";
+                        return;
+                    }
+                    let html = "";
+                    data.forEach(entry => {
+                        html += `
+                        <div class="lb-row">
+                            <span class="lb-name">${entry.name.substring(0, 10)}</span>
+                            <span class="lb-score">${entry.score}</span>
+                        </div>`;
+                    });
+                    lbContent.innerHTML = html;
+                })
+                .catch(err => {
+                    lbContent.innerHTML = "Error loading scores.";
+                    console.error(err);
+                });
             }
 
             checkCollision(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
@@ -692,15 +705,14 @@
         const canvas = document.getElementById('canvas');
         let game = null;
 
-        // Start / Restart
         document.getElementById('startBtn').addEventListener('click', () => {
             document.getElementById('startBtn').style.display = 'none';
             document.getElementById('scoreForm').style.display = 'none';
+            document.getElementById('leaderboard').style.display = 'none';
             game = new Game(canvas);
             game.start();
         });
 
-        // Submit Score Logic
         document.getElementById('submitScoreBtn').addEventListener('click', () => {
             const name = document.getElementById('playerName').value.trim().toUpperCase();
             if(!name) { alert("ENTER NAME FIRST"); return; }
@@ -710,17 +722,13 @@
             btn.textContent = "SENDING...";
             btn.disabled = true;
 
-            const score = game.score;
-            const level = game.level;
-            // Use URL parameters for the GET request
-            const targetUrl = `${SCRIPT_URL}?name=${encodeURIComponent(name)}&score=${score}&level=${level}`;
+            const targetUrl = `${SCRIPT_URL}?name=${encodeURIComponent(name)}&score=${game.score}&level=${game.level}`;
 
-            fetch(targetUrl, {
-                method: 'GET',
-                mode: 'no-cors'
-            }).then(() => {
+            fetch(targetUrl, { method: 'GET', mode: 'no-cors' })
+            .then(() => {
                 alert("SCORE UPLOADED!");
                 btn.textContent = "SENT!";
+                game.fetchHighScores(); // Refresh list after sending
             }).catch(e => {
                 console.error(e);
                 alert("ERROR UPLOADING");
