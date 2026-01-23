@@ -93,7 +93,23 @@
             animation: flash 0.5s infinite alternate;
             z-index: 10;
         }
-        @keyframes flash { from { opacity: 1; } to { opacity: 0; } }
+        
+        #elite-warning {
+            display: none;
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #facc15;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-shadow: 0 0 10px #b45309;
+            text-align: center;
+            letter-spacing: 3px;
+            z-index: 10;
+            animation: slideDown 0.5s ease-out;
+        }
+        @keyframes slideDown { from { top: 10%; opacity: 0; } to { top: 20%; opacity: 1; } }
 
         /* Rare Notification */
         #rare-notification {
@@ -228,6 +244,7 @@
         
         <div id="gamePanel">
             <div id="boss-warning">WARNING<br>BOSS APPROACHING</div>
+            <div id="elite-warning">⚠ ELITE ENEMY DETECTED ⚠</div>
             <div id="rare-notification">RARE DROP ACQUIRED!</div>
             <div id="dmg-container"></div>
             <canvas id="canvas" width="900" height="500"></canvas>
@@ -315,10 +332,8 @@
                     rareEffect: null
                 };
 
-                // Class Stats
                 if (this.playerClass === 'hunter') {
                     this.player.lives = 5; 
-                    // NERF: Slower Movement (was 5)
                     this.player.speed = 3; 
                     this.magRate = 1.0;
                     this.player.damage = 0.8;
@@ -370,7 +385,8 @@
                     warning: () => this.playSfx(150, 'sawtooth', 0.8, 0.2),
                     levelup: () => this.playSfx(880, 'triangle', 0.5, 0.2),
                     powerdown: () => this.playSfx(150, 'square', 0.5, 0.2),
-                    rare: () => this.playSfx(1200, 'square', 1.0, 0.3)
+                    rare: () => this.playSfx(1200, 'square', 1.0, 0.3),
+                    elite: () => this.playSfx(300, 'sawtooth', 1.0, 0.4) // ELITE SOUND
                 };
 
                 this.initInputs();
@@ -472,9 +488,7 @@
                 this.enemies = []; 
                 setTimeout(() => {
                     if(warning) warning.style.display = 'none';
-                    // --- BOSS HP NERF ---
                     let baseHp = 800;
-                    // Dragon Level 5 HP Crushed (was 1500)
                     if (type === 'dragon' && this.level === 5) baseHp = 500; 
                     let hp = baseHp + (this.level * 250);
 
@@ -486,6 +500,36 @@
                     };
                     this.enemies.push(boss);
                 }, 3000);
+            }
+
+            // --- ELITE SPAWN LOGIC ---
+            spawnElite() {
+                const types = ['pal_rappy', 'hildeblue', 'sinow_red'];
+                const type = types[Math.floor(Math.random() * types.length)];
+                let e = { type: type, x: this.width, canShoot: false, isElite: true, alwaysDrops: true };
+
+                // PAL RAPPY (Loot Goblin)
+                if (type === 'pal_rappy') {
+                    Object.assign(e, { y: Math.random()*(this.height-40), w: 40, h: 40, hp: 5, maxHp: 5, speed: 6, color: '#fef3c7' });
+                }
+                // HILDEBLUE (Tank)
+                else if (type === 'hildeblue') {
+                    Object.assign(e, { y: Math.random()*(this.height-60), w: 60, h: 60, hp: 15, maxHp: 15, speed: 1.5, color: '#3b82f6' });
+                }
+                // SINOW RED (Assassin)
+                else if (type === 'sinow_red') {
+                    Object.assign(e, { y: Math.random()*(this.height-50), w: 50, h: 50, hp: 10, maxHp: 10, speed: 4, color: '#dc2626', canShoot: true });
+                }
+
+                this.enemies.push(e);
+                
+                // Show Alert
+                const alertBox = document.getElementById('elite-warning');
+                if(alertBox) {
+                    alertBox.style.display = 'block';
+                    this.sounds.elite();
+                    setTimeout(() => alertBox.style.display = 'none', 2000);
+                }
             }
 
             update() {
@@ -508,6 +552,7 @@
                     else if (this.level === 20) this.spawnBossSequence('Dark Falz', 'falz', '#c084fc');
                 }
 
+                // Rare Timer
                 if (this.player.rareTimer > 0) {
                     this.player.rareTimer--;
                     if (this.player.rareTimer === 0) {
@@ -527,6 +572,7 @@
                     }
                 }
 
+                // Sync Timer
                 if (this.player.syncTimer > 0) {
                     this.player.syncTimer--;
                 } else {
@@ -550,10 +596,9 @@
                     this.player.x += this.player.dx;
                 }
                 
-                // Screen Bounds
                 this.player.y = Math.max(0, Math.min(this.height - this.player.h, this.player.y));
                 
-                // ANTI-CHEESE: Limit X to the Left 40% of the screen (360px out of 900px)
+                // ANTI-CHEESE: Limit X for Hunters/Everyone
                 const maxX = this.width * 0.4;
                 this.player.x = Math.max(0, Math.min(maxX, this.player.x));
 
@@ -564,8 +609,16 @@
                 if (this.input.blast && this.blastEnergy >= 100) this.photonBlast();
 
                 let isBossActive = this.enemies.some(e => e.isBoss);
-                if (!isBossActive && this.frame % this.spawnRate === 0) this.spawnEnemy();
                 
+                // --- SPAWN LOGIC (Includes Elites) ---
+                if (!isBossActive && this.frame % this.spawnRate === 0) {
+                    if (Math.random() < 0.08) { // 8% Chance for Elite
+                        this.spawnElite();
+                    } else {
+                        this.spawnEnemy();
+                    }
+                }
+
                 this.bullets.forEach((b, i) => {
                     if (b.isGrants) {
                         b.y += 20; 
@@ -607,8 +660,9 @@
                         let sweepRange = (this.height - 100);
                         e.y = (this.height/2 - e.h/2) + Math.sin(this.frame / 60) * (sweepRange / 2);
                     } else {
+                        // Standard Movement
                         e.x -= e.speed;
-                        if (e.type === 'sinow') e.y += Math.sin(this.frame / 10) * e.speed;
+                        if (e.type === 'sinow' || e.type === 'pal_rappy') e.y += Math.sin(this.frame / 10) * e.speed;
                     }
                     if (this.checkCollision(e, this.player) && this.player.invincible <= 0) {
                         if (this.player.rareTimer > 0 && this.player.rareEffect === 'hunter') {
@@ -755,11 +809,20 @@
                 });
 
                 this.enemies.forEach(e => {
+                    // ELITE GLOW
+                    if(e.isElite) {
+                        ctx.shadowBlur = 15;
+                        ctx.shadowColor = '#facc15';
+                    }
+                    
                     ctx.fillStyle = e.color;
                     ctx.fillRect(e.x, e.y, e.w, e.h);
+                    ctx.shadowBlur = 0; // Reset
+
+                    // HP BAR
                     ctx.fillStyle = '#262b31';
                     ctx.fillRect(e.x, e.y - 10, e.w, 6);
-                    ctx.fillStyle = e.isBoss ? '#ef4444' : '#68c896';
+                    ctx.fillStyle = e.isBoss ? '#ef4444' : (e.isElite ? '#facc15' : '#68c896');
                     ctx.fillRect(e.x, e.y - 10, e.w * (e.hp / e.maxHp), 6);
                 });
 
@@ -850,19 +913,6 @@
                 this.enemies = this.enemies.filter(e => e.hp > 0);
             }
 
-            spawnEnemy() {
-                const types = ['rappy','booma','sinow'];
-                if (this.level >= 2 && Math.random() < 0.1) types.push('baranz');
-                const type = types[Math.floor(Math.random() * types.length)];
-                let e = { type: type, x: this.width, canShoot: false };
-                
-                if (type === 'rappy') Object.assign(e, { y: Math.random()*(this.height-40), w: 36, h: 36, hp: 1, maxHp: 1, speed: 3, color: '#facc15' });
-                else if (type === 'booma') Object.assign(e, { y: Math.random()*(this.height-50), w: 42, h: 42, hp: 2, maxHp: 2, speed: 2.5, color: '#2ea043' });
-                else if (type === 'sinow') Object.assign(e, { y: Math.random()*(this.height-60), w: 50, h: 50, hp: 3, maxHp: 3, speed: 3.5, color: '#c084fc', canShoot: true });
-                else if (type === 'baranz') Object.assign(e, { y: Math.random()*(this.height-120), w: 80, h: 80, hp: 8, maxHp: 8, speed: 1.5, color: '#ef4444', canShoot: true });
-                this.enemies.push(e);
-            }
-
             spawnPowerUp() {
                 const rand = Math.random();
                 let type = 'weapondata';
@@ -898,7 +948,7 @@
                         this.sounds.levelup();
                         this.showFloatText("LEVEL UP!", this.player.x, this.player.y);
                     } else {
-                        // FORCE GOD SCALING BUFF
+                        // FORCE GOD SCALING BUFF (2.5x more than others)
                         let bonus = (this.playerClass === 'force') ? 0.25 : 0.1;
                         this.player.damageMultiplier += bonus;
                         this.showFloatText("+DMG!", this.player.x, this.player.y);
@@ -923,7 +973,11 @@
 
             spawnEnemyBullet(e) {
                 const b = [];
-                if (e.type === 'sinow') {
+                // ELITE SINOW RED: Spread Shot
+                if (e.type === 'sinow_red') {
+                    [-2, 0, 2].forEach(vy => b.push({ x: e.x, y: e.y+e.h/2, w: 12, h: 5, vx: 8, vy: vy, color: '#dc2626' }));
+                }
+                else if (e.type === 'sinow') {
                     b.push({ x: e.x, y: e.y+e.h/2-5, w: 10, h: 4, vx: 7, vy: 0, color: '#f87171' });
                     b.push({ x: e.x, y: e.y+e.h/2+5, w: 10, h: 4, vx: 7, vy: 0, color: '#f87171' });
                 }
