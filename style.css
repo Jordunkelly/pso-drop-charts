@@ -1,103 +1,101 @@
-/* --- UNIVERSAL THEME & RESET --- */
-:root { 
-    --bg: #0d1117; 
-    --panel: #161b22; 
-    --border: #30363d; 
-    --text: #c9d1d9; 
-    --blue: #58a6ff; 
-    --gold: #d4af37; 
-    --uber-glow: #ff8c00;
+/* style.css */
+
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --border: #30363d;
+  --text: #c9d1d9;
+  --blue: #58a6ff;
+  --gold: #d4af37;
+  --uber-glow: #ff8c00;
 }
 
 * { box-sizing: border-box; }
 
-body { 
-    background-color: var(--bg); 
-    color: var(--text); 
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
-    margin: 0; 
-    padding: 0; 
-    overflow-x: hidden; 
+html, body {
+  width: 100%;
+  max-width: 100%;
 }
 
-/* --- SHARED NAVIGATION --- */
-.main-nav { 
-    background: #010409; 
-    border-bottom: 1px solid var(--border); 
-    display: flex; 
-    justify-content: center; 
-    align-items: center; 
-    padding: 10px 20px; 
-    position: sticky; 
-    top: 0; 
-    z-index: 2000; 
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
 }
 
-.nav-links { 
-    display: flex; 
-    gap: 15px; 
-    align-items: center; 
+/* Nav */
+.main-nav {
+  background: #010409;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px 20px;
+  position: sticky;
+  top: 0;
+  z-index: 2000;
 }
 
-.nav-link { 
-    display: flex;
-    align-items: center;
-    color: var(--text); 
-    text-decoration: none; 
-    font-weight: bold; 
-    padding: 8px 12px; 
-    border-radius: 6px; 
-    transition: 0.2s; 
-    font-size: 0.9em; 
-    white-space: nowrap; 
+.nav-links {
+  display: flex;
+  gap: 15px;
+  align-items: center;
 }
 
-.nav-link:hover { background: rgba(255,255,255,0.1); }
-.nav-link.active { background: var(--blue); color: white; }
+.nav-link {
+  display: flex;
+  align-items: center;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: 0.2s;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
 
-/* --- TIER TAGS (PILL STYLE) --- */
+.nav-link:hover { background: rgba(255, 255, 255, 0.1); }
+.nav-link.active { background: var(--blue); color: #fff; }
+
+/* Content */
+.content-section { padding: 10px; }
+
+/* Tier tag pill */
 .tier-tag {
-    display: inline-block;
-    padding: 3px 10px;
-    margin-left: 15px; 
-    border-radius: 50px; 
-    font-size: 0.75rem;
-    font-weight: 800;
-    color: #fff;
-    text-transform: uppercase;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    vertical-align: middle;
-    text-align: center;
+  display: inline-block;
+  padding: 3px 10px;
+  margin-left: 12px;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #fff;
+  text-transform: uppercase;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  vertical-align: middle;
+  min-width: 24px;
+  text-align: center;
 }
 
 .tier-tag.tier-u {
-    background: linear-gradient(135deg, #ff8c00, #b8860b) !important;
-    border: 1px solid #ffd700 !important;
-    box-shadow: 0 0 10px var(--uber-glow), inset 0 0 5px #ffd700 !important;
-    text-shadow: 1px 1px 2px #000 !important;
-    font-size: 0 !important; /* Hides original 'u' */
-    padding: 3px 12px;
+  background: linear-gradient(135deg, #ff8c00, #b8860b) !important;
+  border: 1px solid #ffd700 !important;
+  box-shadow: 0 0 8px #ff8c00, inset 0 0 3px #ffd700 !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8) !important;
+  font-size: 0 !important;
+  padding: 3px 12px;
 }
 
 .tier-tag.tier-u::after {
-    content: 'UBER';
-    font-size: 0.75rem;
-    letter-spacing: 0.8px;
+  content: "UBER";
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
 }
 
 .tier-tag.tier-s { background-color: #d122e3 !important; }
 .tier-tag.tier-a { background-color: #2ea043 !important; }
-.tier-tag.tier-b { background-color: #1f6feb !important; }
-.tier-tag.tier-c { background-color: #6e7681 !important; }
-.tier-tag.tier-e { background-color: #a371f7 !important; }
-
-/* --- MOBILE RESPONSIVE --- */
-@media (max-width: 768px) {
-    .main-nav { padding: 10px; }
-    .nav-links { gap: 8px; }
-    .nav-link { padding: 8px 10px; font-size: 0.85em; }
-    .nav-text { display: none; } /* Hide 'Defender' text on mobile */
-    
-    input, select { font-size: 16px !important; }
-}
+.tier-tag.tier-b { backgr
