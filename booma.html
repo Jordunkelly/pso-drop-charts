@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PSO Photon Defender 1.1</title>
+    <title>PSO Photon Defender</title>
     <link rel="stylesheet" href="style.css">
     <!--
         This copy of the original Photon Defender has been modified to address
@@ -255,13 +255,13 @@
             <div class="controls-area">
                 <div id="classSelect">
                     <button class="button btn-hunter" onclick="startGame('hunter')">
-                        HUNTER<br><span style="font-size:0.7em">Wave Attack<br>5 Lives</span>
+                        HUNTER<br><span style="font-size:0.7em">Wave Attack<br>Tank: 7 Lives</span>
                     </button>
                     <button class="button btn-ranger" onclick="startGame('ranger')">
-                        RANGER<br><span style="font-size:0.7em">Bullet Hell<br>3 Lives</span>
+                        RANGER<br><span style="font-size:0.7em">Multiple Guns<br>Very Fast</span>
                     </button>
                     <button class="button btn-force" onclick="startGame('force')">
-                        FORCE<br><span style="font-size:0.7em">Homing Techs<br>1 Life</span>
+                        FORCE<br><span style="font-size:0.7em">Elemental Techs<br>2 Lives</span>
                     </button>
                 </div>
                 <button id="retryBtn" class="button" style="display:none">TRY AGAIN</button>
@@ -394,13 +394,19 @@
                     rareTimer: 0,
                     // rareEffect tracks which rare upgrade is active (hunter, ranger, force) or null
                     rareEffect: null,
-                    slowTimer: 0
-            ,
-            // Shields absorb hits before lives are reduced.  Each shield
-            // collected via a powerup allows the player to take one hit
-            // without losing a life.  Shields are displayed next to
-            // hearts.  Starts at zero.
-            shield: 0
+                    slowTimer: 0,
+                    // Weapon type indicates the current weapon build.  For
+                    // hunters this remains 'normal' (large sabers); for
+                    // rangers this may be 'handgun','shotgun','rifle' or
+                    // 'bazooka'; for force this is 'tech'.
+                    weaponType: 'normal',
+                    // Element for force characters: 'fire','lightning','ice'
+                    element: 'fire',
+                    // Shields absorb hits before lives are reduced.  Each shield
+                    // collected via a powerup allows the player to take one hit
+                    // without losing a life.  Shields are displayed next to
+                    // hearts.  Starts at zero.
+                    shield: 0
                 };
 
         // Track which boss is currently active.  When a boss spawns,
@@ -409,21 +415,30 @@
         // is defeated, killEnemy resets this property to null.
         this.currentBossType = null;
                 if (this.playerClass === 'hunter') {
-                    this.player.lives = 5;
-                    this.player.speed = 5;
+                    // Hunters are tanky and slow: grant more lives and lower speed
+                    this.player.lives = 7;
+                    this.player.speed = 3;
                     this.magRate = 1.0;
                     this.player.damage = 0.8;
+                    this.player.weaponType = 'normal';
                 } else if (this.playerClass === 'ranger') {
+                    // Rangers are fast but fragile: standard lives and high speed
                     this.player.lives = 3;
-                    this.player.speed = 8;
+                    this.player.speed = 9;
                     this.magRate = 1.0;
                     this.player.damage = 0.5;
+                    // Start with a handgun; other guns will be unlocked through upgrades
+                    this.player.weaponType = 'handgun';
                 } else if (this.playerClass === 'force') {
-                    this.player.lives = 1;
+                    // Mages have few lives but powerful tech; give a second life
+                    this.player.lives = 2;
                     this.player.speed = 3;
                     this.magRate = 2.0;
                     this.player.shootInterval = 25;
                     this.player.damage = 0.4;
+                    // Start with fire element
+                    this.player.weaponType = 'tech';
+                    this.player.element = 'fire';
                 }
                 this.score = 0;
                 this.highScore = parseInt(localStorage.getItem('psoHighScore') || '0', 10);
@@ -931,7 +946,8 @@
                         ctx.fillStyle = '#facc15';
                         ctx.fillRect(b.x, b.y, b.w, b.h);
                     } else {
-                        ctx.fillStyle = '#58a6ff';
+                        // Use bullet colour if specified, otherwise fall back to default blue
+                        ctx.fillStyle = b.color || '#58a6ff';
                         ctx.fillRect(b.x, b.y, b.w, b.h);
                     }
                 });
@@ -999,7 +1015,10 @@
             shoot() {
                 this.sounds.shoot();
                 let offsets = [0];
-                let bulletProps = { w: 12, h: 4, s: 8, piercing: false, homing: false, life: 999 };
+                // Basic bullet properties.  Each weapon type will override
+                // these as necessary.  Includes a colour field so that
+                // different guns and elements can appear visually distinct.
+                let bulletProps = { w: 12, h: 4, s: 8, piercing: false, homing: false, life: 999, color: null };
                 const lvl = this.player.weaponLevel;
                 if (this.player.rareTimer > 0) {
                     // Rare patterns are determined by the active rare effect rather than the player's class
@@ -1014,43 +1033,143 @@
                     }
                 } else {
                     if (this.playerClass === 'hunter') {
-                        bulletProps.w = 10;
-                        bulletProps.h = 40 + (lvl * 5);
-                        bulletProps.s = 7;
+                        // Hunters fire large sabers.  Increase the height
+                        // dramatically as levels increase to emphasise area
+                        // control.  Hunters remain 'normal' weapon type; at
+                        // level 10 the saber becomes a laser.
+                        bulletProps.w = 12;
+                        bulletProps.h = 50 + (lvl * 6);
+                        bulletProps.s = 6;
                         bulletProps.life = 60;
-                        if (lvl >= 4) offsets = [-20, 20];
-                        if (lvl >= 7) offsets = [-30, 0, 30];
-                        if (lvl >= 10) { bulletProps.h = 100; bulletProps.piercing = true; this.player.weaponType = 'laser'; } else {
+                        bulletProps.color = '#f97316';
+                        if (lvl >= 4) offsets = [-25, 25];
+                        if (lvl >= 7) offsets = [-35, 0, 35];
+                        if (lvl >= 10) {
+                            bulletProps.h = 120;
+                            bulletProps.piercing = true;
+                            this.player.weaponType = 'laser';
+                        } else {
                             this.player.weaponType = 'normal';
                         }
                     } else if (this.playerClass === 'ranger') {
-                        bulletProps.w = 15;
-                        bulletProps.h = 3;
-                        bulletProps.s = 15;
-                        if (lvl >= 4) offsets = [-10, 10];
-                        if (lvl >= 7) offsets = [-20, -10, 0, 10, 20];
-                        if (lvl >= 10) offsets = [-30,-20,-10,0,10,20,30];
-                        this.player.weaponType = 'normal';
+                        /* Rangers have multiple gun types.  Determine
+                         * behaviour based on this.player.weaponType.  Level
+                         * increases adjust spread and bullet size/speed.
+                         */
+                        const gun = this.player.weaponType;
+                        if (gun === 'handgun') {
+                            bulletProps.w = 14;
+                            bulletProps.h = 4;
+                            bulletProps.s = 15;
+                            bulletProps.color = '#34d399';
+                            if (lvl >= 4) offsets = [-10, 10];
+                            if (lvl >= 7) offsets = [-20, -10, 0, 10, 20];
+                            if (lvl >= 10) offsets = [-30,-20,-10,0,10,20,30];
+                        } else if (gun === 'shotgun') {
+                            bulletProps.w = 8;
+                            bulletProps.h = 6;
+                            bulletProps.s = 10;
+                            bulletProps.color = '#f87171';
+                            offsets = [-10, 0, 10];
+                            if (lvl >= 4) offsets = [-20,-10,0,10,20];
+                            if (lvl >= 7) offsets = [-30,-20,-10,0,10,20,30];
+                            if (lvl >= 10) offsets = [-40,-30,-20,-10,0,10,20,30,40];
+                        } else if (gun === 'rifle') {
+                            bulletProps.w = 28;
+                            bulletProps.h = 4;
+                            bulletProps.s = 18;
+                            bulletProps.color = '#facc15';
+                            offsets = [0];
+                            if (lvl >= 4) offsets = [-5, 5];
+                            if (lvl >= 7) offsets = [-10, 0, 10];
+                            if (lvl >= 10) offsets = [-15,-5,5,15];
+                        } else if (gun === 'bazooka') {
+                            bulletProps.w = 26;
+                            bulletProps.h = 26;
+                            bulletProps.s = 5;
+                            bulletProps.piercing = true;
+                            bulletProps.color = '#c084fc';
+                            offsets = [0];
+                            if (lvl >= 4) offsets = [-8, 8];
+                            if (lvl >= 7) offsets = [-16, 0, 16];
+                            if (lvl >= 10) offsets = [-24,-12,0,12,24];
+                        } else {
+                            // Fallback to handgun
+                            bulletProps.w = 14;
+                            bulletProps.h = 4;
+                            bulletProps.s = 15;
+                            bulletProps.color = '#34d399';
+                            if (lvl >= 4) offsets = [-10, 10];
+                            if (lvl >= 7) offsets = [-20, -10, 0, 10, 20];
+                            if (lvl >= 10) offsets = [-30,-20,-10,0,10,20,30];
+                        }
                     } else if (this.playerClass === 'force') {
-                        bulletProps.w = 8;
-                        bulletProps.h = 8;
-                        bulletProps.s = 5;
-                        bulletProps.homing = true;
-                        if (lvl >= 4) offsets = [-10, 10];
-                        if (lvl >= 7) offsets = [-20, 0, 20];
-                        if (lvl >= 10) { bulletProps.s = 12; offsets = [-30,-15,15,30]; }
-                        this.player.weaponType = 'normal';
+                        /* Force characters use techs.  Determine the
+                         * behaviour based on current element.  Fire: large
+                         * flames with moderate speed; Lightning: fast,
+                         * homing bolts; Ice: slow, piercing crystals.  Offsets
+                         * increase with level.
+                         */
+                        const elem = this.player.element || 'fire';
+                        if (elem === 'fire') {
+                            bulletProps.w = 14;
+                            bulletProps.h = 14;
+                            bulletProps.s = 6;
+                            bulletProps.piercing = false;
+                            bulletProps.homing = false;
+                            bulletProps.color = '#f97316';
+                            offsets = [0];
+                            if (lvl >= 4) offsets = [-15, 15];
+                            if (lvl >= 7) offsets = [-25, 0, 25];
+                            if (lvl >= 10) offsets = [-35,-15,15,35];
+                        } else if (elem === 'lightning') {
+                            bulletProps.w = 8;
+                            bulletProps.h = 8;
+                            bulletProps.s = 12;
+                            bulletProps.piercing = false;
+                            bulletProps.homing = true;
+                            bulletProps.color = '#facc15';
+                            offsets = [0];
+                            if (lvl >= 4) offsets = [-10, 10];
+                            if (lvl >= 7) offsets = [-20, 0, 20];
+                            if (lvl >= 10) offsets = [-30,-15,15,30];
+                        } else if (elem === 'ice') {
+                            bulletProps.w = 16;
+                            bulletProps.h = 16;
+                            bulletProps.s = 4;
+                            bulletProps.piercing = true;
+                            bulletProps.homing = false;
+                            bulletProps.color = '#38bdf8';
+                            offsets = [0];
+                            if (lvl >= 4) offsets = [-15, 15];
+                            if (lvl >= 7) offsets = [-25, 0, 25];
+                            if (lvl >= 10) offsets = [-35,-20,-10,0,10,20,35];
+                        } else {
+                            // Fallback: treat as fire
+                            bulletProps.w = 14;
+                            bulletProps.h = 14;
+                            bulletProps.s = 6;
+                            bulletProps.color = '#f97316';
+                            offsets = [0];
+                            if (lvl >= 4) offsets = [-15, 15];
+                            if (lvl >= 7) offsets = [-25, 0, 25];
+                            if (lvl >= 10) offsets = [-35,-15,15,35];
+                        }
                     }
                 }
+                // Special global behaviours: if weaponType was set to 'spread'
+                // or 'pierce' from prior upgrades (legacy), honour them.
                 if (this.player.weaponType === 'spread') offsets = [-20, -10, 0, 10, 20];
                 if (this.player.weaponType === 'pierce') bulletProps.piercing = true;
+                // Laser does not spawn discrete bullets but is drawn in render()
                 if (this.player.weaponType === 'laser') return;
                 offsets.forEach(offsetY => {
                     this.bullets.push({
                         x: this.player.x + this.player.w,
                         y: this.player.y + this.player.h / 2 - (bulletProps.h/2) + offsetY,
                         w: bulletProps.w, h: bulletProps.h, s: bulletProps.s,
-                        piercing: bulletProps.piercing, homing: bulletProps.homing, life: bulletProps.life
+                        piercing: bulletProps.piercing, homing: bulletProps.homing, life: bulletProps.life,
+                        color: bulletProps.color
                     });
                 });
             }
@@ -1146,7 +1265,8 @@
                     this.sounds.rare();
                     // Grant the player a minimum of 5 lives when rare is collected
                     this.player.lives = Math.max(this.player.lives, 5);
-                } else if (p.type === 'weapondata') {
+                } else if (p.type === 'weapon-hunter') {
+                    // Hunters: upgrade weapon level or damage multiplier
                     if (this.player.weaponLevel < 10) {
                         this.player.weaponLevel++;
                         this.sounds.levelup();
@@ -1155,6 +1275,47 @@
                         this.player.damageMultiplier += 0.1;
                         this.showFloatText("+DMG", this.player.x, this.player.y);
                         this.sounds.power();
+                    }
+                } else if (p.type && p.type.startsWith('gun-')) {
+                    // Rangers: gun upgrades.  Extract the gun type after 'gun-'
+                    const newGun = p.type.split('-')[1];
+                    // If switching to a different gun, reset level to 1 and change weapon
+                    if (this.player.weaponType !== newGun) {
+                        this.player.weaponType = newGun;
+                        this.player.weaponLevel = 1;
+                        this.showFloatText(newGun.toUpperCase(), this.player.x, this.player.y);
+                        this.sounds.levelup();
+                    } else {
+                        if (this.player.weaponLevel < 10) {
+                            this.player.weaponLevel++;
+                            this.sounds.levelup();
+                            this.showFloatText("LVL UP!", this.player.x, this.player.y);
+                        } else {
+                            this.player.damageMultiplier += 0.1;
+                            this.showFloatText("+DMG", this.player.x, this.player.y);
+                            this.sounds.power();
+                        }
+                    }
+                } else if (p.type && p.type.startsWith('tech-')) {
+                    // Force: tech element upgrade. Extract the element after 'tech-'
+                    const newElem = p.type.split('-')[1];
+                    // Ensure weapon type is tech
+                    this.player.weaponType = 'tech';
+                    if (this.player.element !== newElem) {
+                        this.player.element = newElem;
+                        this.player.weaponLevel = 1;
+                        this.showFloatText(newElem.toUpperCase(), this.player.x, this.player.y);
+                        this.sounds.levelup();
+                    } else {
+                        if (this.player.weaponLevel < 10) {
+                            this.player.weaponLevel++;
+                            this.sounds.levelup();
+                            this.showFloatText("LVL UP!", this.player.x, this.player.y);
+                        } else {
+                            this.player.damageMultiplier += 0.1;
+                            this.showFloatText("+DMG", this.player.x, this.player.y);
+                            this.sounds.power();
+                        }
                     }
                 } else if (p.type === 'heal') {
                     // Heal restores one life up to a max of 10
@@ -1166,7 +1327,12 @@
                 } else if (p.type === 'blast') {
                     this.blastEnergy = Math.min(100, this.blastEnergy + 50);
                 }
-                if (p.type !== 'rare' && p.type !== 'weapondata') this.sounds.power();
+                // Play the generic power sound for consumables only (heal, shield, blast).  Do not
+                // play it for weapon upgrades or rare effects to avoid
+                // overlap with level up sounds.
+                if (!(p.type && (p.type.startsWith('rare') || p.type.startsWith('weapon') || p.type.startsWith('gun') || p.type.startsWith('tech')))) {
+                    this.sounds.power();
+                }
             }
             showFloatText(text, x, y) {
                 const el = document.createElement('div');
@@ -1361,11 +1527,46 @@
                         // enemies have an increased chance to drop a heal or
                         // shield instead of a weapon.  Bosses always drop
                         // additional consumables (handled below).
-                        let dropType = 'weapondata';
-                        let dropColor = '#f97316';
-                        // Rare chance for heal (restore a life)
+                        // Determine the appropriate weapon drop based on class.  Hunters
+                        // receive a generic upgrade ('weapon-hunter'), rangers
+                        // receive one of four gun types, and forces receive one of
+                        // three tech elements.  If the player is fully
+                        // upgraded (weaponLevel >= 10), subsequent weapon drops
+                        // will increase the damage multiplier instead when
+                        // collected.
+                        let dropType;
+                        let dropColor;
+                        if (this.playerClass === 'hunter') {
+                            dropType = 'weapon-hunter';
+                            dropColor = '#f97316';
+                        } else if (this.playerClass === 'ranger') {
+                            const gunTypes = ['gun-handgun','gun-shotgun','gun-rifle','gun-bazooka'];
+                            dropType = gunTypes[Math.floor(Math.random()*gunTypes.length)];
+                            const cMap = {
+                                'gun-handgun':'#34d399',
+                                'gun-shotgun':'#f87171',
+                                'gun-rifle':'#facc15',
+                                'gun-bazooka':'#c084fc'
+                            };
+                            dropColor = cMap[dropType] || '#58a6ff';
+                        } else if (this.playerClass === 'force') {
+                            const techTypes = ['tech-fire','tech-lightning','tech-ice'];
+                            dropType = techTypes[Math.floor(Math.random()*techTypes.length)];
+                            const cMap = {
+                                'tech-fire':'#f97316',
+                                'tech-lightning':'#facc15',
+                                'tech-ice':'#38bdf8'
+                            };
+                            dropColor = cMap[dropType] || '#58a6ff';
+                        } else {
+                            // Fallback
+                            dropType = 'weapon-hunter';
+                            dropColor = '#f97316';
+                        }
+                        // Determine whether this drop becomes a heal or shield
+                        // instead of a weapon.  Elite foes drop consumables
+                        // more frequently than regular foes.
                         let healChance = e.isElite ? 0.1 : 0.02;
-                        // Rare chance for shield (absorb damage)
                         let shieldChance = e.isElite ? 0.05 : 0.01;
                         const roll = Math.random();
                         if (roll < shieldChance) {
