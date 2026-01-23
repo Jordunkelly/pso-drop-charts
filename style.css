@@ -24,10 +24,20 @@ body {
     position: sticky; top: 0; z-index: 2000; 
 }
 
-.nav-links { 
-    display: flex; 
-    gap: 15px; 
-    align-items: center; 
+.nav-link {
+    display: flex;             /* Align icon and text side-by-side */
+    align-items: center;       /* Vertical centering */
+    color: var(--text);
+    text-decoration: none;
+    font-weight: bold;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.9em;
+}
+
+/* Hide the text "Defender" on very small mobile screens to save space */
+@media (max-width: 480px) {
+    .nav-text { display: none; }
 }
 
 .nav-link { 
@@ -35,6 +45,10 @@ body {
     padding: 8px 12px; border-radius: 6px; transition: 0.2s; 
     font-size: 0.9em; 
     white-space: nowrap; /* Prevents text inside links from wrapping */
+    
+    display: flex; 
+    gap: 15px; 
+    align-items: center; 
 }
 
 .nav-link:hover { background: rgba(255,255,255,0.1); }
