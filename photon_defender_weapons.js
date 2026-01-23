@@ -1,5 +1,3 @@
-<script>
-
 /* =========================
    VARIETY PACK: Weapons + Bullet Hell + Elites
    Drop this into your <script> AFTER enemyData/areaEnemies,
@@ -838,6 +836,3 @@ Inside render(), replace the bullets.forEach(...) block with:
 and at the end of render():
        this.fx.render();
 */
-
-
-</script>
