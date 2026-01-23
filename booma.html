@@ -200,7 +200,7 @@
 
     <script>
         // --- CONFIGURATION ---
-        // !!! PASTE YOUR GOOGLE APPS SCRIPT URL BELOW !!!
+        // I have inserted the URL you provided below:
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxxiFXRcxYNEkE1WzMMRIig9F4FVcpxn4IpE4v23JSP1WYsKSkI98xB_As12bxSUBiK/exec"; 
 
         // --- 1. Navigation Loader ---
@@ -710,21 +710,19 @@
             btn.textContent = "SENDING...";
             btn.disabled = true;
 
-            const payload = {
-                name: name,
-                score: game.score,
-                level: game.level
-            };
+            const score = game.score;
+            const level = game.level;
+            // Use URL parameters for the GET request
+            const targetUrl = `${SCRIPT_URL}?name=${encodeURIComponent(name)}&score=${score}&level=${level}`;
 
-            fetch(SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+            fetch(targetUrl, {
+                method: 'GET',
+                mode: 'no-cors'
             }).then(() => {
                 alert("SCORE UPLOADED!");
                 btn.textContent = "SENT!";
             }).catch(e => {
+                console.error(e);
                 alert("ERROR UPLOADING");
                 btn.textContent = "RETRY";
                 btn.disabled = false;
