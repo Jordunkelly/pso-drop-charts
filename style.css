@@ -196,58 +196,74 @@ td {
   white-space: nowrap;
 }
 
-/* Responsive */
+/* --- UPDATED MOBILE RESPONSIVE --- */
 @media (max-width: 768px) {
-  .main-nav { padding: 10px; }
-  .nav-links { gap: 8px; }
-  .nav-link { padding: 8px 10px; font-size: 0.85em; }
-  .nav-text { display: none; }
+    .main-nav { padding: 10px; }
+    .nav-links { gap: 8px; }
+    .nav-link { padding: 8px 10px; font-size: 0.85em; }
+    .nav-text { display: none; }
 
-  .controls {
-    grid-template-columns: 1fr;
-    position: relative;
-    top: 0;
-  }
+    .controls {
+        grid-template-columns: 1fr;
+        position: relative;
+        top: 0;
+        padding: 10px;
+    }
 
-  #nameSearch { grid-column: span 1; }
-
-  /* Keep these hidden for tablet width table view */
-  .col-ep, .col-map { display: none; }
+    /* Hide less critical columns on tablets to keep table layout as long as possible */
+    .col-ep, .col-map { display: none; }
 }
 
 @media (max-width: 640px) {
-  /* Card table */
-  table { min-width: 0; }
-  #dropTable thead { display: none; }
+    .content-section { padding: 5px; }
+    
+    /* Force table to behave like cards */
+    #dropTable thead { display: none; }
+    #dropTable, #dropTable tbody, #dropTable tr, #dropTable td { 
+        display: block; 
+        width: 100%; 
+    }
 
-  #dropTable tr {
-    display: block;
-    margin-bottom: 12px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-    background: var(--panel);
-  }
+    #dropTable tr {
+        margin-bottom: 15px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--panel);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
 
-  #dropTable td {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border);
-  }
+    #dropTable td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: right;
+        padding: 12px;
+        border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+        min-height: 45px;
+    }
 
-  #dropTable td:last-child { border-bottom: 0; }
+    #dropTable td:last-child { border-bottom: none; }
 
-  #dropTable td::before {
-    content: attr(data-label);
-    font-weight: 800;
-    opacity: 0.75;
-    padding-right: 12px;
-    white-space: nowrap;
-  }
+    /* Label positioning */
+    #dropTable td::before {
+        content: attr(data-label);
+        font-weight: 800;
+        color: var(--blue);
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        text-align: left;
+        flex: 1;
+    }
 
-  /* Re show Ep and Map in card view */
-  #dropTable td.col-ep,
-  #dropTable td.col-map { display: flex; }
+    /* Ensure content inside cards wraps properly */
+    #dropTable td > * {
+        flex: 2;
+        display: inline-block;
+    }
+
+    /* Keep Ep and Map visible in Card View */
+    #dropTable td.col-ep, #dropTable td.col-map { display: flex; }
+
+    /* Spacing for Tier Tag in mobile cards */
+    .tier-tag { margin-left: 5px; margin-top: 2px; }
 }
