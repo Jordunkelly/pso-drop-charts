@@ -55,6 +55,21 @@ body {
 .nav-link:hover { background: rgba(255,255,255,0.1); }
 .nav-link.active { background: var(--blue); color: white; }
 
+.nav-link { 
+    display: flex; 
+    align-items: center; 
+    color: var(--text); 
+    text-decoration: none; 
+    font-weight: bold; 
+    padding: 8px 12px; 
+    border-radius: 6px; 
+}
+
+/* On mobile, we hide the text "Defender" to keep the nav from wrapping */
+@media (max-width: 768px) {
+    .nav-text { display: none; }
+}
+
 /* --- TIER TAGS (PILL STYLE) --- */
 .tier-tag {
     display: inline-block;
