@@ -305,6 +305,8 @@
                     shootInterval: 12,
                     damageMultiplier: 1.0,
                     rareTimer: 0,
+                    // rareEffect tracks which rare upgrade is active (hunter, ranger, force) or null
+                    rareEffect: null,
                     slowTimer: 0
                 };
                 if (this.playerClass === 'hunter') {
@@ -437,9 +439,18 @@
                 this.enemies = [];
                 setTimeout(() => {
                     warning.style.display = 'none';
-                    let baseHp = 800;
-                    if (type === 'dragon' && this.level === 5) baseHp = 1500;
-                    let hp = baseHp + (this.level * 250);
+                    // Reduce boss HP to make fights less punishing. The first boss
+                    // (dragon on level 5) receives a higher starting value but
+                    // overall health values are lower than before. See issue
+                    // report “boss is too hard. less hp on boss. slightly easier
+                    // for first boss.”
+                    let baseHp = 600;
+                    // The Dragon boss on level 5 gets a slightly larger pool to
+                    // remain threatening but still easier than original values.
+                    if (type === 'dragon' && this.level === 5) baseHp = 1000;
+                    // Reduce the per‑level scaling to 200 HP per level instead
+                    // of 250 to soften later bosses as well.
+                    let hp = baseHp + (this.level * 200);
                     let boss = {
                         type: type, isBoss: true, x: this.width + 100, y: this.height/2 - 75,
                         w: 150, h: 150,
@@ -465,8 +476,11 @@
                 if (this.player.rareTimer > 0) {
                     this.player.rareTimer--;
                     if (this.player.rareTimer === 0) {
+                        // Rare effect wears off: hide notification and clear effect
                         document.getElementById('rare-notification').style.display = 'none';
-                    } else if (this.playerClass === 'force' && this.player.rareTimer % 15 === 0) {
+                        this.player.rareEffect = null;
+                    } else if (this.player.rareEffect === 'force' && this.player.rareTimer % 15 === 0) {
+                        // Force rare effect: spawn a vertical homing beam at a random enemy
                         if(this.enemies.length > 0) {
                             let target = this.enemies[Math.floor(Math.random() * this.enemies.length)];
                             this.bullets.push({
@@ -501,7 +515,8 @@
                 this.player.y = Math.max(0, Math.min(this.height - this.player.h, this.player.y));
                 this.player.x = Math.max(0, Math.min(this.width - this.player.w, this.player.x));
                 let shootRate = this.player.shootInterval;
-                if (this.player.rareTimer > 0 && this.playerClass === 'ranger') shootRate = 2;
+                // Ranger rare effect dramatically reduces shoot interval for bullet hell
+                if (this.player.rareTimer > 0 && this.player.rareEffect === 'ranger') shootRate = 2;
                 if (this.input.shoot && this.frame % shootRate === 0) this.shoot();
                 if (this.input.blast && this.blastEnergy >= 100) this.photonBlast();
                 if (this.player.slowTimer > 0) {
@@ -554,7 +569,8 @@
                         if (e.type === 'sinow') e.y += Math.sin(this.frame / 10) * e.speed;
                     }
                     if (this.checkCollision(e, this.player) && this.player.invincible <= 0) {
-                        if (!(this.player.rareTimer > 0 && this.playerClass === 'hunter')) {
+                        // Hunter rare effect grants temporary invincibility
+                        if (!(this.player.rareTimer > 0 && this.player.rareEffect === 'hunter')) {
                             this.takeHit();
                             if (!e.isBoss) {
                                 this.enemies.splice(i, 1);
@@ -586,8 +602,10 @@
                             let baseDmg = this.player.damage;
                             let dmg = baseDmg * this.player.damageMultiplier;
                             if (this.player.rareTimer > 0) {
-                                if (this.playerClass === 'hunter') dmg = 10;
-                                if (this.playerClass === 'force') dmg = 5;
+                                // Hunter rare effect dramatically increases damage
+                                if (this.player.rareEffect === 'hunter') dmg = 10;
+                                // Force rare effect grants moderate damage boost
+                                if (this.player.rareEffect === 'force') dmg = 5;
                             }
                             e.hp -= dmg;
                             this.sounds.hit();
@@ -616,7 +634,8 @@
                     eb.x -= (eb.vx || eb.s || 0);
                     eb.y += (eb.vy || 0);
                     if (this.checkCollision(eb, this.player) && this.player.invincible <= 0) {
-                        if (!(this.player.rareTimer > 0 && this.playerClass === 'hunter')) {
+                        // Hunter rare effect confers invincibility against enemy bullets
+                        if (!(this.player.rareTimer > 0 && this.player.rareEffect === 'hunter')) {
                             this.takeHit();
                             this.enemyBullets.splice(ei, 1);
                             return;
@@ -643,9 +662,11 @@
                 if (this.playerClass === 'hunter') ctx.fillStyle = '#f97316';
                 else if (this.playerClass === 'ranger') ctx.fillStyle = '#22c55e';
                 else ctx.fillStyle = '#a855f7';
-                if (this.player.rareTimer > 0) {
+                if (this.player.rareTimer > 0 && this.player.rareEffect) {
                     ctx.shadowBlur = 20;
-                    ctx.shadowColor = '#ef4444';
+                    // Colour glow based on the active rare effect
+                    const glowMap = { 'hunter':'#ef4444', 'ranger':'#22c55e', 'force':'#a855f7' };
+                    ctx.shadowColor = glowMap[this.player.rareEffect] || '#ef4444';
                 }
                 ctx.beginPath();
                 ctx.moveTo(this.player.x, this.player.y + this.player.h / 2);
@@ -701,12 +722,13 @@
                 let bulletProps = { w: 12, h: 4, s: 8, piercing: false, homing: false, life: 999 };
                 const lvl = this.player.weaponLevel;
                 if (this.player.rareTimer > 0) {
-                    if (this.playerClass === 'hunter') {
+                    // Rare patterns are determined by the active rare effect rather than the player's class
+                    if (this.player.rareEffect === 'hunter') {
                         bulletProps.w = 300; bulletProps.h = 400; bulletProps.s = 15; bulletProps.piercing = true;
                         offsets = [0];
-                    } else if (this.playerClass === 'ranger') {
+                    } else if (this.player.rareEffect === 'ranger') {
                         offsets = [-100,-80,-60,-40,-20,0,20,40,60,80,100];
-                    } else if (this.playerClass === 'force') {
+                    } else if (this.player.rareEffect === 'force') {
                         bulletProps.w = 8; bulletProps.h = 8; bulletProps.s = 12; bulletProps.homing = true;
                         offsets = [0];
                     }
@@ -771,20 +793,45 @@
             }
             spawnPowerUp() {
                 const rand = Math.random();
+                // Default to a weapon data upgrade
                 let type = 'weapondata';
                 let color = '#f97316';
-                if (rand < 0.01) { type = 'rare'; color = '#ef4444'; }
-                else if (rand < 0.2) { type = 'heal'; color = '#34d399'; }
-                else if (rand < 0.3) { type = 'blast'; color = '#f472b6'; }
-                let size = (type === 'rare') ? 30 : 24;
+                /*
+                 * Rares now come in three flavours – one for each archetype. The
+                 * random number thresholds have been adjusted so that 3% of
+                 * spawns are rare drops (split evenly between types). Healing
+                 * items still occur 20% of the time, blast energy 10%, and
+                 * weapon data covers the remainder.
+                 */
+                if (rand < 0.03) {
+                    const rareTypes = ['rare-hunter','rare-ranger','rare-force'];
+                    type = rareTypes[Math.floor(Math.random() * rareTypes.length)];
+                    const colorMap = { 'rare-hunter':'#ef4444', 'rare-ranger':'#22c55e', 'rare-force':'#a855f7' };
+                    color = colorMap[type];
+                } else if (rand < 0.2) {
+                    type = 'heal';
+                    color = '#34d399';
+                } else if (rand < 0.3) {
+                    type = 'blast';
+                    color = '#f472b6';
+                }
+                let size = (type.startsWith('rare')) ? 30 : 24;
                 this.powerUps.push({ x: this.width, y: Math.random()*(this.height-30), w: size, h: size, type: type, speed: 2, color: color });
             }
             applyPowerUp(p) {
                 this.player.syncTimer = this.player.maxSync;
-                if (p.type === 'rare') {
+                // Any rare drop (rare-hunter, rare-ranger, rare-force) activates a
+                // timed special effect based on the suffix after 'rare-'. If
+                // p.type is exactly 'rare' (legacy), default to hunter.
+                if (p.type.startsWith('rare')) {
                     this.player.rareTimer = 3600;
+                    // Determine which effect should apply. Split on '-' to
+                    // extract the suffix; default to 'hunter' if missing.
+                    const parts = p.type.split('-');
+                    this.player.rareEffect = parts.length > 1 ? parts[1] : 'hunter';
                     document.getElementById('rare-notification').style.display = 'block';
                     this.sounds.rare();
+                    // Grant the player a minimum of 5 lives when rare is collected
                     this.player.lives = Math.max(this.player.lives, 5);
                 } else if (p.type === 'weapondata') {
                     if (this.player.weaponLevel < 10) {
@@ -848,8 +895,30 @@
             killEnemy(e, fromBlast=false) {
                 this.sounds.explode();
                 this.score += e.maxHp * 10;
-                if (!fromBlast) this.blastEnergy = Math.min(100, this.blastEnergy + (e.maxHp * 0.5 * this.magRate));
-                if (Math.random() < 0.1) this.spawnPowerUp();
+                if (!fromBlast) {
+                    // Award blast energy proportional to enemy max HP
+                    this.blastEnergy = Math.min(100, this.blastEnergy + (e.maxHp * 0.5 * this.magRate));
+                    /*
+                     * Enemies now drop a weapon upgrade on defeat. The item spawns
+                     * at the enemy's location and uses the same colour and speed
+                     * as standard weapon data. If the player is already at
+                     * maximum weapon level, picking up this item will instead
+                     * grant a damage multiplier bonus.
+                     */
+                    this.powerUps.push({
+                        x: e.x,
+                        y: e.y,
+                        w: 24,
+                        h: 24,
+                        type: 'weapondata',
+                        speed: 2,
+                        color: '#f97316'
+                    });
+                    // Occasionally drop an extra random power up (heal, blast, or rare)
+                    if (Math.random() < 0.1) {
+                        this.spawnPowerUp();
+                    }
+                }
             }
             takeHit() {
                 this.sounds.explode();
