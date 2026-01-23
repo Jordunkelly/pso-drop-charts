@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PSO Photon Defender 1.5</title>
+    <title>PSO Photon Defender</title>
     <link rel="stylesheet" href="style.css">
     <!--
         This copy of the original Photon Defender has been modified to address
@@ -328,6 +328,11 @@
             booma:   { w: 42, h: 42, hp: 2,  speed: 2.5, color: '#2ea043', canShoot: false, isElite: false },
             sinow:   { w: 50, h: 50, hp: 3,  speed: 3.5, color: '#c084fc', canShoot: true,  isElite: false },
             alrappy:{ w: 36, h: 36, hp: 3,  speed: 2.5, color: '#f87171', canShoot: true,  isElite: true  },
+            // Forest elite: Hildebear – a large creature that lumbers
+            // slowly and attacks with a radial shockwave.  Its shots are
+            // slower than other elites but have large hitboxes.  Treat as
+            // elite so it appears infrequently.
+            hildebear: { w: 80, h: 80, hp: 6, speed: 1.8, color: '#78350f', canShoot: true, isElite: true },
             // Caves
             evilshark:{ w: 48, h: 48, hp: 3,  speed: 3,   color: '#0ea5e9', canShoot: false, isElite: false },
             poisonlily:{w: 44, h: 50, hp: 2,  speed: 2.5, color: '#6d28d9', canShoot: true,  isElite: false },
@@ -347,7 +352,7 @@
          * Rare/elite enemies are included but will be selected less often.
          */
         const areaEnemies = {
-            forest: ['rappy','booma','sinow','alrappy'],
+            forest: ['rappy','booma','sinow','alrappy','hildebear'],
             caves:  ['booma','sinow','evilshark','poisonlily','grassass','nano'],
             mines:  ['sinow','baranz','gilchic','canane'],
             ruins:  ['booma','sinow','dimeni','chaos']
@@ -1389,9 +1394,10 @@
                                 break;
                             case 2:
                             default:
-                                // Wide spread: 10 bullets with varying vertical speeds
-                                [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5].forEach(vy => {
-                                    bullets.push({ x: e.x, y: e.y + e.h/2, w: 18, h: 18, vx: 3, vy: vy * 0.6, color: '#c084fc' });
+                                // Cross pattern: 12 bullets in a cross and diagonal formation
+                                const crossAngles = [0, Math.PI/2, Math.PI, 3*Math.PI/2, Math.PI/4, 3*Math.PI/4, 5*Math.PI/4, 7*Math.PI/4];
+                                crossAngles.forEach(angle => {
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle) * 2.5 - 1.2, vy: Math.sin(angle) * 2.5, color: '#c084fc' });
                                 });
                                 break;
                         }
@@ -1489,6 +1495,12 @@
                             bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 12, h: 12, vx: Math.cos(angle1) * 2.5 - 1.2, vy: Math.sin(angle1) * 2.5, color: '#ef4444' });
                             const angle2 = ((i + 0.5) / 8) * Math.PI * 2;
                             bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 12, h: 12, vx: Math.cos(angle2) * 3.5 - 1.2, vy: Math.sin(angle2) * 3.5, color: '#ef4444' });
+                        }
+                    } else if (e.type === 'hildebear') {
+                        // Hildebear: radial shockwave of six large bullets
+                        for (let i = 0; i < 6; i++) {
+                            const angle = (i / 6) * Math.PI * 2;
+                            bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 20, h: 20, vx: Math.cos(angle) * 2 - 1, vy: Math.sin(angle) * 2, color: '#78350f' });
                         }
                     } else if (e.type === 'poisonlily') {
                         // Shoots three vertically oriented poison orbs downward/upward
