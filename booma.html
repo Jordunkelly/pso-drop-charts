@@ -315,6 +315,20 @@
         bossBackgrounds.volopt.src = 'boss_background_volopt.png';
         bossBackgrounds.falz.src = 'boss_background_falz.png';
 
+        // Preload character sprites for each class.  These images should
+        // reside in the same directory as this HTML file.  If an image
+        // fails to load, the game will fall back to drawing a triangle
+        // representation for the player.  Naming convention: sprite-hunter.png,
+        // sprite-ranger.png, sprite-mage.png (force class uses mage sprite).
+        const spriteImages = {
+            hunter: new Image(),
+            ranger: new Image(),
+            force:  new Image()
+        };
+        spriteImages.hunter.src = 'sprite-hunter.png';
+        spriteImages.ranger.src = 'sprite-ranger.png';
+        spriteImages.force.src  = 'sprite-mage.png';
+
         /*
          * Define stats for each enemy type, including new area‑specific and
          * elite enemies.  Each entry specifies the sprite dimensions,
@@ -491,6 +505,12 @@
         // defined outside the class and contains Image objects keyed by
         // boss type.
         this.bossBackgrounds = bossBackgrounds;
+
+        // Store sprite images for class avatars.  If these images are
+        // unavailable or fail to load, the game will draw a triangle
+        // representation instead.  See the spriteImages definition in
+        // the global scope above.
+        this.spriteImages = spriteImages;
 
         // Bind methods that may be used as callbacks to ensure that
         // `this` always refers to the Game instance.  Without binding,
@@ -967,28 +987,47 @@
                         ctx.fillRect(0, 0, this.width, this.height);
                     }
                 }
+                // Draw the player avatar.  If a sprite image exists for
+                // this class and has loaded, draw it scaled to the
+                // player's bounding box.  Otherwise fall back to the
+                // original triangle indicator coloured by class.  Apply
+                // invincibility flicker and rare effect glow as
+                // overlays.  After drawing, render small dots below the
+                // character to indicate weapon level.
                 ctx.save();
-                if (this.player.invincible > 0 && Math.floor(this.frame / 5) % 2 === 0) ctx.globalAlpha = 0.5;
-                if (this.playerClass === 'hunter') ctx.fillStyle = '#f97316';
-                else if (this.playerClass === 'ranger') ctx.fillStyle = '#22c55e';
-                else ctx.fillStyle = '#a855f7';
+                // Flicker when invincible
+                if (this.player.invincible > 0 && Math.floor(this.frame / 5) % 2 === 0) {
+                    ctx.globalAlpha = 0.5;
+                }
+                // Rare effect glow
                 if (this.player.rareTimer > 0 && this.player.rareEffect) {
                     ctx.shadowBlur = 20;
-                    // Colour glow based on the active rare effect
-                    const glowMap = { 'hunter':'#ef4444', 'ranger':'#22c55e', 'force':'#a855f7' };
+                    const glowMap = { hunter:'#ef4444', ranger:'#22c55e', force:'#a855f7' };
                     ctx.shadowColor = glowMap[this.player.rareEffect] || '#ef4444';
                 }
-                ctx.beginPath();
-                ctx.moveTo(this.player.x, this.player.y + this.player.h / 2);
-                ctx.lineTo(this.player.x + this.player.w, this.player.y);
-                ctx.lineTo(this.player.x + this.player.w, this.player.y + this.player.h);
-                ctx.closePath();
-                ctx.fill();
-                ctx.fillStyle = '#fff';
+                const spriteImg = this.spriteImages[this.playerClass];
+                if (spriteImg && spriteImg.complete && spriteImg.naturalWidth > 0) {
+                    // Draw sprite
+                    ctx.drawImage(spriteImg, this.player.x, this.player.y, this.player.w, this.player.h);
+                } else {
+                    // Fallback triangle in class colour
+                    if (this.playerClass === 'hunter') ctx.fillStyle = '#f97316';
+                    else if (this.playerClass === 'ranger') ctx.fillStyle = '#22c55e';
+                    else ctx.fillStyle = '#a855f7';
+                    ctx.beginPath();
+                    ctx.moveTo(this.player.x, this.player.y + this.player.h / 2);
+                    ctx.lineTo(this.player.x + this.player.w, this.player.y);
+                    ctx.lineTo(this.player.x + this.player.w, this.player.y + this.player.h);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                // Reset shadow for subsequent drawings
                 ctx.shadowBlur = 0;
-                let dots = Math.min(10, this.player.weaponLevel);
-                for(let i=0; i<dots; i++) {
-                    ctx.fillRect(this.player.x + (i*4), this.player.y + this.player.h + 5, 3, 3);
+                // Draw weapon level dots beneath the player
+                ctx.fillStyle = '#ffffff';
+                const lvlDots = Math.min(10, this.player.weaponLevel);
+                for (let i = 0; i < lvlDots; i++) {
+                    ctx.fillRect(this.player.x + (i * 4), this.player.y + this.player.h + 5, 3, 3);
                 }
                 ctx.restore();
                 this.bullets.forEach(b => {
