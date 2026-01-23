@@ -95,6 +95,17 @@
         }
         @keyframes flash { from { opacity: 1; } to { opacity: 0; } }
 
+        /* Damage Text Float */
+        .dmg-float {
+            position: absolute;
+            color: #facc15;
+            font-weight: bold;
+            font-size: 1.2rem;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+        }
+        @keyframes floatUp { from { transform: translateY(0); opacity:1; } to { transform: translateY(-30px); opacity:0; } }
+
         .hud {
             display: flex;
             flex-wrap: wrap;
@@ -201,13 +212,14 @@
         
         <div id="gamePanel">
             <div id="boss-warning">WARNING<br>BOSS APPROACHING</div>
+            <div id="dmg-container"></div>
             <canvas id="canvas" width="900" height="500"></canvas>
             
             <div class="hud">
                 <div>
                     SCORE: <span id="score">0</span>
-                    &nbsp;|&nbsp; LIVES: <span id="lives">3</span>
                     &nbsp;|&nbsp; LVL: <span id="level">1</span>
+                    &nbsp;|&nbsp; <span id="dmg-mult" style="color:#facc15">DMG: x1.00</span>
                 </div>
                 <div>
                     SYNC: 
@@ -225,13 +237,13 @@
                 
                 <div id="classSelect">
                     <button class="button btn-hunter" onclick="startGame('hunter')">
-                        HUNTER<br><span style="font-size:0.7em">Photon Wave<br>5 Lives</span>
+                        HUNTER<br><span style="font-size:0.7em">Wave Attack<br>High HP</span>
                     </button>
                     <button class="button btn-ranger" onclick="startGame('ranger')">
-                        RANGER<br><span style="font-size:0.7em">Machine Gun<br>Fast Speed</span>
+                        RANGER<br><span style="font-size:0.7em">Bullet Hell<br>Fast Speed</span>
                     </button>
                     <button class="button btn-force" onclick="startGame('force')">
-                        FORCE<br><span style="font-size:0.7em">Zonde (Homing)<br>Fast Mag</span>
+                        FORCE<br><span style="font-size:0.7em">Homing Techs<br>Mag Boost</span>
                     </button>
                 </div>
 
@@ -278,10 +290,11 @@
                 this.player = {
                     x: 50, y: this.height / 2 - 20, w: 40, h: 40,
                     dy: 0, speed: 5, lives: 3, invincible: 0,
-                    weaponLevel: 1, // 1, 2, 3
-                    syncTimer: 1200, // 20 seconds to find refresh
-                    maxSync: 1200,
-                    shootInterval: 12
+                    weaponLevel: 1, 
+                    syncTimer: 1000, 
+                    maxSync: 1000,
+                    shootInterval: 12,
+                    damageMultiplier: 1.0 // This grows past Lv 10
                 };
 
                 // Class Specific Stats
@@ -414,17 +427,15 @@
                 this.enemies = []; 
                 setTimeout(() => {
                     warning.style.display = 'none';
-                    let hp = 0;
-                    // --- BOSS HP TUNING ---
-                    // Dragon (Level 5) = 1800 (Reduced from 5000)
-                    if (type === 'dragon' && this.level === 5) hp = 1800;
-                    else hp = 2500 + (this.level * 500);
+                    // Boss HP (Scaled Down)
+                    let baseHp = 800;
+                    if (type === 'dragon' && this.level === 5) baseHp = 1500; // First boss
+                    let hp = baseHp + (this.level * 250);
 
                     let boss = { 
                         type: type, isBoss: true, x: this.width + 100, y: this.height/2 - 75,
                         w: 150, h: 150, 
-                        hp: hp, 
-                        maxHp: hp, 
+                        hp: hp, maxHp: hp, 
                         speed: 2, color: color, canShoot: true, shotTimer: 60 
                     };
                     this.enemies.push(boss);
@@ -454,7 +465,8 @@
                         this.player.weaponLevel--;
                         this.player.syncTimer = this.player.maxSync;
                         this.sounds.powerdown();
-                        // Visual Float text for Power Down could go here
+                        // Reset multiplier if we drop level
+                        if (this.player.weaponLevel < 10) this.player.damageMultiplier = 1.0;
                     }
                 }
 
@@ -469,13 +481,21 @@
                 if (this.input.shoot && this.frame % this.player.shootInterval === 0) this.shoot();
                 if (this.input.blast && this.blastEnergy >= 100) this.photonBlast();
 
+                let baseInterval = (this.playerClass === 'force') ? 20 : 12;
+                if (this.player.weaponTimer > 0) {
+                    this.player.weaponTimer--;
+                    if (this.player.weaponTimer === 0) {
+                        this.player.weaponType = 'normal';
+                        this.player.shootInterval = baseInterval;
+                    }
+                }
+
                 let isBossActive = this.enemies.some(e => e.isBoss);
                 if (!isBossActive && this.frame % this.spawnRate === 0) this.spawnEnemy();
                 if (this.frame % 600 === 0) this.spawnPowerUp();
 
                 this.bullets.forEach((b, i) => {
                     b.x += b.s;
-                    
                     if (b.homing) {
                         let nearest = null;
                         let minDist = 9999;
@@ -491,7 +511,6 @@
                             else if (nearest.y < b.y) b.y -= 3;
                         }
                     }
-
                     if (b.x > this.width || b.x < 0 || b.y < 0 || b.y > this.height) {
                         this.bullets.splice(i, 1);
                     } else if (b.life && --b.life <= 0) {
@@ -508,7 +527,6 @@
                         }
                         let sweepRange = (this.height - 100);
                         e.y = (this.height/2 - e.h/2) + Math.sin(this.frame / 60) * (sweepRange / 2);
-                        
                     } else {
                         e.x -= e.speed;
                         if (e.type === 'sinow') e.y += Math.sin(this.frame / 10) * e.speed;
@@ -522,7 +540,7 @@
                         e.shotTimer--;
                         if (e.shotTimer <= 0) {
                             this.spawnEnemyBullet(e);
-                            e.shotTimer = (e.isBoss ? 30 : 90) + Math.random() * 20;
+                            e.shotTimer = (e.isBoss ? 20 : 90) + Math.random() * 20;
                         }
                     }
                 });
@@ -540,7 +558,10 @@
                 this.bullets.forEach((b, bi) => {
                     this.enemies.forEach((e, ei) => {
                         if (this.checkCollision(b, e)) {
-                            e.hp--;
+                            // Damage Calc: Class Base * Multiplier
+                            let baseDmg = (this.playerClass === 'ranger') ? 0.5 : (this.playerClass === 'force' ? 0.6 : 0.8);
+                            let dmg = baseDmg * this.player.damageMultiplier;
+                            e.hp -= dmg;
                             this.sounds.hit();
                             if (!b.piercing) this.bullets.splice(bi, 1);
                             if (e.hp <= 0) {
@@ -556,7 +577,7 @@
                     const beamY2 = this.player.y + this.player.h * 0.75;
                     this.enemies.forEach((e, ei) => {
                         if (e.x + e.w > this.player.x + this.player.w && e.y < beamY2 && e.y + e.h > beamY1) {
-                            e.hp -= 0.5;
+                            e.hp -= (0.5 * this.player.damageMultiplier);
                             if (e.hp <= 0) { this.killEnemy(e); this.enemies.splice(ei, 1); }
                         }
                     });
@@ -578,9 +599,9 @@
                 // --- HUD UPDATE ---
                 document.getElementById('score').textContent = this.score;
                 document.getElementById('level').textContent = this.level;
+                document.getElementById('dmg-mult').textContent = "DMG: x" + this.player.damageMultiplier.toFixed(2);
                 document.getElementById('lives').textContent = this.player.lives;
                 document.getElementById('blast-fill').style.width = Math.min(this.blastEnergy, 100) + '%';
-                // Sync Bar Logic
                 let syncPct = (this.player.syncTimer / this.player.maxSync) * 100;
                 document.getElementById('sync-fill').style.width = syncPct + '%';
             }
@@ -591,7 +612,6 @@
                 ctx.fillStyle = '#0a0e1a';
                 ctx.fillRect(0, 0, this.width, this.height);
                 
-                // Player
                 ctx.save();
                 if (this.player.invincible > 0 && Math.floor(this.frame / 5) % 2 === 0) ctx.globalAlpha = 0.5;
                 
@@ -606,10 +626,11 @@
                 ctx.closePath();
                 ctx.fill();
                 
-                // Weapon Level Indicator (Dots on ship)
+                // Weapon Level Dots
                 ctx.fillStyle = '#fff';
-                for(let i=0; i<this.player.weaponLevel; i++) {
-                    ctx.fillRect(this.player.x + 5 + (i*10), this.player.y + 15, 6, 6);
+                let dots = Math.min(10, this.player.weaponLevel);
+                for(let i=0; i<dots; i++) {
+                    ctx.fillRect(this.player.x + (i*4), this.player.y + this.player.h + 5, 3, 3);
                 }
                 ctx.restore();
 
@@ -644,23 +665,26 @@
                 let bulletProps = { w: 12, h: 4, s: 8, piercing: false, homing: false, life: 999 };
                 const lvl = this.player.weaponLevel;
 
-                // --- EVOLUTION LOGIC ---
+                // --- 10 LEVEL EVOLUTION LOGIC ---
                 if (this.playerClass === 'hunter') {
                     // WAVE
                     bulletProps.w = 10;
-                    bulletProps.h = (lvl >= 2) ? 80 : 40; // Lv2 = Huge Wave
+                    bulletProps.h = 40 + (lvl * 5); // Height grows with level
                     bulletProps.s = 7;
                     bulletProps.life = 60; 
                     offsets = [0];
-                    if (lvl >= 3) offsets = [-30, 0, 30]; // Lv3 = Triple Giant Wave
+                    if (lvl >= 4) offsets = [-20, 20]; // Double
+                    if (lvl >= 7) offsets = [-30, 0, 30]; // Triple
+                    if (lvl >= 10) { bulletProps.h = 100; bulletProps.piercing = true; } // Lv10 Over End
                 } 
                 else if (this.playerClass === 'ranger') {
                     // GUN
                     bulletProps.w = 15;
                     bulletProps.h = 3;
                     bulletProps.s = 15; 
-                    if (lvl >= 2) offsets = [-5, 5]; // Lv2 = Twin Machinegun
-                    if (lvl >= 3) offsets = [-20, -10, 0, 10, 20]; // Lv3 = Spread Needle
+                    if (lvl >= 4) offsets = [-10, 10]; // Twin
+                    if (lvl >= 7) offsets = [-20, -10, 0, 10, 20]; // Spread Needle
+                    if (lvl >= 10) offsets = [-30,-20,-10,0,10,20,30]; // Lv10 Bullet Storm
                 }
                 else if (this.playerClass === 'force') {
                     // MAGIC
@@ -668,9 +692,14 @@
                     bulletProps.h = 8;
                     bulletProps.s = 5;
                     bulletProps.homing = true;
-                    if (lvl >= 2) bulletProps.s = 8; // Lv2 = Fast Homing
-                    if (lvl >= 3) offsets = [-20, 20]; // Lv3 = Dual Homing
+                    if (lvl >= 4) offsets = [-10, 10]; // Gizonde
+                    if (lvl >= 7) offsets = [-20, 0, 20]; // Rafoie
+                    if (lvl >= 10) { bulletProps.s = 12; offsets = [-30,-15,15,30]; } // Lv10 Grants (Fast & Many)
                 }
+
+                if (this.player.weaponType === 'spread') offsets = [-20, -10, 0, 10, 20];
+                if (this.player.weaponType === 'pierce') bulletProps.piercing = true;
+                if (this.player.weaponType === 'laser') return; 
 
                 offsets.forEach(offsetY => {
                     this.bullets.push({ 
@@ -695,18 +724,17 @@
                 const type = types[Math.floor(Math.random() * types.length)];
                 let e = { type: type, x: this.width, canShoot: false };
                 
-                if (type === 'rappy') Object.assign(e, { y: Math.random()*(this.height-40), w: 36, h: 36, hp: 1+Math.floor(this.level/3), maxHp: 1+Math.floor(this.level/3), speed: 3, color: '#facc15' });
-                else if (type === 'booma') Object.assign(e, { y: Math.random()*(this.height-50), w: 42, h: 42, hp: 2+Math.floor(this.level/2), maxHp: 2+Math.floor(this.level/2), speed: 2.5, color: '#2ea043' });
-                else if (type === 'sinow') Object.assign(e, { y: Math.random()*(this.height-60), w: 50, h: 50, hp: 4+Math.floor(this.level/2), maxHp: 4+Math.floor(this.level/2), speed: 3.5, color: '#c084fc', canShoot: true });
-                else if (type === 'baranz') Object.assign(e, { y: Math.random()*(this.height-120), w: 80, h: 80, hp: 15+this.level, maxHp: 15+this.level, speed: 1.5, color: '#ef4444', canShoot: true });
+                if (type === 'rappy') Object.assign(e, { y: Math.random()*(this.height-40), w: 36, h: 36, hp: 1, maxHp: 1, speed: 3, color: '#facc15' });
+                else if (type === 'booma') Object.assign(e, { y: Math.random()*(this.height-50), w: 42, h: 42, hp: 2, maxHp: 2, speed: 2.5, color: '#2ea043' });
+                else if (type === 'sinow') Object.assign(e, { y: Math.random()*(this.height-60), w: 50, h: 50, hp: 3, maxHp: 3, speed: 3.5, color: '#c084fc', canShoot: true });
+                else if (type === 'baranz') Object.assign(e, { y: Math.random()*(this.height-120), w: 80, h: 80, hp: 8, maxHp: 8, speed: 1.5, color: '#ef4444', canShoot: true });
                 this.enemies.push(e);
             }
 
             spawnPowerUp() {
-                // Simplified: Now most drops are "Weapon Data" (orange) to keep Sync up
                 const rand = Math.random();
                 let type = 'weapondata';
-                let color = '#f97316'; // Orange
+                let color = '#f97316'; 
 
                 if (rand < 0.2) { type = 'heal'; color = '#34d399'; }
                 else if (rand < 0.3) { type = 'blast'; color = '#f472b6'; }
@@ -715,29 +743,49 @@
             }
 
             applyPowerUp(p) {
-                // Any pickup refreshes Sync
                 this.player.syncTimer = this.player.maxSync;
 
                 if (p.type === 'weapondata') {
-                    if (this.player.weaponLevel < 3) {
+                    if (this.player.weaponLevel < 10) {
                         this.player.weaponLevel++;
                         this.sounds.levelup();
+                    } else {
+                        // --- OVER LEVEL BUFF ---
+                        this.player.damageMultiplier += 0.1;
+                        this.showFloatText("+DMG!", this.player.x, this.player.y);
+                        this.sounds.power();
                     }
                 }
                 else if (p.type === 'heal') this.player.lives = Math.min(10, this.player.lives + 1);
                 else if (p.type === 'blast') this.blastEnergy = Math.min(100, this.blastEnergy + 50);
                 
-                this.sounds.power();
+                if (p.type !== 'weapondata') this.sounds.power();
+            }
+
+            showFloatText(text, x, y) {
+                const el = document.createElement('div');
+                el.className = 'dmg-float';
+                el.innerText = text;
+                el.style.left = canvas.offsetLeft + x + 'px';
+                el.style.top = canvas.offsetTop + y + 'px';
+                document.getElementById('dmg-container').appendChild(el);
+                setTimeout(() => el.remove(), 1000);
             }
 
             spawnEnemyBullet(e) {
                 const b = [];
-                if (e.type === 'sinow') b.push({ x: e.x, y: e.y+e.h/2-2, w: 10, h: 4, vx: 6, vy: 0, color: '#f87171' });
-                else if (e.type === 'baranz') [-2,-1,0,1,2].forEach(vy => b.push({ x: e.x, y: e.y+e.h/2-3, w: 14, h: 6, vx: 5, vy: vy, color: '#ef4444' }));
-                else if (e.type === 'dragon') b.push({ x: e.x, y: e.y+e.h/2-10, w: 40, h: 20, vx: 9, vy: 0, color: '#ff7b72' });
-                else if (e.type === 'derolle') [-4,-2, 0, 2, 4].forEach(vy => b.push({ x: e.x, y: e.y+e.h/2, w: 20, h: 20, vx: 5, vy: vy, color: '#a855f7' }));
-                else if (e.type === 'volopt') { b.push({ x: e.x, y: e.y+20, w: 30, h: 6, vx: 12, vy: 0, color: '#ef4444' }); b.push({ x: e.x, y: e.y+e.h-20, w: 30, h: 6, vx: 12, vy: 0, color: '#ef4444' }); }
-                else if (e.type === 'falz') { for(let i=0; i<12; i++) { let angle = (i / 12) * Math.PI * 2; b.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle)*4 - 2, vy: Math.sin(angle)*4, color: '#e2e8f0' }); } }
+                if (e.type === 'sinow') {
+                    b.push({ x: e.x, y: e.y+e.h/2-5, w: 10, h: 4, vx: 7, vy: 0, color: '#f87171' });
+                    b.push({ x: e.x, y: e.y+e.h/2+5, w: 10, h: 4, vx: 7, vy: 0, color: '#f87171' });
+                }
+                else if (e.type === 'baranz') [-2,0,2].forEach(vy => b.push({ x: e.x, y: e.y+e.h/2-3, w: 14, h: 6, vx: 6, vy: vy, color: '#ef4444' }));
+                else if (e.type === 'dragon') {
+                    b.push({ x: e.x, y: e.y+e.h/2-10, w: 40, h: 20, vx: 10, vy: 0, color: '#ff7b72' });
+                    b.push({ x: e.x, y: e.y+e.h/2+10, w: 40, h: 20, vx: 10, vy: 0, color: '#ff7b72' });
+                }
+                else if (e.type === 'derolle') [-4,-2, 0, 2, 4].forEach(vy => b.push({ x: e.x, y: e.y+e.h/2, w: 20, h: 20, vx: 6, vy: vy, color: '#a855f7' }));
+                else if (e.type === 'volopt') { b.push({ x: e.x, y: e.y+20, w: 30, h: 6, vx: 13, vy: 0, color: '#ef4444' }); b.push({ x: e.x, y: e.y+e.h-20, w: 30, h: 6, vx: 13, vy: 0, color: '#ef4444' }); }
+                else if (e.type === 'falz') { for(let i=0; i<16; i++) { let angle = (i / 16) * Math.PI * 2; b.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle)*5 - 2, vy: Math.sin(angle)*5, color: '#e2e8f0' }); } }
                 b.forEach(bullet => this.enemyBullets.push(bullet));
             }
 
@@ -752,7 +800,6 @@
                 this.sounds.explode();
                 this.player.lives--;
                 this.player.invincible = 120;
-                // Hit drops weapon level
                 if(this.player.weaponLevel > 1) this.player.weaponLevel--;
                 
                 document.getElementById('canvas').classList.add('shake-effect');
@@ -832,7 +879,6 @@
         const canvas = document.getElementById('canvas');
         let game = null;
 
-        // Function called by Class Selection Buttons
         function startGame(className) {
             document.getElementById('classSelect').style.display = 'none';
             document.getElementById('scoreForm').style.display = 'none';
@@ -843,16 +889,13 @@
             game.start();
         }
 
-        // Retry button just shows class select again
         document.getElementById('retryBtn').addEventListener('click', () => {
             document.getElementById('retryBtn').style.display = 'none';
             document.getElementById('scoreForm').style.display = 'none';
             document.getElementById('leaderboard').style.display = 'none';
             
-            // Re-show class select
             document.getElementById('classSelect').style.display = 'grid';
             
-            // Fix Submit Button
             const submitBtn = document.getElementById('submitScoreBtn');
             submitBtn.disabled = false;
             submitBtn.textContent = "SUBMIT SCORE";
@@ -867,7 +910,6 @@
             btn.textContent = "SENDING...";
             btn.disabled = true;
 
-            // Updated URL with CLASS Parameter
             const targetUrl = `${SCRIPT_URL}?name=${encodeURIComponent(name)}&score=${game.score}&level=${game.level}&class=${game.playerClass}`;
 
             fetch(targetUrl, { method: 'GET', mode: 'no-cors' })
