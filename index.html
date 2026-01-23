@@ -186,8 +186,15 @@
                     if (tier) tiers.add(tier);
                     return { ...row, NormName: n, Tier: tier };
                 });
+    
+                // CUSTOM DIFFICULTY SORT ORDER
+                const diffOrder = ["Normal", "Hard", "Very Hard", "Ultimate"];
+                const sortedDiffs = Array.from(diffs).sort((a, b) => {
+                    return diffOrder.indexOf(a.trim()) - diffOrder.indexOf(b.trim());
+                });
+    
                 populateSelect('#tierFilter', Array.from(tiers).sort(), 'Tiers');
-                populateSelect('#diffFilter', Array.from(diffs).sort(), 'Diffs');
+                populateSelect('#diffFilter', sortedDiffs, 'Diffs');
                 populateSelect('#idFilter', Array.from(sections).sort(), 'IDs');
                 applyFilters();
             }
@@ -197,7 +204,7 @@
     function populateSelect(id, values, label) {
         $(id).empty().append(`<option value="">All ${label}</option>`);
         values.forEach(v => {
-            // Translate 'U' to 'UBER' for display only
+            // Translate 'U' to 'UBER' for the dropdown display text
             const displayName = (v === "U") ? "UBER" : v;
             $(id).append(`<option value="${v}">${displayName}</option>`);
         });
@@ -266,6 +273,7 @@
 </script>
 </body>
 </html>
+
 
 
 
