@@ -77,7 +77,7 @@
             animation: damage-shake 0.4s;
         }
 
-        /* Boss Notification */
+        /* Notifications */
         #boss-warning {
             display: none;
             position: absolute;
@@ -109,8 +109,15 @@
             gap: 10px;
         }
 
-        .button {
+        /* UI Controls (Buttons + Inputs) */
+        .controls-area {
             margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .button {
             padding: 15px;
             border: 2px solid var(--primary);
             border-radius: 6px;
@@ -121,8 +128,27 @@
             transition: 0.2s;
             font-size: 1rem;
             text-transform: uppercase;
+            text-align: center;
+            width: 100%;
         }
         .button:hover, .button:active { background: var(--primary); color: #fff; }
+
+        /* High Score Form */
+        #scoreForm {
+            display: none; /* Hidden by default */
+            flex-direction: row;
+            gap: 10px;
+        }
+        
+        #playerName {
+            flex: 1;
+            padding: 10px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            color: white;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
 
         .mobile-hint {
             display: none;
@@ -159,12 +185,24 @@
                 </div>
             </div>
             
-            <button id="startBtn" class="button" style="width:100%;">START MISSION</button>
+            <div class="controls-area">
+                <button id="startBtn" class="button">START MISSION</button>
+
+                <div id="scoreForm">
+                    <input type="text" id="playerName" placeholder="ENTER NAME" maxlength="10">
+                    <button id="submitScoreBtn" class="button" style="width:auto; background:#238636; border-color:#238636; color:white;">SUBMIT SCORE</button>
+                </div>
+            </div>
+
             <div class="mobile-hint">Touch & Drag to Move • Double Tap to Blast</div>
         </div>
     </div>
 
     <script>
+        // --- CONFIGURATION ---
+        // !!! PASTE YOUR GOOGLE APPS SCRIPT URL BELOW !!!
+        const SCRIPT_URL = "YOUR_WEB_APP_URL_GOES_HERE"; 
+
         // --- 1. Navigation Loader ---
         fetch('nav.html')
             .then(res => res.text())
@@ -203,7 +241,6 @@
                 this.enemyBullets = [];
                 this.blastEnergy = 0;
                 
-                // New logic variables
                 this.bossSpawnedForLevel = false;
                 this.input = { up: false, down: false, shoot: false, blast: false };
                 this.lastTouchEnd = 0;
@@ -304,6 +341,7 @@
                 
                 document.getElementById('canvas').classList.remove('shake-effect');
                 document.getElementById('boss-warning').style.display = 'none';
+                document.getElementById('scoreForm').style.display = 'none'; // Hide form on start
             }
 
             loop() {
@@ -315,17 +353,11 @@
 
             spawnBossSequence(name, type, color) {
                 this.bossSpawnedForLevel = true;
-                
-                // Show Warning
                 const warning = document.getElementById('boss-warning');
                 warning.innerHTML = `WARNING<br>${name.toUpperCase()}`;
                 warning.style.display = 'block';
                 this.sounds.warning();
-
-                // Clear small enemies
                 this.enemies = []; 
-
-                // Spawn Boss after delay
                 setTimeout(() => {
                     warning.style.display = 'none';
                     let boss = { 
@@ -347,15 +379,12 @@
 
             update() {
                 this.frame++;
-                
-                // Level Progression (Slower to allow bosses)
                 if (this.frame % 1500 === 0) { 
                     this.level++;
                     this.spawnRate = Math.max(15, this.spawnRate - 5);
                     this.bossSpawnedForLevel = false; 
                 }
 
-                // Boss Triggers
                 if (!this.bossSpawnedForLevel) {
                     if (this.level === 5) this.spawnBossSequence('Dragon', 'dragon', '#eab308');
                     else if (this.level === 10) this.spawnBossSequence('De Rol Le', 'derolle', '#a855f7'); 
@@ -363,7 +392,6 @@
                     else if (this.level === 20) this.spawnBossSequence('Dark Falz', 'falz', '#c084fc');
                 }
 
-                // Player Movement
                 if (!this.isTouchActive) {
                     if (this.input.up) this.player.dy = -this.player.speed;
                     else if (this.input.down) this.player.dy = this.player.speed;
@@ -372,7 +400,6 @@
                 }
                 this.player.y = Math.max(0, Math.min(this.height - this.player.h, this.player.y));
 
-                // Shooting
                 if (this.input.shoot && this.frame % this.player.shootInterval === 0) this.shoot();
                 if (this.input.blast && this.blastEnergy >= 100) this.photonBlast();
 
@@ -384,24 +411,18 @@
                     }
                 }
 
-                // Spawning (Pause regular spawns if boss is active)
                 let isBossActive = this.enemies.some(e => e.isBoss);
                 if (!isBossActive && this.frame % this.spawnRate === 0) this.spawnEnemy();
                 if (this.frame % 600 === 0) this.spawnPowerUp();
 
-                // Updates
                 this.bullets.forEach((b, i) => {
                     b.x += b.s;
                     if (b.x > this.width) this.bullets.splice(i, 1);
                 });
 
                 this.enemies.forEach((e, i) => {
-                    // Boss Movement Logic: Move left until reaching the right side of screen, then hold
                     if (e.isBoss) {
-                        if (e.x > this.width - e.w - 20) {
-                            e.x -= e.speed;
-                        }
-                        // Vertical movement for bosses
+                        if (e.x > this.width - e.w - 20) e.x -= e.speed;
                         e.y += Math.sin(this.frame / 40) * 1.5;
                     } else {
                         e.x -= e.speed;
@@ -417,14 +438,11 @@
                     }
                     if (e.x + e.w < 0) this.enemies.splice(i, 1);
 
-                    // Shooting Logic
                     if (e.canShoot) {
                         e.shotTimer--;
                         if (e.shotTimer <= 0) {
                             this.spawnEnemyBullet(e);
-                            // Reset timer based on enemy type
-                            let resetTime = 90;
-                            if (e.isBoss) resetTime = 50; // Bosses shoot faster
+                            let resetTime = e.isBoss ? 50 : 90;
                             e.shotTimer = resetTime + Math.random() * 30;
                         }
                     }
@@ -454,7 +472,6 @@
                     });
                 });
 
-                // Laser Weapon
                 if (this.player.weaponType === 'laser') {
                     const beamY1 = this.player.y + this.player.h * 0.25;
                     const beamY2 = this.player.y + this.player.h * 0.75;
@@ -479,7 +496,6 @@
 
                 if (this.player.invincible > 0) this.player.invincible--;
                 
-                // HUD
                 document.getElementById('score').textContent = this.score;
                 document.getElementById('level').textContent = this.level;
                 document.getElementById('lives').textContent = this.player.lives;
@@ -492,7 +508,6 @@
                 ctx.fillStyle = '#0a0e1a';
                 ctx.fillRect(0, 0, this.width, this.height);
                 
-                // Player
                 ctx.save();
                 if (this.player.invincible > 0 && Math.floor(this.frame / 5) % 2 === 0) ctx.globalAlpha = 0.5;
                 ctx.fillStyle = '#ff7b72';
@@ -504,7 +519,6 @@
                 ctx.fill();
                 ctx.restore();
 
-                // Bullets
                 ctx.fillStyle = '#58a6ff';
                 this.bullets.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
 
@@ -518,18 +532,15 @@
                     ctx.restore();
                 }
 
-                // Enemies
                 this.enemies.forEach(e => {
                     ctx.fillStyle = e.color;
                     ctx.fillRect(e.x, e.y, e.w, e.h);
-                    // HP Bar
                     ctx.fillStyle = '#262b31';
                     ctx.fillRect(e.x, e.y - 10, e.w, 6);
                     ctx.fillStyle = e.isBoss ? '#ef4444' : '#68c896';
                     ctx.fillRect(e.x, e.y - 10, e.w * (e.hp / e.maxHp), 6);
                 });
 
-                // Powerups
                 this.powerUps.forEach(p => {
                     ctx.fillStyle = p.color;
                     ctx.beginPath();
@@ -537,7 +548,6 @@
                     ctx.fill();
                 });
 
-                // Enemy Bullets
                 this.enemyBullets.forEach(eb => {
                     ctx.fillStyle = eb.color || '#f87171';
                     ctx.fillRect(eb.x, eb.y, eb.w, eb.h);
@@ -566,18 +576,14 @@
             photonBlast() {
                 this.sounds.blast();
                 this.blastEnergy = 0;
-                
-                // NERF: Damage all enemies for 50 (Bosses survive, small mobs die)
                 this.enemies.forEach(e => {
                     e.hp -= 50;
-                    if(e.hp <= 0) this.killEnemy(e, true); // true = no blast charge gain
+                    if(e.hp <= 0) this.killEnemy(e, true); 
                 });
-                // Remove dead enemies
                 this.enemies = this.enemies.filter(e => e.hp > 0);
             }
 
             spawnEnemy() {
-                // ... (Existing spawn logic same as before, condensed for brevity) ...
                 const types = ['rappy','booma','sinow'];
                 if (this.level >= 2 && Math.random() < 0.1) types.push('baranz');
                 
@@ -612,45 +618,26 @@
 
             spawnEnemyBullet(e) {
                 const b = [];
-                // Standard Enemies
                 if (e.type === 'sinow') b.push({ x: e.x, y: e.y+e.h/2-2, w: 10, h: 4, vx: 6, vy: 0, color: '#f87171' });
                 else if (e.type === 'baranz') [-2,-1,0,1,2].forEach(vy => b.push({ x: e.x, y: e.y+e.h/2-3, w: 14, h: 6, vx: 5, vy: vy, color: '#ef4444' }));
-                
-                // --- BOSS WEAPONS ---
-                else if (e.type === 'dragon') { 
-                    // DRAGON: Fireball
-                    b.push({ x: e.x, y: e.y+e.h/2-10, w: 40, h: 20, vx: 7, vy: 0, color: '#ff7b72' });
-                }
-                else if (e.type === 'derolle') {
-                    // DE ROL LE: Purple Poison Spread (3-way)
-                    [-3, 0, 3].forEach(vy => b.push({ x: e.x, y: e.y+e.h/2, w: 20, h: 20, vx: 5, vy: vy, color: '#a855f7' }));
-                }
+                else if (e.type === 'dragon') b.push({ x: e.x, y: e.y+e.h/2-10, w: 40, h: 20, vx: 7, vy: 0, color: '#ff7b72' });
+                else if (e.type === 'derolle') [-3, 0, 3].forEach(vy => b.push({ x: e.x, y: e.y+e.h/2, w: 20, h: 20, vx: 5, vy: vy, color: '#a855f7' }));
                 else if (e.type === 'volopt') {
-                    // VOL OPT: Twin Red Lasers (Fast)
                     b.push({ x: e.x, y: e.y+20, w: 30, h: 6, vx: 10, vy: 0, color: '#ef4444' });
                     b.push({ x: e.x, y: e.y+e.h-20, w: 30, h: 6, vx: 10, vy: 0, color: '#ef4444' });
                 }
                 else if (e.type === 'falz') {
-                    // DARK FALZ: "Grants" (Ring Expansion)
                     for(let i=0; i<8; i++) {
                         let angle = (i / 8) * Math.PI * 2;
-                        b.push({ 
-                            x: e.x + e.w/2, y: e.y + e.h/2, 
-                            w: 15, h: 15, 
-                            vx: Math.cos(angle)*4 - 2, // Bias left
-                            vy: Math.sin(angle)*4, 
-                            color: '#e2e8f0' 
-                        });
+                        b.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle)*4 - 2, vy: Math.sin(angle)*4, color: '#e2e8f0' });
                     }
                 }
-
                 b.forEach(bullet => this.enemyBullets.push(bullet));
             }
 
             killEnemy(e, fromBlast=false) {
                 this.sounds.explode();
                 this.score += e.maxHp * 10;
-                // NERF: Reduced charge rate. Harder to get blast.
                 if (!fromBlast) this.blastEnergy = Math.min(100, this.blastEnergy + (e.maxHp * 0.5)); 
                 if (Math.random() < 0.1) this.spawnPowerUp();
             }
@@ -659,11 +646,8 @@
                 this.sounds.explode();
                 this.player.lives--;
                 this.player.invincible = 120;
-                
-                // Visual Feedback
                 document.getElementById('canvas').classList.add('shake-effect');
                 setTimeout(() => document.getElementById('canvas').classList.remove('shake-effect'), 400);
-
                 if (this.player.lives <= 0) this.gameOver();
             }
 
@@ -686,6 +670,7 @@
                 
                 document.getElementById('startBtn').textContent = "TRY AGAIN";
                 document.getElementById('startBtn').style.display = 'block';
+                document.getElementById('scoreForm').style.display = 'flex'; // Show Score Form
             }
 
             checkCollision(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
@@ -706,10 +691,44 @@
 
         const canvas = document.getElementById('canvas');
         let game = null;
+
+        // Start / Restart
         document.getElementById('startBtn').addEventListener('click', () => {
             document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('scoreForm').style.display = 'none';
             game = new Game(canvas);
             game.start();
+        });
+
+        // Submit Score Logic
+        document.getElementById('submitScoreBtn').addEventListener('click', () => {
+            const name = document.getElementById('playerName').value.trim().toUpperCase();
+            if(!name) { alert("ENTER NAME FIRST"); return; }
+            if(!game) return;
+
+            const btn = document.getElementById('submitScoreBtn');
+            btn.textContent = "SENDING...";
+            btn.disabled = true;
+
+            const payload = {
+                name: name,
+                score: game.score,
+                level: game.level
+            };
+
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(() => {
+                alert("SCORE UPLOADED!");
+                btn.textContent = "SENT!";
+            }).catch(e => {
+                alert("ERROR UPLOADING");
+                btn.textContent = "RETRY";
+                btn.disabled = false;
+            });
         });
 
     </script>
