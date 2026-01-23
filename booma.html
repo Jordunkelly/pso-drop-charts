@@ -653,6 +653,11 @@
             }
             update() {
                 this.frame++;
+                // Determine if a boss is currently active.  This flag
+                // must be defined before any references below (e.g. to
+                // prevent reference errors).  It is recomputed at the
+                // beginning of each update cycle.
+                let isBossActive = this.enemies.some(e => e.isBoss);
                 // Remove time‑based level progression.  Levels now advance
                 // based on the number of enemies defeated (killsThisLevel).
                 // The old timer‑based mechanic that incremented the level
@@ -733,7 +738,8 @@
                     this.player.slowTimer--;
                     if (this.frame % 2 !== 0) return;
                 }
-                let isBossActive = this.enemies.some(e => e.isBoss);
+                // Recompute isBossActive later only if needed; we
+                // maintain the earlier definition at the top of update.
                 if (!isBossActive && this.frame % this.spawnRate === 0) this.spawnEnemy();
                 // Remove the periodic random power‑up spawns.  Players must now
                 // defeat enemies or boss add‑ons to earn weapon upgrades and
