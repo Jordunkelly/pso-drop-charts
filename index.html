@@ -10,12 +10,35 @@
 
   <link rel="stylesheet" href="style.css" />
   <style>
-    /* Add cursor to headers to indicate sortability */
-    th { cursor: pointer; user-select: none; }
-    th:hover { background: #30363d; color: #fff; }
-    th::after { content: ' \21F3'; opacity: 0.3; font-size: 0.8em; margin-left: 5px; }
-    th.asc::after { content: ' \2193'; opacity: 1; color: var(--blue); }
-    th.desc::after { content: ' \2191'; opacity: 1; color: var(--blue); }
+    /* SORTING STYLES */
+    th { 
+      cursor: pointer; 
+      user-select: none; 
+      position: sticky; 
+      top: 0; 
+      background: #21262d; /* Match existing th background */
+      z-index: 10;
+    }
+    th:hover { 
+      background: #30363d; 
+      color: #fff; 
+    }
+    th::after { 
+      content: ' \21F3'; /* Up/Down arrow placeholder */
+      opacity: 0.3; 
+      font-size: 0.8em; 
+      margin-left: 5px; 
+    }
+    th.asc::after { 
+      content: ' \2193'; /* Down Arrow */
+      opacity: 1; 
+      color: #58a6ff; 
+    }
+    th.desc::after { 
+      content: ' \2191'; /* Up Arrow */
+      opacity: 1; 
+      color: #58a6ff; 
+    }
   </style>
 </head>
 
@@ -49,25 +72,24 @@
   </div>
 
   <script>
-    // --- NAVIGATION LOADER ---
+    // --- NAV LOADER ---
     (function loadNav() {
       fetch("nav.html")
         .then(function (res) { return res.text(); })
         .then(function (data) {
           var holder = document.getElementById("nav-placeholder");
-          if (!holder) return;
-          holder.innerHTML = data;
-
-          var currentPage = window.location.pathname.split("/").pop() || "index.html";
-          var navLinks = document.querySelectorAll(".nav-link");
-          navLinks.forEach(function (link) {
-            if (link.getAttribute("href") === currentPage) link.classList.add("active");
-          });
-        })
-        .catch(function () {});
+          if (holder) {
+            holder.innerHTML = data;
+            var currentPage = window.location.pathname.split("/").pop() || "index.html";
+            var navLinks = document.querySelectorAll(".nav-link");
+            navLinks.forEach(function (link) {
+              if (link.getAttribute("href") === currentPage) link.classList.add("active");
+            });
+          }
+        }).catch(function () {});
     })();
 
-    // --- CONFIG & GLOBALS ---
+    // --- COLORS & GLOBALS ---
     var SECTION_ID_COLORS = {
       Viridia: "#22C55E", Greenill: "#16A34A", Skyly: "#38BDF8", Bluefull: "#2563EB",
       Purplenum: "#A855F7", Pinkal: "#EC4899", Redria: "#EF4444", Oran: "#F97316",
@@ -78,28 +100,23 @@
     var tierTableUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS-nCzkALWoSyKOLXNORN_zgy2ONKn4Hcwi-jQNHCgmEW8DJ7yX3AyO9Uod44ecEUwklr76Dw4-p1o0/pub?gid=292779988&single=true&output=csv";
 
     var masterData = [];
-    var currentFilteredData = []; // Store filtered data for sorting
+    var currentFilteredData = []; // Holds the currently visible rows for sorting
     var globalTierMap = new Map();
-    var currentSort = { col: null, dir: 'asc' }; // Sort State
+    
+    // Sort State
+    var currentSort = { col: null, dir: 'asc' }; 
 
-    function normName(s) {
-      return String(s || "").trim().toUpperCase().replace(/\s+/g, " ");
-    }
+    function normName(s) { return String(s || "").trim().toUpperCase().replace(/\s+/g, " "); }
+    function esc(v) { return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
-    function esc(v) {
-      return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    }
-
-    // --- INITIALIZATION ---
+    // --- INIT ---
     function init() {
       Papa.parse(tierTableUrl, {
-        download: true,
-        header: true,
+        download: true, header: true,
         complete: function (tierResults) {
           (tierResults.data || []).forEach(function (row) {
             var name = normName(row["ITEM NAME"]);
-            if (!name) return;
-            globalTierMap.set(name, row["TIER RANK"]);
+            if (name) globalTierMap.set(name, row["TIER RANK"]);
           });
           fetchDropData();
         }
@@ -108,12 +125,9 @@
 
     function fetchDropData() {
       Papa.parse(csvUrl, {
-        download: true,
-        header: true,
+        download: true, header: true,
         complete: function (results) {
-          var sections = new Set();
-          var diffs = new Set();
-          var tiers = new Set();
+          var sections = new Set(), diffs = new Set(), tiers = new Set();
 
           masterData = (results.data || [])
             .filter(function (r) { return (r.Name || "").trim(); })
@@ -135,7 +149,7 @@
           populateSelect("#diffFilter", sortedDiffs, "Diffs");
           populateSelect("#idFilter", Array.from(sections).sort(), "IDs");
           
-          applyFilters(); // Initial render
+          applyFilters();
         }
       });
     }
@@ -143,8 +157,8 @@
     function populateSelect(id, values, label) {
       $(id).empty().append('<option value="">All ' + label + "</option>");
       values.forEach(function (v) {
-        var displayName = (v === "U") ? "UBER" : v;
-        $(id).append('<option value="' + v + '">' + displayName + "</option>");
+        var disp = (v === "U") ? "UBER" : v;
+        $(id).append('<option value="' + v + '">' + disp + "</option>");
       });
     }
 
@@ -163,7 +177,7 @@
         return okName && okTier && okDiff && okId;
       });
 
-      // Re-apply sort if active
+      // Maintain sort if active, otherwise render default
       if (currentSort.col) {
         sortData(currentSort.col, currentSort.dir, false);
       } else {
@@ -171,37 +185,37 @@
       }
     }
 
-    // --- SORTING LOGIC ---
+    // --- SORTING ---
     function sortData(column, direction, updateUI) {
       var isAsc = direction === 'asc';
-      
+
       currentFilteredData.sort(function(a, b) {
         var valA = a[column] || "";
         var valB = b[column] || "";
 
-        // Numeric Sort for Rate
-        if (column === "Current %") {
-          valA = parseFloat(valA) || 0;
-          valB = parseFloat(valB) || 0;
-          return isAsc ? valA - valB : valB - valA;
-        }
-
-        // Custom Sort for Difficulty
+        // 1. Difficulty Sort (Custom Order)
         if (column === "Difficulty") {
            var diffOrder = ["Normal", "Hard", "Very Hard", "Ultimate"];
            var idxA = diffOrder.indexOf(valA.trim());
            var idxB = diffOrder.indexOf(valB.trim());
+           // If not found, push to end
            if(idxA === -1) idxA = 99; 
            if(idxB === -1) idxB = 99;
            return isAsc ? idxA - idxB : idxB - idxA;
         }
 
-        // String Sort
+        // 2. Numeric Sort (Rate)
+        if (column === "Current %") {
+          var numA = parseFloat(valA) || 0;
+          var numB = parseFloat(valB) || 0;
+          return isAsc ? numA - numB : numB - numA;
+        }
+
+        // 3. Default String Sort
         return isAsc ? valA.toString().localeCompare(valB) : valB.toString().localeCompare(valA);
       });
 
       if (updateUI) {
-        // Update header classes
         $('th').removeClass('asc desc');
         $('th[data-sort="' + column + '"]').addClass(direction);
       }
@@ -209,7 +223,7 @@
       renderTable(currentFilteredData);
     }
 
-    // --- RENDER TABLE ---
+    // --- RENDER ---
     function renderTable(data) {
       var tbody = $("#dropTable tbody");
       var RARE_ENEMIES = new Set([
@@ -223,20 +237,17 @@
         var entRaw = (row.Entity || "").trim();
         var isRare = RARE_ENEMIES.has(entRaw.toUpperCase().replace(/_/g, " "));
     
-        // 1. READ RAW & CLEAN UP
+        // Clean Rate Logic
         var rawRate = parseFloat(row["Current %"] || "0");
         var displayRate = "";
         var oddsVal = 0;
 
-        // 2. SMART DISPLAY LOGIC
         if (rawRate > 1) {
-            // It's a Percentage (e.g., 87.500000) -> 87.5%
-            // parseFloat(string) strips trailing zeros automatically
+            // Percentage (e.g. 87.5000) -> 87.5%
             displayRate = parseFloat(rawRate.toFixed(2)) + "%"; 
             oddsVal = 100 / rawRate;
         } else {
-            // It's a Raw Decimal (e.g., 0.0078125) -> Keep as is
-            // Truncate if insanely long, otherwise show logic
+            // Decimal (e.g. 0.0078) -> 0.0078
             displayRate = parseFloat(rawRate.toFixed(9)); 
             oddsVal = (rawRate > 0) ? (1 / rawRate) : 0;
         }
@@ -266,17 +277,17 @@
         );
       });
     }
-    
-    // --- EVENT LISTENERS ---
+
+    // --- EVENTS ---
     $(document).ready(init);
     $(document).on("change keyup", "input, select", applyFilters);
 
-    // Sorting Click Handler
+    // Header Click -> Sort
     $('th[data-sort]').on('click', function() {
         var col = $(this).data('sort');
         var dir = 'asc';
         
-        // Toggle direction if clicking same column
+        // If clicking the same column, toggle direction
         if (currentSort.col === col && currentSort.dir === 'asc') {
             dir = 'desc';
         }
