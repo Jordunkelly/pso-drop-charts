@@ -8,6 +8,43 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <link rel="stylesheet" href="style.css">
     <style>
+        /* --- Tier Tag Colors --- */
+        .tag.tier-u {
+            /* Diablo 4 Legendary Style for UBER */
+            background: linear-gradient(135deg, #ff8c00, #b8860b); /* Rich orange-to-gold gradient */
+            color: #ffffff; /* Bright white text */
+            border: 1px solid #ffd700; /* Bright gold border */
+            box-shadow: 0 0 8px #ff8c00, inset 0 0 5px #ffd700; /* Outer and inner glow */
+            text-shadow: 0 0 4px #000000; /* Dark text shadow for contrast */
+            font-weight: 800; /* Extra bold */
+            letter-spacing: 0.5px;
+        }
+        
+        .tag.tier-s {
+            background-color: #d122e3; /* Vibrant Purple for S-Tier */
+            color: #fff;
+        }
+        
+        .tag.tier-a {
+            background-color: #2ea043; /* Strong Green for A-Tier */
+            color: #fff;
+        }
+        
+        .tag.tier-b {
+            background-color: #1f6feb; /* Solid Blue for B-Tier */
+            color: #fff;
+        }
+        
+        .tag.tier-c {
+            background-color: #6e7681; /* Neutral Grey for C-Tier */
+            color: #fff;
+        }
+        
+        .tag.tier-e {
+            background-color: #a371f7; /* Muted Purple/Brown for E-Tier */
+            color: #fff;
+        }
+        
         .class-selector-wrapper { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 
         .content-section { padding: 10px; }
@@ -35,13 +72,7 @@
             border-bottom: 1px dashed var(--blue); 
             display: inline-block;
         }
-        .wiki-link:active { color: var(--blue); }
-
-        /* TIER BADGES */
-        .tier-tag { padding: 2px 4px; border-radius: 4px; font-size: 0.65em; font-weight: bold; margin-left: 5px; text-transform: uppercase; color: black; }
-        .tier-S { background: var(--god); }
-        .tier-A { background: var(--gold); }
-        .tier-B { background: var(--blue); }
+        .wiki-link:active { color: var(--blue); 
         
         .class-val-badge { border: 1px solid var(--text); color: var(--text); font-size: 0.6em; padding: 1px 4px; border-radius: 3px; margin-left: 5px; }
 
@@ -220,6 +251,7 @@
 </script>
 </body>
 </html>
+
 
 
 
