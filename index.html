@@ -8,45 +8,48 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* --- PSO Tier Tag Styles --- */
-
-        /* Base style for all tier tags */
+        /* --- Updated Tier Tag Styles --- */
+        
+        /* Base style for the new pill-shaped tags */
         .tier-tag {
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-weight: bold;
-            font-size: 0.8rem;
-            color: #fff;
             display: inline-block;
+            padding: 3px 10px; /* Larger, more balanced padding */
+            margin-left: 15px; /* Significantly more space from the item name */
+            border-radius: 50px; /* Full rounded "pill" shape */
+            font-size: 0.75rem;
+            font-weight: 800; /* Extra bold for readability */
+            color: #fff;
+            text-transform: uppercase;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2); /* Subtle drop shadow for depth */
+            border: 1px solid rgba(255, 255, 255, 0.15); /* Subtle definition border */
+            vertical-align: middle; /* Centers it nicely with the text */
+            min-width: 24px; /* Ensures consistent minimum size */
             text-align: center;
-            min-width: 20px;
-        }
-
-        /* UBER - Diablo 4 Legendary Style */
-        .tier-tag.tier-u {
-            background: linear-gradient(135deg, #ff8c00, #b8860b) !important;
-            color: #ffffff !important;
-            border: 1px solid #ffd700 !important;
-            box-shadow: 0 0 10px #ff8c00, inset 0 0 5px #ffd700 !important;
-            text-shadow: 1px 1px 2px #000 !important;
-            font-weight: 800 !important;
-            font-size: 0 !important; /* Hides original "u" text */
-            padding: 2px 10px;
         }
         
-        /* Visually transforms "u" to "UBER" */
+        /* UBER - Legendary Style (Adapted for new shape) */
+        .tier-tag.tier-u {
+            background: linear-gradient(135deg, #ff8c00, #b8860b) !important;
+            border: 1px solid #ffd700 !important;
+            /* A more defined, fiery glow */
+            box-shadow: 0 0 8px #ff8c00, inset 0 0 3px #ffd700 !important;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8) !important;
+            font-size: 0 !important; /* Hide original "u" */
+            padding: 3px 12px; /* A bit wider for the longer text */
+        }
+        
         .tier-tag.tier-u::after {
             content: 'UBER';
             font-size: 0.75rem;
-            letter-spacing: 0.8px;
+            letter-spacing: 0.5px;
         }
         
-        /* Standard Tiers (Now all lowercase) */
-        .tier-tag.tier-s { background-color: #d122e3 !important; }
-        .tier-tag.tier-a { background-color: #2ea043 !important; }
-        .tier-tag.tier-b { background-color: #1f6feb !important; }
-        .tier-tag.tier-c { background-color: #6e7681 !important; }
-        .tier-tag.tier-e { background-color: #a371f7 !important; }
+        /* Standard Tiers */
+        .tier-tag.tier-s { background-color: #d122e3 !important; } /* Purple */
+        .tier-tag.tier-a { background-color: #2ea043 !important; } /* Green */
+        .tier-tag.tier-b { background-color: #1f6feb !important; } /* Blue */
+        .tier-tag.tier-c { background-color: #6e7681 !important; } /* Grey */
+        .tier-tag.tier-e { background-color: #a371f7 !important; } /* Muted Purple */
                 
         .class-selector-wrapper { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 
@@ -259,6 +262,7 @@
 </script>
 </body>
 </html>
+
 
 
 
