@@ -772,9 +772,13 @@
                 // if (this.frame % 600 === 0) this.spawnPowerUp();
                 this.bullets.forEach((b, i) => {
                     if (b.isGrants) {
+                        // Special vertical grants: drift downwards
                         b.y += 20;
                     } else {
-                        b.x += b.s;
+                        // Use per-bullet velocities if defined (e.g. spin bullets), otherwise fallback to horizontal speed s
+                        b.x += (typeof b.vx !== 'undefined' ? b.vx : (b.s || 0));
+                        b.y += (b.vy || 0);
+                        // Homing bullets adjust vertical velocity toward the nearest enemy
                         if (b.homing) {
                             let nearest = null;
                             let minDist = 9999;
@@ -939,7 +943,9 @@
                 if (weaponLabelEl) {
                     const lvlText = ` L${Math.min(this.player.weaponLevel, 10)}`;
                     if (this.playerClass === 'hunter') {
-                        const label = (this.player.weaponType === 'laser') ? 'LASER' : 'SABER';
+                        // Map hunter weapon types to labels.  Default to SABER
+                        const htMap = { saber:'SABER', hammer:'HAMMER', spear:'SPEAR', spin:'SPIN', laser:'LASER', normal:'SABER' };
+                        const label = htMap[this.player.weaponType] || 'SABER';
                         weaponLabelEl.textContent = label + lvlText;
                     } else if (this.playerClass === 'ranger') {
                         const gunMap = { handgun:'HANDGUN', shotgun:'SHOTGUN', rifle:'RIFLE', bazooka:'BAZOOKA' };
@@ -1155,9 +1161,17 @@
                         ctx.fill();
                     }
                     // Choose shape
-                    if (t === 'weapon-hunter') {
-                        // Hunters upgrade: square
+                    if (t === 'weapon-hunter' || t === 'weapon-hunter-saber') {
+                        // Hunter saber upgrade: square
                         ctx.fillRect(p.x, p.y, p.w, p.h);
+                    } else if (t === 'weapon-hunter-hammer') {
+                        // Hunter hammer upgrade: pentagon shape for heavy weapon
+                        drawPentagon(p.x, p.y, p.w, p.h);
+                    } else if (t === 'weapon-hunter-spear') {
+                        // Hunter spear upgrade: vertical rectangle
+                        const rw = p.w * 0.4;
+                        const rh = p.h * 1.2;
+                        ctx.fillRect(p.x + (p.w - rw)/2, p.y + (p.h - rh)/2, rw, rh);
                     } else if (t.startsWith('gun-handgun')) {
                         // Handgun: circle
                         ctx.beginPath();
@@ -1519,15 +1533,43 @@
                     // Grant the player a minimum of 5 lives when rare is collected
                     this.player.lives = Math.max(this.player.lives, 5);
                 } else if (p.type === 'weapon-hunter') {
-                    // Hunters: upgrade weapon level or damage multiplier
-                    if (this.player.weaponLevel < 10) {
-                        this.player.weaponLevel++;
+                    // Legacy hunter weapon drop: treat as saber upgrade
+                    const newType = 'saber';
+                    if (this.player.weaponType !== newType) {
+                        this.player.weaponType = newType;
+                        this.player.weaponLevel = 1;
+                        this.showFloatText(newType.toUpperCase(), this.player.x, this.player.y);
                         this.sounds.levelup();
-                        this.showFloatText("LVL UP!", this.player.x, this.player.y);
                     } else {
-                        this.player.damageMultiplier += 0.1;
-                        this.showFloatText("+DMG", this.player.x, this.player.y);
-                        this.sounds.power();
+                        if (this.player.weaponLevel < 10) {
+                            this.player.weaponLevel++;
+                            this.sounds.levelup();
+                            this.showFloatText("LVL UP!", this.player.x, this.player.y);
+                        } else {
+                            this.player.damageMultiplier += 0.1;
+                            this.showFloatText("+DMG", this.player.x, this.player.y);
+                            this.sounds.power();
+                        }
+                    }
+                } else if (p.type && p.type.startsWith('weapon-hunter-')) {
+                    // New hunter archetype upgrades: saber, hammer, spear
+                    const parts = p.type.split('-');
+                    const newType = parts[2] || 'saber';
+                    if (this.player.weaponType !== newType) {
+                        this.player.weaponType = newType;
+                        this.player.weaponLevel = 1;
+                        this.showFloatText(newType.toUpperCase(), this.player.x, this.player.y);
+                        this.sounds.levelup();
+                    } else {
+                        if (this.player.weaponLevel < 10) {
+                            this.player.weaponLevel++;
+                            this.sounds.levelup();
+                            this.showFloatText("LVL UP!", this.player.x, this.player.y);
+                        } else {
+                            this.player.damageMultiplier += 0.1;
+                            this.showFloatText("+DMG", this.player.x, this.player.y);
+                            this.sounds.power();
+                        }
                     }
                 } else if (p.type && p.type.startsWith('gun-')) {
                     // Rangers: gun upgrades.  Extract the gun type after 'gun-'
@@ -1797,8 +1839,15 @@
                         let dropType;
                         let dropColor;
                         if (this.playerClass === 'hunter') {
-                            dropType = 'weapon-hunter';
-                            dropColor = '#f97316';
+                            // Hunters can receive one of three weapon archetypes: saber, hammer or spear
+                            const hunterTypes = ['weapon-hunter-saber','weapon-hunter-hammer','weapon-hunter-spear'];
+                            dropType = hunterTypes[Math.floor(Math.random()*hunterTypes.length)];
+                            const cMapHunter = {
+                                'weapon-hunter-saber':'#f97316',
+                                'weapon-hunter-hammer':'#f59e0b',
+                                'weapon-hunter-spear':'#84cc16'
+                            };
+                            dropColor = cMapHunter[dropType] || '#f97316';
                         } else if (this.playerClass === 'ranger') {
                             const gunTypes = ['gun-handgun','gun-shotgun','gun-rifle','gun-bazooka'];
                             dropType = gunTypes[Math.floor(Math.random()*gunTypes.length)];
