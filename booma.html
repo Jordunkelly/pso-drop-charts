@@ -12,6 +12,9 @@
             --primary: #58a6ff;
             --secondary: #facc15;
             --danger: #d8616f;
+            --hunter: #f97316;
+            --ranger: #22c55e;
+            --force: #a855f7;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
@@ -64,7 +67,7 @@
             touch-action: none; 
         }
 
-        /* Screen Shake Animation */
+        /* Screen Shake */
         @keyframes damage-shake {
             0% { transform: translate(0, 0); border-color: #ef4444; }
             20% { transform: translate(-10px, 0); border-color: #ef4444; }
@@ -115,6 +118,13 @@
             gap: 10px;
         }
 
+        /* Class Selection Grid */
+        #classSelect {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
         .button {
             padding: 15px;
             border: 2px solid var(--primary);
@@ -130,6 +140,16 @@
             width: 100%;
         }
         .button:hover, .button:active { background: var(--primary); color: #fff; }
+
+        /* Class Specific Styles */
+        .btn-hunter { border-color: var(--hunter); color: var(--hunter); }
+        .btn-hunter:hover { background: var(--hunter); color: #fff; }
+        
+        .btn-ranger { border-color: var(--ranger); color: var(--ranger); }
+        .btn-ranger:hover { background: var(--ranger); color: #fff; }
+        
+        .btn-force { border-color: var(--force); color: var(--force); }
+        .btn-force:hover { background: var(--force); color: #fff; }
 
         /* High Score Form */
         #scoreForm { display: none; flex-direction: row; gap: 10px; }
@@ -195,7 +215,20 @@
             </div>
             
             <div class="controls-area">
-                <button id="startBtn" class="button">START MISSION</button>
+                
+                <div id="classSelect">
+                    <button class="button btn-hunter" onclick="startGame('hunter')">
+                        HUNTER<br><span style="font-size:0.7em">Wave Attack<br>5 Lives</span>
+                    </button>
+                    <button class="button btn-ranger" onclick="startGame('ranger')">
+                        RANGER<br><span style="font-size:0.7em">Long Range<br>Fast Speed</span>
+                    </button>
+                    <button class="button btn-force" onclick="startGame('force')">
+                        FORCE<br><span style="font-size:0.7em">Homing Shots<br>Fast Mag</span>
+                    </button>
+                </div>
+
+                <button id="retryBtn" class="button" style="display:none">TRY AGAIN</button>
 
                 <div id="scoreForm">
                     <input type="text" id="playerName" placeholder="ENTER NAME" maxlength="10">
@@ -226,19 +259,36 @@
             }).catch(e => console.log("Nav not found"));
 
         class Game {
-            constructor(canvas) {
+            constructor(canvas, playerClass) {
                 this.canvas = canvas;
                 this.ctx = canvas.getContext('2d');
                 this.width = canvas.width;
                 this.height = canvas.height;
                 this.running = false;
+                this.playerClass = playerClass;
                 
+                // Base Player Config
                 this.player = {
                     x: 50, y: this.height / 2 - 20, w: 40, h: 40,
                     dy: 0, speed: 5, lives: 3, invincible: 0,
                     tripleShot: false, weaponType: 'normal',
                     weaponTimer: 0, shootInterval: 12
                 };
+
+                // Class Specific Stats
+                if (playerClass === 'hunter') {
+                    this.player.lives = 5; // Tanky
+                    this.player.speed = 5;
+                    this.magRate = 1.0;
+                } else if (playerClass === 'ranger') {
+                    this.player.lives = 3;
+                    this.player.speed = 8; // Fast
+                    this.magRate = 1.0;
+                } else if (playerClass === 'force') {
+                    this.player.lives = 3;
+                    this.player.speed = 5;
+                    this.magRate = 2.0; // Magic charges fast
+                }
 
                 this.score = 0;
                 this.highScore = parseInt(localStorage.getItem('psoHighScore') || '0', 10);
@@ -333,29 +383,7 @@
 
             start() {
                 this.running = true;
-                this.reset();
                 this.loop();
-            }
-
-            reset() {
-                this.score = 0; this.level = 1; this.frame = 0; this.spawnRate = 60;
-                this.bullets = []; this.enemies = []; this.powerUps = []; this.blastEnergy = 0;
-                this.player.lives = 3; this.player.x = 50;
-                this.player.y = this.height / 2 - this.player.h / 2;
-                this.player.invincible = 0; this.player.tripleShot = false;
-                this.player.weaponType = 'normal'; this.player.weaponTimer = 0;
-                this.player.shootInterval = 12; this.enemyBullets = [];
-                this.bossSpawnedForLevel = false;
-                
-                document.getElementById('canvas').classList.remove('shake-effect');
-                document.getElementById('boss-warning').style.display = 'none';
-                document.getElementById('scoreForm').style.display = 'none';
-                document.getElementById('leaderboard').style.display = 'none';
-                
-                // RESET THE SUBMIT BUTTON (FIX FOR YOUR BUG)
-                const submitBtn = document.getElementById('submitScoreBtn');
-                submitBtn.disabled = false;
-                submitBtn.textContent = "SUBMIT SCORE";
             }
 
             loop() {
@@ -376,7 +404,9 @@
                     warning.style.display = 'none';
                     let boss = { 
                         type: type, isBoss: true, x: this.width + 100, y: this.height/2 - 75,
-                        w: 150, h: 150, hp: 100 + (this.level * 10), maxHp: 100 + (this.level * 10), 
+                        w: 150, h: 150, 
+                        hp: 2500 + (this.level * 500), 
+                        maxHp: 2500 + (this.level * 500), 
                         speed: 2, color: color, canShoot: true, shotTimer: 60 
                     };
                     this.enemies.push(boss);
@@ -421,9 +451,30 @@
                 if (!isBossActive && this.frame % this.spawnRate === 0) this.spawnEnemy();
                 if (this.frame % 600 === 0) this.spawnPowerUp();
 
+                // UPDATE BULLETS (Includes Homing Logic for Force)
                 this.bullets.forEach((b, i) => {
                     b.x += b.s;
-                    if (b.x > this.width) this.bullets.splice(i, 1);
+                    
+                    // FORCE CLASS: Homing Logic
+                    if (b.homing) {
+                        let nearest = null;
+                        let minDist = 9999;
+                        this.enemies.forEach(e => {
+                            let dist = Math.hypot(e.x - b.x, e.y - b.y);
+                            if (dist < minDist && e.x > b.x) { // Only track forward
+                                minDist = dist;
+                                nearest = e;
+                            }
+                        });
+                        if (nearest) {
+                            if (nearest.y > b.y) b.y += 3;
+                            else if (nearest.y < b.y) b.y -= 3;
+                        }
+                    }
+
+                    if (b.x > this.width || b.x < 0 || b.y < 0 || b.y > this.height) {
+                        this.bullets.splice(i, 1);
+                    }
                 });
 
                 this.enemies.forEach((e, i) => {
@@ -443,7 +494,7 @@
                         e.shotTimer--;
                         if (e.shotTimer <= 0) {
                             this.spawnEnemyBullet(e);
-                            e.shotTimer = (e.isBoss ? 50 : 90) + Math.random() * 30;
+                            e.shotTimer = (e.isBoss ? 30 : 90) + Math.random() * 20;
                         }
                     }
                 });
@@ -508,9 +559,15 @@
                 ctx.fillStyle = '#0a0e1a';
                 ctx.fillRect(0, 0, this.width, this.height);
                 
+                // Player
                 ctx.save();
                 if (this.player.invincible > 0 && Math.floor(this.frame / 5) % 2 === 0) ctx.globalAlpha = 0.5;
-                ctx.fillStyle = '#ff7b72';
+                
+                // Class Color
+                if (this.playerClass === 'hunter') ctx.fillStyle = '#f97316';
+                else if (this.playerClass === 'ranger') ctx.fillStyle = '#22c55e';
+                else ctx.fillStyle = '#a855f7';
+
                 ctx.beginPath();
                 ctx.moveTo(this.player.x, this.player.y + this.player.h / 2);
                 ctx.lineTo(this.player.x + this.player.w, this.player.y);
@@ -519,6 +576,7 @@
                 ctx.fill();
                 ctx.restore();
 
+                // Bullets
                 ctx.fillStyle = '#58a6ff';
                 this.bullets.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
 
@@ -532,6 +590,7 @@
                     ctx.restore();
                 }
 
+                // Enemies
                 this.enemies.forEach(e => {
                     ctx.fillStyle = e.color;
                     ctx.fillRect(e.x, e.y, e.w, e.h);
@@ -557,15 +616,51 @@
             shoot() {
                 this.sounds.shoot();
                 let offsets = [0];
-                let bulletProps = { w: 12, h: 4, s: 8, piercing: false };
-                switch (this.player.weaponType) {
-                    case 'spread': offsets = [-20, -10, 0, 10, 20]; break;
-                    case 'normal': offsets = this.player.tripleShot ? [-10, 0, 10] : [0]; break;
-                    case 'pierce': offsets = this.player.tripleShot ? [-10, 0, 10] : [0]; bulletProps.piercing = true; break;
-                    case 'laser': return;
+                let bulletProps = { w: 12, h: 4, s: 8, piercing: false, homing: false, life: 999 };
+
+                // --- CLASS SPECIFIC WEAPONS ---
+                if (this.playerClass === 'hunter') {
+                    // WAVE ATTACK (Tall, Slow, Short Range)
+                    bulletProps.w = 10;
+                    bulletProps.h = 40; 
+                    bulletProps.s = 7;
+                    bulletProps.life = 60; // Disappears
+                    offsets = [0];
+                    if (this.player.tripleShot) { 
+                        offsets = [-20, 0, 20]; // Triple Wave
+                    }
+                } 
+                else if (this.playerClass === 'ranger') {
+                    // RIFLE (Fast, Long Range)
+                    bulletProps.w = 15;
+                    bulletProps.h = 3;
+                    bulletProps.s = 15; // Very Fast
+                    if (this.player.tripleShot) offsets = [-10, 0, 10];
                 }
+                else if (this.playerClass === 'force') {
+                    // MAGIC (Homing)
+                    bulletProps.w = 8;
+                    bulletProps.h = 8;
+                    bulletProps.s = 7;
+                    bulletProps.homing = true;
+                    if (this.player.tripleShot) offsets = [-15, 0, 15];
+                }
+
+                // Override for special pickups that replace standard behavior
+                if (this.player.weaponType === 'spread') offsets = [-20, -10, 0, 10, 20];
+                if (this.player.weaponType === 'pierce') bulletProps.piercing = true;
+                if (this.player.weaponType === 'laser') return; // Laser handled in render
+
                 offsets.forEach(offsetY => {
-                    this.bullets.push({ x: this.player.x + this.player.w, y: this.player.y + this.player.h / 2 - 2 + offsetY, w: bulletProps.w, h: bulletProps.h, s: bulletProps.s, piercing: bulletProps.piercing });
+                    this.bullets.push({ 
+                        x: this.player.x + this.player.w, 
+                        y: this.player.y + this.player.h / 2 - (bulletProps.h/2) + offsetY, 
+                        w: bulletProps.w, 
+                        h: bulletProps.h, 
+                        s: bulletProps.s, 
+                        piercing: bulletProps.piercing,
+                        homing: bulletProps.homing
+                    });
                 });
             }
 
@@ -599,7 +694,7 @@
             applyPowerUp(p) {
                 switch (p.type) {
                     case 'triple': this.player.tripleShot = true; setTimeout(() => { this.player.tripleShot = false; }, 8000); break;
-                    case 'heal': this.player.lives = Math.min(5, this.player.lives + 1); break;
+                    case 'heal': this.player.lives = Math.min(10, this.player.lives + 1); break;
                     case 'blast': this.blastEnergy = Math.min(100, this.blastEnergy + 50); break;
                     case 'rapid': this.player.shootInterval = 6; this.player.weaponTimer = 480; break;
                     default: this.player.weaponType = p.type; this.player.weaponTimer = 480; break;
@@ -611,17 +706,18 @@
                 const b = [];
                 if (e.type === 'sinow') b.push({ x: e.x, y: e.y+e.h/2-2, w: 10, h: 4, vx: 6, vy: 0, color: '#f87171' });
                 else if (e.type === 'baranz') [-2,-1,0,1,2].forEach(vy => b.push({ x: e.x, y: e.y+e.h/2-3, w: 14, h: 6, vx: 5, vy: vy, color: '#ef4444' }));
-                else if (e.type === 'dragon') b.push({ x: e.x, y: e.y+e.h/2-10, w: 40, h: 20, vx: 7, vy: 0, color: '#ff7b72' });
-                else if (e.type === 'derolle') [-3, 0, 3].forEach(vy => b.push({ x: e.x, y: e.y+e.h/2, w: 20, h: 20, vx: 5, vy: vy, color: '#a855f7' }));
-                else if (e.type === 'volopt') { b.push({ x: e.x, y: e.y+20, w: 30, h: 6, vx: 10, vy: 0, color: '#ef4444' }); b.push({ x: e.x, y: e.y+e.h-20, w: 30, h: 6, vx: 10, vy: 0, color: '#ef4444' }); }
-                else if (e.type === 'falz') { for(let i=0; i<8; i++) { let angle = (i / 8) * Math.PI * 2; b.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle)*4 - 2, vy: Math.sin(angle)*4, color: '#e2e8f0' }); } }
+                else if (e.type === 'dragon') b.push({ x: e.x, y: e.y+e.h/2-10, w: 40, h: 20, vx: 9, vy: 0, color: '#ff7b72' });
+                else if (e.type === 'derolle') [-4,-2, 0, 2, 4].forEach(vy => b.push({ x: e.x, y: e.y+e.h/2, w: 20, h: 20, vx: 5, vy: vy, color: '#a855f7' }));
+                else if (e.type === 'volopt') { b.push({ x: e.x, y: e.y+20, w: 30, h: 6, vx: 12, vy: 0, color: '#ef4444' }); b.push({ x: e.x, y: e.y+e.h-20, w: 30, h: 6, vx: 12, vy: 0, color: '#ef4444' }); }
+                else if (e.type === 'falz') { for(let i=0; i<12; i++) { let angle = (i / 12) * Math.PI * 2; b.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle)*4 - 2, vy: Math.sin(angle)*4, color: '#e2e8f0' }); } }
                 b.forEach(bullet => this.enemyBullets.push(bullet));
             }
 
             killEnemy(e, fromBlast=false) {
                 this.sounds.explode();
                 this.score += e.maxHp * 10;
-                if (!fromBlast) this.blastEnergy = Math.min(100, this.blastEnergy + (e.maxHp * 0.5)); 
+                // Class Specific Mag Charge Rate
+                if (!fromBlast) this.blastEnergy = Math.min(100, this.blastEnergy + (e.maxHp * 0.5 * this.magRate)); 
                 if (Math.random() < 0.1) this.spawnPowerUp();
             }
 
@@ -651,8 +747,7 @@
                 ctx.fillText('FINAL SCORE: ' + this.score, this.width/2, this.height/2);
                 ctx.fillText('HIGH SCORE: ' + this.highScore, this.width/2, this.height/2 + 30);
                 
-                document.getElementById('startBtn').textContent = "TRY AGAIN";
-                document.getElementById('startBtn').style.display = 'block';
+                document.getElementById('retryBtn').style.display = 'block';
                 document.getElementById('scoreForm').style.display = 'flex';
                 document.getElementById('leaderboard').style.display = 'block';
                 
@@ -705,12 +800,30 @@
         const canvas = document.getElementById('canvas');
         let game = null;
 
-        document.getElementById('startBtn').addEventListener('click', () => {
-            document.getElementById('startBtn').style.display = 'none';
+        // Function called by Class Selection Buttons
+        function startGame(className) {
+            document.getElementById('classSelect').style.display = 'none';
             document.getElementById('scoreForm').style.display = 'none';
             document.getElementById('leaderboard').style.display = 'none';
-            game = new Game(canvas);
+            document.getElementById('retryBtn').style.display = 'none';
+            
+            game = new Game(canvas, className);
             game.start();
+        }
+
+        // Retry button just shows class select again
+        document.getElementById('retryBtn').addEventListener('click', () => {
+            document.getElementById('retryBtn').style.display = 'none';
+            document.getElementById('scoreForm').style.display = 'none';
+            document.getElementById('leaderboard').style.display = 'none';
+            
+            // Re-show class select
+            document.getElementById('classSelect').style.display = 'grid';
+            
+            // Fix Submit Button
+            const submitBtn = document.getElementById('submitScoreBtn');
+            submitBtn.disabled = false;
+            submitBtn.textContent = "SUBMIT SCORE";
         });
 
         document.getElementById('submitScoreBtn').addEventListener('click', () => {
@@ -728,7 +841,7 @@
             .then(() => {
                 alert("SCORE UPLOADED!");
                 btn.textContent = "SENT!";
-                game.fetchHighScores(); // Refresh list after sending
+                game.fetchHighScores(); 
             }).catch(e => {
                 console.error(e);
                 alert("ERROR UPLOADING");
