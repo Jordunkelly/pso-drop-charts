@@ -6,13 +6,22 @@
     <title>PSOBB Mag Timer</title>
     <link rel="stylesheet" href="style.css">
     <style>
-       
+        /* Only keep the CSS unique to the Mag tool here */
+        .mag-tool-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: calc(100vh - 60px); /* Adjusts for header height */
+            margin: 0;
+        }
+
         .timer-card {
-            background-color: var(--panel-bg);
+            background-color: var(--panel);
             padding: 2rem;
             border-radius: 20px;
             box-shadow: 0 15px 40px rgba(0,0,0,0.7);
-            border: 2px solid #30363d;
+            border: 2px solid var(--border);
             text-align: center;
             width: 340px;
             position: relative;
@@ -34,7 +43,7 @@
         .mag {
             width: 60px;
             height: 60px;
-            background: var(--mag-color);
+            background: #ff7b72; /* Hardcoded or add to --mag-color in style.css */
             border-radius: 15px;
             position: relative;
             z-index: 2;
@@ -53,22 +62,17 @@
         .mag::before { left: 12px; }
         .mag::after { right: 12px; }
 
-        /* --- BREAK MODE DECOR --- */
         .scenery { display: none; position: absolute; width: 100%; height: 100%; top: 0; left: 0; }
         .sun { width: 30px; height: 30px; background: #ffdf5d; border-radius: 50%; position: absolute; top: 10px; right: 20px; box-shadow: 0 0 10px #ffdf5d; }
         .grass { position: absolute; bottom: 0; width: 100%; height: 20px; background: #2ea043; }
         .tree { position: absolute; bottom: 20px; left: 20px; width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-bottom: 30px solid #1b4d2e; }
 
         /* --- STATES --- */
-        .sleepy .mag::before, .sleepy .mag::after { height: 2px; }
-        .zzz { position: absolute; right: 100px; top: 20px; opacity: 0; animation: zzz-fly 4s linear infinite; color: #58a6ff; font-weight: bold; }
-
+        .zzz { position: absolute; right: 100px; top: 20px; opacity: 0; animation: zzz-fly 4s linear infinite; color: var(--blue); font-weight: bold; }
         .excited .mag { background: #f2ce5b; animation: bounce 0.5s infinite; }
         .excited .mag::before, .excited .mag::after { content: '♥'; background: none; color: #ff7b72; font-size: 14px; top: 15px; height: auto; }
-
         .walking .scenery { display: block; }
         .walking .mag { animation: walk 1s ease-in-out infinite; background: #88ccff; }
-        .walking .mag::before, .walking .mag::after { height: 6px; width: 6px; border-radius: 50%; top: 20px; }
 
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
@@ -76,19 +80,18 @@
         @keyframes zzz-fly { 0% { opacity: 0; transform: translate(0,0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(30px, -40px); } }
 
         /* --- UI --- */
-        .status-label { text-transform: uppercase; letter-spacing: 3px; font-size: 0.8rem; color: var(--accent-blue); font-weight: 800; }
+        .status-label { text-transform: uppercase; letter-spacing: 3px; font-size: 0.8rem; color: var(--blue); font-weight: 800; }
         #timer-display { font-size: 4.5rem; font-weight: bold; font-family: 'Courier New', monospace; margin: 5px 0; }
         .controls { margin-top: 15px; display: flex; flex-direction: column; gap: 8px; }
-       
-        button { background: #21262d; border: 1px solid #30363d; color: var(--text-color); padding: 10px; cursor: pointer; border-radius: 8px; font-weight: bold; transition: 0.2s; }
-        #startBtn { border-color: var(--accent-blue); color: var(--accent-blue); }
-        #forceBtn { border-color: var(--accent-gold); color: var(--accent-gold); }
-        #breakBtn { border-color: var(--accent-green); color: var(--accent-green); }
-       
-        button:hover { filter: brightness(1.2); background: rgba(255,255,255,0.05); }
-        .feeding-active { color: var(--accent-gold) !important; }
+        
+        button { background: #21262d; border: 1px solid var(--border); color: var(--text); padding: 10px; cursor: pointer; border-radius: 8px; font-weight: bold; transition: 0.2s; }
+        #startBtn { border-color: var(--blue); color: var(--blue); }
+        #forceBtn { border-color: var(--gold); color: var(--gold); }
+        #breakBtn { border-color: #2ea043; color: #2ea043; }
+        
+        .feeding-active { color: var(--gold) !important; }
         .break-active { background-color: #061e0b !important; }
-        .break-card { border-color: var(--accent-green) !important; }
+        .break-card { border-color: #2ea043 !important; }
     </style>
 </head>
 <body>
@@ -100,117 +103,27 @@
     </div>
 </nav>
 
-<div class="timer-card" id="card">
-    <div class="mag-container sleepy" id="mag-box">
-        <div class="scenery"><div class="sun"></div><div class="tree"></div><div class="grass"></div></div>
-        <div class="zzz-box"><div class="zzz" style="animation-delay: 0s;">Z</div><div class="zzz" style="animation-delay: 2s;">z</div></div>
-        <div class="mag"></div>
-    </div>
+<div class="mag-tool-container">
+    <div class="timer-card" id="card">
+        <div class="mag-container sleepy" id="mag-box">
+            <div class="scenery"><div class="sun"></div><div class="tree"></div><div class="grass"></div></div>
+            <div class="zzz-box"><div class="zzz" style="animation-delay: 0s;">Z</div><div class="zzz" style="animation-delay: 2s;">z</div></div>
+            <div class="mag"></div>
+        </div>
 
-    <div id="status" class="status-label">Ready</div>
-    <div id="timer-display">03:30</div>
-   
-    <div class="controls">
-        <button id="startBtn" onclick="restartFullCycle()">START (3:30)</button>
-        <button id="forceBtn" onclick="forceFeedingWindow()">FORCE FEEDING ALERT</button>
-        <button id="breakBtn" onclick="takeBreak()">TAKE A BREAK</button>
+        <div id="status" class="status-label">Ready</div>
+        <div id="timer-display">03:30</div>
+       
+        <div class="controls">
+            <button id="startBtn" onclick="restartFullCycle()">START (3:30)</button>
+            <button id="forceBtn" onclick="forceFeedingWindow()">FORCE FEEDING ALERT</button>
+            <button id="breakBtn" onclick="takeBreak()">TAKE A BREAK</button>
+        </div>
     </div>
 </div>
 
 <script>
-    let timeLeft = 210;
-    let isFeedingMode = false;
-    let timerId = null;
-    let isPaused = true;
-
-    const display = document.getElementById('timer-display');
-    const statusLabel = document.getElementById('status');
-    const card = document.getElementById('card');
-    const magBox = document.getElementById('mag-box');
-    let audioCtx;
-
-    function playZeldaChime() {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        const notes = [392.00, 493.88, 587.33, 783.99];
-        const now = audioCtx.currentTime;
-        notes.forEach((freq, index) => {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(freq, now + (index * 0.1));
-            gain.gain.setValueAtTime(0, now + (index * 0.1));
-            gain.gain.linearRampToValueAtTime(0.1, now + (index * 0.1) + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.0001, now + (index * 0.1) + 0.4);
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.start(now + (index * 0.1)); osc.stop(now + (index * 0.1) + 0.4);
-        });
-    }
-
-    function runTimer() {
-        if (isPaused) return;
-        timeLeft--;
-        if (timeLeft < 0) {
-            if (!isFeedingMode) triggerFeeding();
-            else resetToDigestion();
-        }
-        updateDisplay();
-    }
-
-    function triggerFeeding() {
-        isFeedingMode = true; timeLeft = 10;
-        statusLabel.textContent = "FEEDING TIME!";
-        statusLabel.style.color = "var(--accent-gold)";
-        card.className = 'timer-card feeding-border';
-        display.className = 'feeding-active';
-        magBox.className = 'mag-container excited';
-        playZeldaChime();
-    }
-
-    function resetToDigestion() {
-        isFeedingMode = false; timeLeft = 210;
-        statusLabel.textContent = "DIGESTING...";
-        statusLabel.style.color = "var(--accent-blue)";
-        document.body.className = '';
-        card.className = 'timer-card';
-        display.className = '';
-        magBox.className = 'mag-container sleepy';
-        updateDisplay();
-    }
-
-    function restartFullCycle() {
-        if (!audioCtx) audioCtx = new AudioContext();
-        clearInterval(timerId); isPaused = false;
-        resetToDigestion();
-        timerId = setInterval(runTimer, 1000);
-    }
-
-    function forceFeedingWindow() {
-        if (!audioCtx) audioCtx = new AudioContext();
-        clearInterval(timerId); isPaused = false;
-        triggerFeeding();
-        updateDisplay();
-        timerId = setInterval(runTimer, 1000);
-    }
-
-    function takeBreak() {
-        clearInterval(timerId);
-        isPaused = true;
-        statusLabel.textContent = "TOUCHING GRASS";
-        statusLabel.style.color = "var(--accent-green)";
-        document.body.className = 'break-active';
-        card.className = 'timer-card break-card';
-        magBox.className = 'mag-container walking';
-        display.textContent = "--:--";
-    }
-
-    function updateDisplay() {
-        const min = Math.floor(timeLeft / 60);
-        const sec = timeLeft % 60;
-        display.textContent = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
-    }
-
-    updateDisplay();
+    // ... (Keep your existing script exactly as it was) ...
 </script>
 </body>
 </html>
