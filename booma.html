@@ -222,6 +222,11 @@
             color: #8b949e;
             margin-top: 5px;
         }
+        /* Heart icons used to represent player lives in the HUD */
+        #life-icons {
+            color: #ef4444;
+            font-size: 1.2rem;
+        }
         @media (pointer: coarse) { .mobile-hint { display: block; } }
     </style>
 </head>
@@ -239,6 +244,7 @@
                     SCORE: <span id="score">0</span>
                     &nbsp;|&nbsp; LVL: <span id="level">1</span>
                     &nbsp;|&nbsp; LIVES: <span id="lives">0</span>
+                    <span id="life-icons" style="margin-left:4px;"></span>
                     &nbsp;|&nbsp; <span id="dmg-mult" style="color:#facc15; font-weight:bold;">DMG: x1.00</span>
                 </div>
                 <div>
@@ -401,6 +407,16 @@
         // defined outside the class and contains Image objects keyed by
         // boss type.
         this.bossBackgrounds = bossBackgrounds;
+
+        // Bind methods that may be used as callbacks to ensure that
+        // `this` always refers to the Game instance.  Without binding,
+        // calling spawnEnemy() from within other methods (e.g. inside
+        // spawnEnemyBullet) could result in an undefined context if
+        // JavaScript's `this` is rebound (for example, when using the
+        // function as an event handler).  Binding here prevents errors
+        // like “spawnEnemy is not a function”.
+        this.spawnEnemy = this.spawnEnemy.bind(this);
+        this.spawnEnemyBullet = this.spawnEnemyBullet.bind(this);
                 // Store a reference to the global background image. It will
                 // load asynchronously; when complete the render method will
                 // draw the appropriate quadrant based on the current area.
@@ -744,6 +760,13 @@
                 document.getElementById('level').textContent = lvlDisplay;
                 // Update lives display
                 document.getElementById('lives').textContent = this.player.lives;
+                // Draw heart icons to visually represent remaining lives.  Use a
+                // Unicode heart symbol repeated once per life.  CSS sets the
+                // colour of the icons.
+                const lifeIconContainer = document.getElementById('life-icons');
+                if (lifeIconContainer) {
+                    lifeIconContainer.innerHTML = '❤'.repeat(this.player.lives);
+                }
                 document.getElementById('dmg-mult').textContent = "DMG: x" + this.player.damageMultiplier.toFixed(2);
                 document.getElementById('blast-fill').style.width = Math.min(this.blastEnergy, 100) + '%';
                 let syncPct = (this.player.syncTimer / this.player.maxSync) * 100;
