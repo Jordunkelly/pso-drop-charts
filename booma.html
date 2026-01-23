@@ -456,6 +456,11 @@
                 this.enemyBullets = [];
                 this.blastEnergy = 0;
                 this.bossSpawnedForLevel = false;
+                // Track enemy kills to determine when to level up and spawn bosses.
+                this.killsThisLevel = 0;
+                // Determine how many kills are required for the next level.  Start
+                // with a moderate number and increase slightly with each level.
+                this.levelTargetKills = 30;
                 // Current area (used to change background). Initially start in forest.
                 this.area = 'forest';
                 // Colours representing each map area. These can be tuned to taste.
@@ -648,11 +653,13 @@
             }
             update() {
                 this.frame++;
-                if (this.frame % 1500 === 0) {
-                    this.level++;
-                    this.spawnRate = Math.max(15, this.spawnRate - 5);
-                    this.bossSpawnedForLevel = false;
-                }
+                // Remove time‑based level progression.  Levels now advance
+                // based on the number of enemies defeated (killsThisLevel).
+                // The old timer‑based mechanic that incremented the level
+                // every 1500 frames has been removed to prevent bosses
+                // from spawning while a previous boss is still alive.  See
+                // the kill threshold check near the end of this update
+                // method for the new progression logic.
                 // Determine the current map area based on the player's level.
                 // Levels 1–4: forest, 5–9: caves, 10–14: mines, 15+: ruins.
                 if (this.level < 5) {
@@ -664,7 +671,13 @@
                 } else {
                     this.area = 'ruins';
                 }
-                if (!this.bossSpawnedForLevel) {
+                // Spawn a boss only when the appropriate level is reached
+                // and no other boss is currently active.  Without the
+                // isBossActive check, a new boss could spawn while the
+                // previous one is still alive if the level advances due to
+                // kills.  The bossSpawnedForLevel flag prevents multiple
+                // spawns for the same level.
+                if (!this.bossSpawnedForLevel && !isBossActive) {
                     if (this.level === 5) this.spawnBossSequence('Dragon', 'dragon', '#eab308');
                     else if (this.level === 10) this.spawnBossSequence('De Rol Le', 'derolle', '#a855f7');
                     else if (this.level === 15) this.spawnBossSequence('Vol Opt', 'volopt', '#ef4444');
@@ -888,6 +901,32 @@
                 document.getElementById('blast-fill').style.width = Math.min(this.blastEnergy, 100) + '%';
                 let syncPct = (this.player.syncTimer / this.player.maxSync) * 100;
                 document.getElementById('sync-fill').style.width = syncPct + '%';
+
+                // ---------------- LEVEL PROGRESSION BY KILL COUNT ----------------
+                // After handling all per‑frame updates, check whether the
+                // player has defeated enough enemies to progress to the next
+                // level.  Do not level up if a boss is currently active;
+                // instead wait until after the boss is defeated.  When the
+                // kill threshold is reached and no boss is present, increase
+                // the level, reset the kill counter, and compute a new
+                // threshold for subsequent levels.  Also reduce the spawn
+                // interval slightly to increase difficulty over time and
+                // allow the next boss to spawn when its level milestone is
+                // reached.
+                if (!isBossActive && this.killsThisLevel >= this.levelTargetKills) {
+                    this.level++;
+                    this.killsThisLevel = 0;
+                    // Increase the target kills slightly for each level to
+                    // reflect progression; start with a base of 30 and add
+                    // 5 per level.
+                    this.levelTargetKills = 30 + (this.level * 5);
+                    // Decrease spawnRate to increase enemy density over
+                    // time, but never drop below 15 frames between spawns.
+                    this.spawnRate = Math.max(15, this.spawnRate - 5);
+                    // Allow boss spawning for the new level when it reaches
+                    // the appropriate milestone (5, 10, 15, etc.).
+                    this.bossSpawnedForLevel = false;
+                }
             }
             render() {
                 const ctx = this.ctx;
@@ -977,15 +1016,107 @@
                 });
                 this.powerUps.forEach(p => {
                     ctx.fillStyle = p.color;
-                    // Rare drops (types starting with 'rare') are drawn as glowing
-                    // rectangles using their own colour. Other powerups are drawn
-                    // as circles.
-                    if (p.type && p.type.startsWith('rare')) {
+                    /*
+                     * Draw powerups with distinct shapes based on type.  Rare
+                     * drops (types beginning with "rare-") are drawn as
+                     * glowing rectangles.  Hunter weapon upgrades are
+                     * squares; ranger guns use circles, triangles, diamonds
+                     * and rectangles to represent handgun, shotgun, bazooka
+                     * and rifle respectively; force techs use triangles,
+                     * diamonds and hexagons for fire, lightning and ice.
+                     * Consumables (heal, shield, blast) remain circles.
+                     */
+                    const t = p.type || '';
+                    if (t.startsWith('rare')) {
                         ctx.shadowBlur = 15;
                         ctx.shadowColor = p.color;
                         ctx.fillRect(p.x, p.y, p.w, p.h);
                         ctx.shadowBlur = 0;
+                        return;
+                    }
+                    // Determine shape based on type
+                    // Helper functions to draw polygons
+                    function drawTriangle(x, y, w, h) {
+                        ctx.beginPath();
+                        ctx.moveTo(x + w/2, y); // top
+                        ctx.lineTo(x + w, y + h); // bottom right
+                        ctx.lineTo(x, y + h); // bottom left
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                    function drawDiamond(x, y, w, h) {
+                        ctx.beginPath();
+                        ctx.moveTo(x + w/2, y); // top
+                        ctx.lineTo(x + w, y + h/2); // right
+                        ctx.lineTo(x + w/2, y + h); // bottom
+                        ctx.lineTo(x, y + h/2); // left
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                    function drawPentagon(x, y, w, h) {
+                        const cx = x + w / 2;
+                        const cy = y + h / 2;
+                        const r = w / 2;
+                        ctx.beginPath();
+                        for (let i = 0; i < 5; i++) {
+                            const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+                            const px = cx + r * Math.cos(angle);
+                            const py = cy + r * Math.sin(angle);
+                            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                        }
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                    function drawHexagon(x, y, w, h) {
+                        const cx = x + w / 2;
+                        const cy = y + h / 2;
+                        const r = w / 2;
+                        ctx.beginPath();
+                        for (let i = 0; i < 6; i++) {
+                            const angle = (Math.PI * 2 * i) / 6 - Math.PI / 2;
+                            const px = cx + r * Math.cos(angle);
+                            const py = cy + r * Math.sin(angle);
+                            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                        }
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                    // Choose shape
+                    if (t === 'weapon-hunter') {
+                        // Hunters upgrade: square
+                        ctx.fillRect(p.x, p.y, p.w, p.h);
+                    } else if (t.startsWith('gun-handgun')) {
+                        // Handgun: circle
+                        ctx.beginPath();
+                        ctx.arc(p.x + p.w / 2, p.y + p.h / 2, p.w / 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else if (t.startsWith('gun-shotgun')) {
+                        // Shotgun: triangle
+                        drawTriangle(p.x, p.y, p.w, p.h);
+                    } else if (t.startsWith('gun-rifle')) {
+                        // Rifle: vertical rectangle (taller than wide)
+                        const rw = p.w * 0.4;
+                        const rh = p.h * 1.2;
+                        ctx.fillRect(p.x + (p.w - rw)/2, p.y + (p.h - rh)/2, rw, rh);
+                    } else if (t.startsWith('gun-bazooka')) {
+                        // Bazooka: diamond
+                        drawDiamond(p.x, p.y, p.w, p.h);
+                    } else if (t.startsWith('tech-fire')) {
+                        // Fire: triangle
+                        drawTriangle(p.x, p.y, p.w, p.h);
+                    } else if (t.startsWith('tech-lightning')) {
+                        // Lightning: diamond
+                        drawDiamond(p.x, p.y, p.w, p.h);
+                    } else if (t.startsWith('tech-ice')) {
+                        // Ice: hexagon
+                        drawHexagon(p.x, p.y, p.w, p.h);
+                    } else if (t === 'heal' || t === 'shield' || t === 'blast') {
+                        // Consumables: circle
+                        ctx.beginPath();
+                        ctx.arc(p.x + p.w / 2, p.y + p.h / 2, p.w / 2, 0, Math.PI * 2);
+                        ctx.fill();
                     } else {
+                        // Default: circle
                         ctx.beginPath();
                         ctx.arc(p.x + p.w / 2, p.y + p.h / 2, p.w / 2, 0, Math.PI * 2);
                         ctx.fill();
@@ -1609,6 +1740,12 @@
                         const cMap = { heal:'#34d399', shield:'#38bdf8' };
                         this.powerUps.push({ x: e.x + 26, y: e.y, w: 24, h: 24, type:t, speed:2, color:cMap[t] });
                     }
+                }
+                // Increment kill counter for level progression when a non-boss enemy is defeated.
+                // Bosses themselves do not count toward the kill threshold; defeating
+                // them triggers level advancement separately.
+                if (!e.isBoss) {
+                    this.killsThisLevel++;
                 }
                 // When a boss is defeated, clear the currentBossType so that
                 // the game returns to the standard area background.
