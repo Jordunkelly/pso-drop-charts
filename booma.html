@@ -24,23 +24,9 @@
             cursor: pointer;
         }
 
-        .game-ui {
-            text-align: center;
-            margin-top: 15px;
-        }
-
-        .score-board {
-            font-family: 'Courier New', monospace;
-            font-size: 1.5rem;
-            color: var(--gold);
-            margin-bottom: 10px;
-        }
-
-        .instructions {
-            font-size: 0.8rem;
-            opacity: 0.7;
-            color: var(--text);
-        }
+        .game-ui { text-align: center; margin-top: 15px; }
+        .score-board { font-family: 'Courier New', monospace; font-size: 1.5rem; color: var(--gold); margin-bottom: 10px; }
+        .instructions { font-size: 0.8rem; opacity: 0.7; color: var(--text); }
     </style>
 </head>
 <body>
@@ -55,10 +41,10 @@
 
 <div class="game-container">
     <div class="score-board">SCORE: <span id="score">00000</span></div>
-    <canvas id="gameCanvas" width="600" height="200"></canvas>
+    <canvas id="gameCanvas" width="600" height="250"></canvas>
     <div class="game-ui">
-        <p class="instructions">PRESS SPACE OR TAP TO JUMP</p>
-        <button onclick="resetGame()" style="margin-top: 10px; border-color: var(--blue); color: var(--blue);">RESTART MISSION</button>
+        <p class="instructions">HOLD SPACE/TAP TO FLY • DODGE THE RAPIES & BOOMAS</p>
+        <button onclick="resetGame()" style="margin-top: 10px; border-color: var(--blue); color: var(--blue); cursor:pointer;">RESTART MISSION</button>
     </div>
 </div>
 
@@ -67,108 +53,124 @@
     const ctx = canvas.getContext('2d');
     const scoreElement = document.getElementById('score');
 
-    let score = 0;
-    let gameActive = true;
-    let frame = 0;
+    let score = 0, gameActive = true, frame = 0;
+    let audioCtx;
 
-    // Colors from your theme
-    const colors = {
-        mag: '#ff7b72',
-        rappy: '#facc15',
-        ground: '#30363d'
-    };
+    // --- SOUND ENGINE ---
+    function playBeep(freq, type, duration) {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + duration);
+    }
 
+    // --- GAME OBJECTS ---
     const player = {
-        x: 50,
-        y: 150,
-        width: 30,
-        height: 30,
-        dy: 0,
-        jumpForce: 12,
-        gravity: 0.6,
-        grounded: false
+        x: 50, y: 100, w: 30, h: 30,
+        dy: 0, 
+        lift: -0.5,     // Flying force
+        gravity: 0.25,  // Constant fall
+        maxSpeed: 5
     };
 
     const obstacles = [];
+    const colors = { mag: '#ff7b72', rappy: '#facc15', booma: '#50fa7b', ground: '#30363d' };
 
     function drawPlayer() {
         ctx.fillStyle = colors.mag;
         ctx.beginPath();
-        ctx.roundRect(player.x, player.y, player.width, player.height, 8);
+        ctx.roundRect(player.x, player.y, player.w, player.h, 8);
         ctx.fill();
-        
         // Eyes
         ctx.fillStyle = '#000';
         ctx.fillRect(player.x + 18, player.y + 10, 5, 2);
     }
 
     function createObstacle() {
-        if (frame % 100 === 0) {
+        if (frame % 80 === 0) {
+            const type = Math.random() > 0.5 ? 'rappy' : 'booma';
+            const size = type === 'rappy' ? 25 : 40;
             obstacles.push({
                 x: canvas.width,
-                y: 160,
-                width: 20,
-                height: 20,
-                speed: 5 + (score / 500) // Speed increases over time
+                y: Math.random() * (canvas.height - 50),
+                w: size, h: size,
+                type: type,
+                speed: 4 + (score / 1000)
             });
         }
     }
 
     function drawObstacles() {
-        ctx.fillStyle = colors.rappy;
-        obstacles.forEach((obs, index) => {
+        obstacles.forEach((obs, i) => {
             obs.x -= obs.speed;
+            ctx.fillStyle = colors[obs.type];
             
-            // Draw a little Rappy triangle
-            ctx.beginPath();
-            ctx.moveTo(obs.x, obs.y + obs.height);
-            ctx.lineTo(obs.x + obs.width / 2, obs.y);
-            ctx.lineTo(obs.x + obs.width, obs.y + obs.height);
-            ctx.fill();
+            if (obs.type === 'rappy') {
+                ctx.beginPath(); // Draw Rappy Triangle
+                ctx.moveTo(obs.x, obs.y + obs.h);
+                ctx.lineTo(obs.x + obs.w / 2, obs.y);
+                ctx.lineTo(obs.x + obs.w, obs.y + obs.h);
+                ctx.fill();
+            } else {
+                ctx.fillRect(obs.x, obs.y, obs.w, obs.h); // Draw Booma Square
+            }
 
-            // Collision Check
-            if (player.x < obs.x + obs.width &&
-                player.x + player.width > obs.x &&
-                player.y < obs.y + obs.height &&
-                player.y + player.height > obs.y) {
+            // Collision
+            if (player.x < obs.x + obs.w && player.x + player.w > obs.x &&
+                player.y < obs.y + obs.h && player.y + player.h > obs.y) {
                 gameActive = false;
+                playBeep(150, 'sawtooth', 0.5); // Death sound
             }
 
-            if (obs.x + obs.width < 0) {
-                obstacles.splice(index, 1);
-                score += 10;
-            }
+            if (obs.x + obs.w < 0) { obstacles.splice(i, 1); score += 10; }
         });
     }
 
+    // --- INPUT HANDLING ---
+    let isBoosting = false;
+    const startBoost = () => { 
+        isBoosting = true; 
+        if(gameActive) playBeep(600, 'sine', 0.1); 
+    };
+    const endBoost = () => { isBoosting = false; };
+
+    window.addEventListener('keydown', (e) => { if (e.code === 'Space') startBoost(); });
+    window.addEventListener('keyup', (e) => { if (e.code === 'Space') endBoost(); });
+    canvas.addEventListener('mousedown', startBoost);
+    window.addEventListener('mouseup', endBoost);
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startBoost(); });
+    window.addEventListener('touchend', endBoost);
+
+    // --- CORE LOOP ---
     function update() {
         if (!gameActive) {
-            ctx.fillStyle = "rgba(0,0,0,0.5)";
+            ctx.fillStyle = "rgba(0,0,0,0.7)";
             ctx.fillRect(0,0, canvas.width, canvas.height);
-            ctx.fillStyle = "white";
-            ctx.font = "20px Arial";
-            ctx.fillText("GAME OVER - SHIP DISCONNECTED", 150, 100);
+            ctx.fillStyle = "white"; ctx.font = "bold 16px Arial";
+            ctx.fillText("MISSION FAILED - CHIME FOR RESCUE", 160, 120);
             return;
         }
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw Ground
-        ctx.strokeStyle = colors.ground;
-        ctx.beginPath();
-        ctx.moveTo(0, 180);
-        ctx.lineTo(canvas.width, 180);
-        ctx.stroke();
 
-        // Player Jump Physics
+        // Physics: Gravity vs Lift
+        if (isBoosting) player.dy += player.lift;
         player.dy += player.gravity;
+        
+        // Speed Cap
+        if (player.dy > player.maxSpeed) player.dy = player.maxSpeed;
+        if (player.dy < -player.maxSpeed) player.dy = -player.maxSpeed;
+        
         player.y += player.dy;
 
-        if (player.y + player.height > 180) {
-            player.y = 180 - player.height;
-            player.dy = 0;
-            player.grounded = true;
-        }
+        // Screen Boundaries
+        if (player.y < 0) { player.y = 0; player.dy = 0; }
+        if (player.y + player.h > canvas.height) { gameActive = false; playBeep(100, 'square', 0.3); }
 
         drawPlayer();
         createObstacle();
@@ -179,26 +181,11 @@
         requestAnimationFrame(update);
     }
 
-    function jump() {
-        if (player.grounded && gameActive) {
-            player.dy = -player.jumpForce;
-            player.grounded = false;
-        }
-        if (!gameActive) resetGame();
-    }
-
     function resetGame() {
-        score = 0;
-        obstacles.length = 0;
-        gameActive = true;
-        player.y = 150;
-        frame = 0;
+        score = 0; obstacles.length = 0; gameActive = true;
+        player.y = 100; player.dy = 0; frame = 0;
         update();
     }
-
-    window.addEventListener('keydown', (e) => { if (e.code === 'Space') jump(); });
-    canvas.addEventListener('touchstart', jump);
-    canvas.addEventListener('mousedown', jump);
 
     update();
 </script>
