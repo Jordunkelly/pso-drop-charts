@@ -1,15 +1,23 @@
 /* --- UNIVERSAL THEME & RESET --- */
 :root { 
-    --bg: #0d1117; --panel: #161b22; --border: #30363d; --text: #c9d1d9; 
-    --blue: #58a6ff; --gold: #d4af37; --uber: #ff79c6; --god: #ffb86c;
+    --bg: #0d1117; 
+    --panel: #161b22; 
+    --border: #30363d; 
+    --text: #c9d1d9; 
+    --blue: #58a6ff; 
+    --gold: #d4af37; 
+    --uber-glow: #ff8c00;
 }
 
-* { box-sizing: border-box; } /* Prevents padding from breaking widths */
+* { box-sizing: border-box; }
 
 body { 
-    background-color: var(--bg); color: var(--text); 
+    background-color: var(--bg); 
+    color: var(--text); 
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
-    margin: 0; padding: 0; overflow-x: hidden; 
+    margin: 0; 
+    padding: 0; 
+    overflow-x: hidden; 
 }
 
 /* --- SHARED NAVIGATION --- */
@@ -17,65 +25,82 @@ body {
     background: #010409; 
     border-bottom: 1px solid var(--border); 
     display: flex; 
-    flex-wrap: wrap; /* Allows items to move to next line if space runs out */
-    justify-content: space-between; /* Pushes links to left and selectors to right */
+    justify-content: center; /* Centered links since VIEW AS is removed */
     align-items: center; 
     padding: 10px 20px; 
-    position: sticky; top: 0; z-index: 2000; 
+    position: sticky; 
+    top: 0; 
+    z-index: 2000; 
 }
 
-.nav-link {
-    display: flex;             /* Align icon and text side-by-side */
-    align-items: center;       /* Vertical centering */
-    color: var(--text);
-    text-decoration: none;
-    font-weight: bold;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 0.9em;
-}
-
-/* Hide the text "Defender" on very small mobile screens to save space */
-@media (max-width: 480px) {
-    .nav-text { display: none; }
-}
-
-.nav-link { 
-    color: var(--text); text-decoration: none; font-weight: bold; 
-    padding: 8px 12px; border-radius: 6px; transition: 0.2s; 
-    font-size: 0.9em; 
-    white-space: nowrap; /* Prevents text inside links from wrapping */
-    
+.nav-links { 
     display: flex; 
     gap: 15px; 
     align-items: center; 
 }
 
+.nav-link { 
+    display: flex;
+    align-items: center;
+    color: var(--text); 
+    text-decoration: none; 
+    font-weight: bold; 
+    padding: 8px 12px; 
+    border-radius: 6px; 
+    transition: 0.2s; 
+    font-size: 0.9em; 
+    white-space: nowrap; 
+}
+
 .nav-link:hover { background: rgba(255,255,255,0.1); }
 .nav-link.active { background: var(--blue); color: white; }
 
-/* --- MOBILE RESPONSIVE OVERRIDES --- */
-@media (max-width: 768px) {
-    .main-nav { 
-        padding: 10px; 
-        justify-content: center; /* Center everything on mobile */
-        gap: 10px;
-    }
-    
-    .nav-links { 
-        width: 100%; /* Forces links to occupy their own line if needed */
-        justify-content: center;
-        gap: 8px;
-        order: 2; /* Moves links below the logo or class-selector if they share space */
-    }
+/* --- TIER TAGS (PILL STYLE) --- */
+.tier-tag {
+    display: inline-block;
+    padding: 3px 10px;
+    margin-left: 15px; /* Spacing from item name */
+    border-radius: 50px; /* Pill shape */
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #fff;
+    text-transform: uppercase;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    vertical-align: middle;
+    text-align: center;
+}
 
-    .nav-link { 
-        padding: 8px 10px; 
-        font-size: 0.85em; 
-        flex: 1; /* Makes links grow equally to fill the width */
-        text-align: center;
-    }
+/* UBER - Diablo 4 Legendary Style */
+.tier-tag.tier-u {
+    background: linear-gradient(135deg, #ff8c00, #b8860b) !important;
+    border: 1px solid #ffd700 !important;
+    box-shadow: 0 0 10px var(--uber-glow), inset 0 0 5px #ffd700 !important;
+    text-shadow: 1px 1px 2px #000 !important;
+    font-size: 0 !important; /* Hides original 'u' */
+    padding: 3px 12px;
+}
+
+/* Visually translates 'u' to 'UBER' */
+.tier-tag.tier-u::after {
+    content: 'UBER';
+    font-size: 0.75rem;
+    letter-spacing: 0.8px;
+}
+
+/* Tier Colors (Lowercase matching your logic) */
+.tier-tag.tier-s { background-color: #d122e3 !important; }
+.tier-tag.tier-a { background-color: #2ea043 !important; }
+.tier-tag.tier-b { background-color: #1f6feb !important; }
+.tier-tag.tier-c { background-color: #6e7681 !important; }
+.tier-tag.tier-e { background-color: #a371f7 !important; }
+
+/* --- MOBILE RESPONSIVE --- */
+@media (max-width: 768px) {
+    .main-nav { padding: 10px; }
+    .nav-links { gap: 8px; }
+    .nav-link { padding: 8px 10px; font-size: 0.85em; }
+    .nav-text { display: none; } /* Show only icons on small screens to save space */
     
-    /* Prevents Safari/iOS from zooming in on input focus */
-    input, select { font-size: 16px !important; width: 100%; }
+    input, select { font-size: 16px !important; } /* Prevent iOS zoom */
 }
