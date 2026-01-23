@@ -2,716 +2,214 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PSO Photon Defender</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PSOBB Mag Timer</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        :root {
-            --bg: #010409;
-            --fg: #c9d1d9;
-            --primary: #58a6ff;
-            --secondary: #facc15;
-            --danger: #d8616f;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        body {
-            margin: 0;
-            background: var(--bg);
-            color: var(--fg);
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-            overflow-x: hidden;
-            overscroll-behavior: none; 
-        }
-
-        .game-world-wrapper {
+        /* Centers the card in the space below the sticky nav */
+        .mag-tool-container {
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            flex-grow: 1;
-            padding: 10px;
-            box-sizing: border-box;
             min-height: calc(100vh - 60px); 
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
         }
 
-        h1 {
-            color: var(--primary);
-            margin: 0 0 10px 0;
-            font-size: 1.5rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
+        .timer-card {
+            background-color: var(--panel);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.7);
+            border: 2px solid var(--border);
             text-align: center;
-        }
-
-        #gamePanel {
+            width: 100%;
+            max-width: 340px;
             position: relative;
-            width: 100%;
-            max-width: 900px;
-            margin: 0 auto;
+            transition: all 0.5s;
         }
 
-        canvas {
-            background: #161b22;
-            border: 4px solid #30363d;
-            border-radius: 8px;
-            width: 100%;
-            height: auto;
-            max-height: 500px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            touch-action: none; 
-        }
-
-        /* Screen Shake Animation */
-        @keyframes damage-shake {
-            0% { transform: translate(0, 0); border-color: #ef4444; }
-            20% { transform: translate(-10px, 0); border-color: #ef4444; }
-            40% { transform: translate(10px, 0); border-color: #ef4444; }
-            60% { transform: translate(-10px, 0); border-color: #ef4444; }
-            80% { transform: translate(10px, 0); border-color: #ef4444; }
-            100% { transform: translate(0, 0); border-color: #30363d; }
-        }
-        .shake-effect {
-            animation: damage-shake 0.4s;
-        }
-
-        /* Boss Notification */
-        #boss-warning {
-            display: none;
-            position: absolute;
-            top: 40%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #ef4444;
-            font-size: 2rem;
-            font-weight: bold;
-            text-shadow: 0 0 10px #000;
-            text-align: center;
-            animation: flash 0.5s infinite alternate;
-            z-index: 10;
-        }
-        @keyframes flash { from { opacity: 1; } to { opacity: 0; } }
-
-        .hud {
+        /* --- MAG ANIMATION --- */
+        .mag-container {
+            height: 120px;
             display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
-            color: var(--fg);
-            font-family: 'Courier New', monospace;
-            margin-top: 12px;
-            font-size: 0.9rem;
-            background: rgba(48, 54, 61, 0.5);
-            padding: 10px;
-            border-radius: 4px;
-            gap: 10px;
+            margin-bottom: 10px;
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
         }
 
-        .button {
-            margin-top: 12px;
-            padding: 15px;
-            border: 2px solid var(--primary);
-            border-radius: 6px;
-            background: #161b22;
-            color: var(--primary);
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.2s;
-            font-size: 1rem;
-            text-transform: uppercase;
+        .mag {
+            width: 60px;
+            height: 60px;
+            background: #ff7b72; /* Mag color */
+            border-radius: 15px;
+            position: relative;
+            z-index: 2;
+            box-shadow: inset -5px -5px 0 rgba(0,0,0,0.2);
+            animation: float 3s ease-in-out infinite;
         }
-        .button:hover, .button:active { background: var(--primary); color: #fff; }
 
-        .mobile-hint {
-            display: none;
-            text-align: center;
-            font-size: 0.8rem;
-            color: #8b949e;
-            margin-top: 5px;
+        .mag::before, .mag::after {
+            content: '';
+            position: absolute;
+            top: 25px;
+            width: 10px;
+            height: 2px;
+            background: #000;
         }
-        @media (pointer: coarse) { .mobile-hint { display: block; } }
+        .mag::before { left: 12px; }
+        .mag::after { right: 12px; }
+
+        .scenery { display: none; position: absolute; width: 100%; height: 100%; top: 0; left: 0; }
+        .sun { width: 30px; height: 30px; background: #ffdf5d; border-radius: 50%; position: absolute; top: 10px; right: 20px; box-shadow: 0 0 10px #ffdf5d; }
+        .grass { position: absolute; bottom: 0; width: 100%; height: 20px; background: #2ea043; }
+        .tree { position: absolute; bottom: 20px; left: 20px; width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-bottom: 30px solid #1b4d2e; }
+
+        /* --- STATES --- */
+        .zzz { position: absolute; right: 80px; top: 20px; opacity: 0; animation: zzz-fly 4s linear infinite; color: var(--blue); font-weight: bold; }
+        .excited .mag { background: #f2ce5b; animation: bounce 0.5s infinite; }
+        .excited .mag::before, .excited .mag::after { content: '♥'; background: none; color: #ff7b72; font-size: 14px; top: 15px; height: auto; }
+        .walking .scenery { display: block; }
+        .walking .mag { animation: walk 1s ease-in-out infinite; background: #88ccff; }
+
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes walk { 0%, 100% { transform: translateX(-5px) rotate(-5deg); } 50% { transform: translateX(5px) rotate(5deg); } }
+        @keyframes zzz-fly { 0% { opacity: 0; transform: translate(0,0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(30px, -40px); } }
+
+        /* --- UI --- */
+        .status-label { text-transform: uppercase; letter-spacing: 3px; font-size: 0.8rem; color: var(--blue); font-weight: 800; }
+        #timer-display { font-size: 4.5rem; font-weight: bold; font-family: 'Courier New', monospace; margin: 5px 0; color: var(--text); }
+        .controls { margin-top: 15px; display: flex; flex-direction: column; gap: 8px; }
+        
+        button { background: #21262d; border: 1px solid var(--border); color: var(--text); padding: 12px; cursor: pointer; border-radius: 8px; font-weight: bold; transition: 0.2s; font-size: 16px; }
+        #startBtn { border-color: var(--blue); color: var(--blue); }
+        #forceBtn { border-color: var(--gold); color: var(--gold); }
+        #breakBtn { border-color: #2ea043; color: #2ea043; }
+        
+        .feeding-active { color: var(--gold) !important; }
+        .break-active { background-color: #061e0b !important; }
+        .break-card { border-color: #2ea043 !important; }
     </style>
 </head>
 <body>
 
-    <div id="nav-placeholder"></div>
-
-    <div class="game-world-wrapper">
-        <h1>PSO Photon Defender</h1>
+<script>
+    fetch('nav.html')
+    .then(res => res.text())
+    .then(data => {
+        document.getElementById('nav-placeholder').innerHTML = data;
         
-        <div id="gamePanel">
-            <div id="boss-warning">WARNING<br>BOSS APPROACHING</div>
-            <canvas id="canvas" width="900" height="500"></canvas>
-            
-            <div class="hud">
-                <div>
-                    SCORE: <span id="score">0</span>
-                    &nbsp;|&nbsp; LIVES: <span id="lives">3</span>
-                    &nbsp;|&nbsp; LVL: <span id="level">1</span>
-                </div>
-                <div>
-                    MAG: 
-                    <span id="blast-bar" style="display:inline-block;width:80px;height:10px;background:#30363d;vertical-align:middle;border-radius:2px;overflow:hidden;">
-                        <span id="blast-fill" style="display:block;height:100%;background:var(--primary);width:0%;"></span>
-                    </span>
-                </div>
-            </div>
-            
-            <button id="startBtn" class="button" style="width:100%;">START MISSION</button>
-            <div class="mobile-hint">Touch & Drag to Move • Double Tap to Blast</div>
+        // AUTOMATIC ACTIVE CLASS LOGIC
+        // This detects which page you are on and highlights the correct tab
+        const currentPage = window.location.pathname.split("/").pop() || "index.html";
+        const navLinks = document.querySelectorAll('.nav-link');
+        
+        navLinks.forEach(link => {
+            if (link.getAttribute('href') === currentPage) {
+                link.classList.add('active');
+            }
+        });
+    });
+</script>
+<div id="nav-placeholder"></div>
+
+<div class="mag-tool-container">
+    <div class="timer-card" id="card">
+        <div class="mag-container sleepy" id="mag-box">
+            <div class="scenery"><div class="sun"></div><div class="tree"></div><div class="grass"></div></div>
+            <div class="zzz-box"><div class="zzz" style="animation-delay: 0s;">Z</div><div class="zzz" style="animation-delay: 2s;">z</div></div>
+            <div class="mag"></div>
+        </div>
+
+        <div id="status" class="status-label">Ready</div>
+        <div id="timer-display">03:30</div>
+       
+        <div class="controls">
+            <button id="startBtn" onclick="restartFullCycle()">START (3:30)</button>
+            <button id="forceBtn" onclick="forceFeedingWindow()">FORCE FEEDING ALERT</button>
+            <button id="breakBtn" onclick="takeBreak()">TAKE A BREAK</button>
         </div>
     </div>
+</div>
 
-    <script>
-        // --- 1. Navigation Loader ---
-        fetch('nav.html')
-            .then(res => res.text())
-            .then(data => {
-                const holder = document.getElementById('nav-placeholder');
-                if(holder) holder.innerHTML = data;
-                const link = document.querySelector('a[href="booma.html"]');
-                if (link) link.classList.add('active');
-            }).catch(e => console.log("Nav not found"));
+<script>
+    let timeLeft = 210, isFeedingMode = false, timerId = null, isPaused = true, audioCtx;
 
-        // --- 2. Game Logic ---
-        class Game {
-            constructor(canvas) {
-                this.canvas = canvas;
-                this.ctx = canvas.getContext('2d');
-                this.width = canvas.width;
-                this.height = canvas.height;
-                this.running = false;
-                
-                this.player = {
-                    x: 50, y: this.height / 2 - 20, w: 40, h: 40,
-                    dy: 0, speed: 5, lives: 3, invincible: 0,
-                    tripleShot: false, weaponType: 'normal',
-                    weaponTimer: 0, shootInterval: 12
-                };
+    const display = document.getElementById('timer-display');
+    const statusLabel = document.getElementById('status');
+    const card = document.getElementById('card');
+    const magBox = document.getElementById('mag-box');
 
-                this.score = 0;
-                this.highScore = parseInt(localStorage.getItem('psoHighScore') || '0', 10);
-                this.level = 1;
-                this.frame = 0;
-                this.spawnRate = 60;
-                
-                this.bullets = [];
-                this.enemies = [];
-                this.powerUps = [];
-                this.enemyBullets = [];
-                this.blastEnergy = 0;
-                
-                // New logic variables
-                this.bossSpawnedForLevel = false;
-                this.input = { up: false, down: false, shoot: false, blast: false };
-                this.lastTouchEnd = 0;
-                this.isTouchActive = false;
-                
-                this.sounds = {
-                    shoot: (freq = 880) => this.playSfx(freq, 'square', 0.08, 0.05),
-                    hit: () => this.playSfx(440, 'square', 0.1),
-                    explode: () => this.playSfx(220, 'sawtooth', 0.3),
-                    power: () => this.playSfx(620, 'triangle', 0.2),
-                    blast: () => this.playSfx(110, 'sine', 0.5, 0.2),
-                    warning: () => this.playSfx(150, 'sawtooth', 0.8, 0.2)
-                };
-
-                this.initInputs();
-            }
-
-            initInputs() {
-                window.addEventListener('keydown', (e) => {
-                    if (!this.running) return;
-                    if (e.code === 'ArrowUp' || e.code === 'KeyW') this.input.up = true;
-                    if (e.code === 'ArrowDown' || e.code === 'KeyS') this.input.down = true;
-                    if (e.code === 'Space') this.input.shoot = true;
-                    if (e.code === 'ShiftLeft' || e.code === 'KeyX') this.input.blast = true;
-                });
-                window.addEventListener('keyup', (e) => {
-                    if (!this.running) return;
-                    if (e.code === 'ArrowUp' || e.code === 'KeyW') this.input.up = false;
-                    if (e.code === 'ArrowDown' || e.code === 'KeyS') this.input.down = false;
-                    if (e.code === 'Space') this.input.shoot = false;
-                    if (e.code === 'ShiftLeft' || e.code === 'KeyX') this.input.blast = false;
-                });
-
-                const getTouchPos = (e) => {
-                    const rect = this.canvas.getBoundingClientRect();
-                    const scaleY = this.canvas.height / rect.height; 
-                    return (e.touches[0].clientY - rect.top) * scaleY;
-                };
-
-                this.canvas.addEventListener('touchstart', (e) => {
-                    if (!this.running) return;
-                    e.preventDefault(); 
-                    this.isTouchActive = true;
-                    this.input.shoot = true; 
-
-                    const currentTime = new Date().getTime();
-                    const tapLength = currentTime - this.lastTouchEnd;
-                    if (tapLength < 300 && tapLength > 0) {
-                        this.triggerBlast();
-                    }
-                    this.lastTouchEnd = currentTime;
-                    this.handleTouchMove(getTouchPos(e));
-                }, {passive: false});
-
-                this.canvas.addEventListener('touchmove', (e) => {
-                    if (!this.running) return;
-                    e.preventDefault();
-                    this.handleTouchMove(getTouchPos(e));
-                }, {passive: false});
-
-                this.canvas.addEventListener('touchend', (e) => {
-                    if (!this.running) return;
-                    e.preventDefault();
-                    if (e.touches.length === 0) {
-                        this.isTouchActive = false;
-                        this.input.shoot = false;
-                        this.player.dy = 0;
-                    }
-                }, {passive: false});
-            }
-
-            handleTouchMove(yPos) {
-                this.player.y = yPos - (this.player.h / 2);
-            }
-
-            triggerBlast() {
-                if (this.blastEnergy >= 100) {
-                    this.input.blast = true;
-                    setTimeout(() => this.input.blast = false, 200);
-                }
-            }
-
-            start() {
-                this.running = true;
-                this.reset();
-                this.loop();
-            }
-
-            reset() {
-                this.score = 0; this.level = 1; this.frame = 0; this.spawnRate = 60;
-                this.bullets = []; this.enemies = []; this.powerUps = []; this.blastEnergy = 0;
-                this.player.lives = 3; this.player.x = 50;
-                this.player.y = this.height / 2 - this.player.h / 2;
-                this.player.invincible = 0; this.player.tripleShot = false;
-                this.player.weaponType = 'normal'; this.player.weaponTimer = 0;
-                this.player.shootInterval = 12; this.enemyBullets = [];
-                this.bossSpawnedForLevel = false;
-                
-                document.getElementById('canvas').classList.remove('shake-effect');
-                document.getElementById('boss-warning').style.display = 'none';
-            }
-
-            loop() {
-                if (!this.running) return;
-                this.update();
-                this.render();
-                requestAnimationFrame(() => this.loop());
-            }
-
-            spawnBossSequence(name, type, color) {
-                this.bossSpawnedForLevel = true;
-                
-                // Show Warning
-                const warning = document.getElementById('boss-warning');
-                warning.innerHTML = `WARNING<br>${name.toUpperCase()}`;
-                warning.style.display = 'block';
-                this.sounds.warning();
-
-                // Clear small enemies
-                this.enemies = []; 
-
-                // Spawn Boss after delay
-                setTimeout(() => {
-                    warning.style.display = 'none';
-                    let boss = { 
-                        type: type, 
-                        isBoss: true,
-                        x: this.width + 100, 
-                        y: this.height/2 - 75,
-                        w: 150, h: 150, 
-                        hp: 100 + (this.level * 10), 
-                        maxHp: 100 + (this.level * 10), 
-                        speed: 2, 
-                        color: color, 
-                        canShoot: true,
-                        shotTimer: 60 
-                    };
-                    this.enemies.push(boss);
-                }, 3000);
-            }
-
-            update() {
-                this.frame++;
-                
-                // Level Progression (Slower to allow bosses)
-                if (this.frame % 1500 === 0) { 
-                    this.level++;
-                    this.spawnRate = Math.max(15, this.spawnRate - 5);
-                    this.bossSpawnedForLevel = false; 
-                }
-
-                // Boss Triggers
-                if (!this.bossSpawnedForLevel) {
-                    if (this.level === 5) this.spawnBossSequence('Dragon', 'dragon', '#eab308');
-                    else if (this.level === 10) this.spawnBossSequence('De Rol Le', 'derolle', '#a855f7'); 
-                    else if (this.level === 15) this.spawnBossSequence('Vol Opt', 'volopt', '#ef4444');
-                    else if (this.level === 20) this.spawnBossSequence('Dark Falz', 'falz', '#c084fc');
-                }
-
-                // Player Movement
-                if (!this.isTouchActive) {
-                    if (this.input.up) this.player.dy = -this.player.speed;
-                    else if (this.input.down) this.player.dy = this.player.speed;
-                    else this.player.dy = 0;
-                    this.player.y += this.player.dy;
-                }
-                this.player.y = Math.max(0, Math.min(this.height - this.player.h, this.player.y));
-
-                // Shooting
-                if (this.input.shoot && this.frame % this.player.shootInterval === 0) this.shoot();
-                if (this.input.blast && this.blastEnergy >= 100) this.photonBlast();
-
-                if (this.player.weaponTimer > 0) {
-                    this.player.weaponTimer--;
-                    if (this.player.weaponTimer === 0) {
-                        this.player.weaponType = 'normal';
-                        this.player.shootInterval = 12;
-                    }
-                }
-
-                // Spawning (Pause regular spawns if boss is active)
-                let isBossActive = this.enemies.some(e => e.isBoss);
-                if (!isBossActive && this.frame % this.spawnRate === 0) this.spawnEnemy();
-                if (this.frame % 600 === 0) this.spawnPowerUp();
-
-                // Updates
-                this.bullets.forEach((b, i) => {
-                    b.x += b.s;
-                    if (b.x > this.width) this.bullets.splice(i, 1);
-                });
-
-                this.enemies.forEach((e, i) => {
-                    // Boss Movement Logic: Move left until reaching the right side of screen, then hold
-                    if (e.isBoss) {
-                        if (e.x > this.width - e.w - 20) {
-                            e.x -= e.speed;
-                        }
-                        // Vertical movement for bosses
-                        e.y += Math.sin(this.frame / 40) * 1.5;
-                    } else {
-                        e.x -= e.speed;
-                        if (e.type === 'sinow') e.y += Math.sin(this.frame / 10) * e.speed;
-                    }
-                    
-                    if (this.checkCollision(e, this.player) && this.player.invincible <= 0) {
-                        this.takeHit();
-                        if (!e.isBoss) {
-                            this.enemies.splice(i, 1);
-                            return;
-                        }
-                    }
-                    if (e.x + e.w < 0) this.enemies.splice(i, 1);
-
-                    // Shooting Logic
-                    if (e.canShoot) {
-                        e.shotTimer--;
-                        if (e.shotTimer <= 0) {
-                            this.spawnEnemyBullet(e);
-                            // Reset timer based on enemy type
-                            let resetTime = 90;
-                            if (e.isBoss) resetTime = 50; // Bosses shoot faster
-                            e.shotTimer = resetTime + Math.random() * 30;
-                        }
-                    }
-                });
-
-                this.powerUps.forEach((p, i) => {
-                    p.x -= p.speed;
-                    if (this.checkCollision(p, this.player)) {
-                        this.applyPowerUp(p);
-                        this.powerUps.splice(i, 1);
-                        return;
-                    }
-                    if (p.x + p.w < 0) this.powerUps.splice(i, 1);
-                });
-
-                this.bullets.forEach((b, bi) => {
-                    this.enemies.forEach((e, ei) => {
-                        if (this.checkCollision(b, e)) {
-                            e.hp--;
-                            this.sounds.hit();
-                            if (!b.piercing) this.bullets.splice(bi, 1);
-                            if (e.hp <= 0) {
-                                this.killEnemy(e);
-                                this.enemies.splice(ei, 1);
-                            }
-                        }
-                    });
-                });
-
-                // Laser Weapon
-                if (this.player.weaponType === 'laser') {
-                    const beamY1 = this.player.y + this.player.h * 0.25;
-                    const beamY2 = this.player.y + this.player.h * 0.75;
-                    this.enemies.forEach((e, ei) => {
-                        if (e.x + e.w > this.player.x + this.player.w && e.y < beamY2 && e.y + e.h > beamY1) {
-                            e.hp -= 0.5;
-                            if (e.hp <= 0) { this.killEnemy(e); this.enemies.splice(ei, 1); }
-                        }
-                    });
-                }
-
-                this.enemyBullets.forEach((eb, ei) => {
-                    eb.x -= (eb.vx || eb.s || 0);
-                    eb.y += (eb.vy || 0);
-                    if (this.checkCollision(eb, this.player) && this.player.invincible <= 0) {
-                        this.takeHit();
-                        this.enemyBullets.splice(ei, 1);
-                        return;
-                    }
-                    if (eb.x + eb.w < 0 || eb.y + eb.h < 0 || eb.y > this.height) this.enemyBullets.splice(ei, 1);
-                });
-
-                if (this.player.invincible > 0) this.player.invincible--;
-                
-                // HUD
-                document.getElementById('score').textContent = this.score;
-                document.getElementById('level').textContent = this.level;
-                document.getElementById('lives').textContent = this.player.lives;
-                document.getElementById('blast-fill').style.width = Math.min(this.blastEnergy, 100) + '%';
-            }
-
-            render() {
-                const ctx = this.ctx;
-                ctx.clearRect(0, 0, this.width, this.height);
-                ctx.fillStyle = '#0a0e1a';
-                ctx.fillRect(0, 0, this.width, this.height);
-                
-                // Player
-                ctx.save();
-                if (this.player.invincible > 0 && Math.floor(this.frame / 5) % 2 === 0) ctx.globalAlpha = 0.5;
-                ctx.fillStyle = '#ff7b72';
-                ctx.beginPath();
-                ctx.moveTo(this.player.x, this.player.y + this.player.h / 2);
-                ctx.lineTo(this.player.x + this.player.w, this.player.y);
-                ctx.lineTo(this.player.x + this.player.w, this.player.y + this.player.h);
-                ctx.closePath();
-                ctx.fill();
-                ctx.restore();
-
-                // Bullets
-                ctx.fillStyle = '#58a6ff';
-                this.bullets.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
-
-                if (this.player.weaponType === 'laser') {
-                    ctx.save();
-                    ctx.globalAlpha = 0.4;
-                    ctx.fillStyle = '#58a6ff';
-                    const beamY1 = this.player.y + this.player.h * 0.25;
-                    const beamY2 = this.player.y + this.player.h * 0.75;
-                    ctx.fillRect(this.player.x + this.player.w, beamY1, this.width - (this.player.x + this.player.w), beamY2 - beamY1);
-                    ctx.restore();
-                }
-
-                // Enemies
-                this.enemies.forEach(e => {
-                    ctx.fillStyle = e.color;
-                    ctx.fillRect(e.x, e.y, e.w, e.h);
-                    // HP Bar
-                    ctx.fillStyle = '#262b31';
-                    ctx.fillRect(e.x, e.y - 10, e.w, 6);
-                    ctx.fillStyle = e.isBoss ? '#ef4444' : '#68c896';
-                    ctx.fillRect(e.x, e.y - 10, e.w * (e.hp / e.maxHp), 6);
-                });
-
-                // Powerups
-                this.powerUps.forEach(p => {
-                    ctx.fillStyle = p.color;
-                    ctx.beginPath();
-                    ctx.arc(p.x + p.w / 2, p.y + p.h / 2, p.w / 2, 0, Math.PI * 2);
-                    ctx.fill();
-                });
-
-                // Enemy Bullets
-                this.enemyBullets.forEach(eb => {
-                    ctx.fillStyle = eb.color || '#f87171';
-                    ctx.fillRect(eb.x, eb.y, eb.w, eb.h);
-                });
-            }
-
-            shoot() {
-                this.sounds.shoot();
-                let offsets = [0];
-                let bulletProps = { w: 12, h: 4, s: 8, piercing: false };
-                switch (this.player.weaponType) {
-                    case 'spread': offsets = [-20, -10, 0, 10, 20]; break;
-                    case 'normal': offsets = this.player.tripleShot ? [-10, 0, 10] : [0]; break;
-                    case 'pierce': offsets = this.player.tripleShot ? [-10, 0, 10] : [0]; bulletProps.piercing = true; break;
-                    case 'laser': return;
-                }
-                offsets.forEach(offsetY => {
-                    this.bullets.push({
-                        x: this.player.x + this.player.w,
-                        y: this.player.y + this.player.h / 2 - 2 + offsetY,
-                        w: bulletProps.w, h: bulletProps.h, s: bulletProps.s, piercing: bulletProps.piercing
-                    });
-                });
-            }
-
-            photonBlast() {
-                this.sounds.blast();
-                this.blastEnergy = 0;
-                
-                // NERF: Damage all enemies for 50 (Bosses survive, small mobs die)
-                this.enemies.forEach(e => {
-                    e.hp -= 50;
-                    if(e.hp <= 0) this.killEnemy(e, true); // true = no blast charge gain
-                });
-                // Remove dead enemies
-                this.enemies = this.enemies.filter(e => e.hp > 0);
-            }
-
-            spawnEnemy() {
-                // ... (Existing spawn logic same as before, condensed for brevity) ...
-                const types = ['rappy','booma','sinow'];
-                if (this.level >= 2 && Math.random() < 0.1) types.push('baranz');
-                
-                const type = types[Math.floor(Math.random() * types.length)];
-                let e = { type: type, x: this.width, canShoot: false };
-                
-                if (type === 'rappy') Object.assign(e, { y: Math.random()*(this.height-40), w: 36, h: 36, hp: 1+Math.floor(this.level/3), maxHp: 1+Math.floor(this.level/3), speed: 3, color: '#facc15' });
-                else if (type === 'booma') Object.assign(e, { y: Math.random()*(this.height-50), w: 42, h: 42, hp: 2+Math.floor(this.level/2), maxHp: 2+Math.floor(this.level/2), speed: 2.5, color: '#2ea043' });
-                else if (type === 'sinow') Object.assign(e, { y: Math.random()*(this.height-60), w: 50, h: 50, hp: 4+Math.floor(this.level/2), maxHp: 4+Math.floor(this.level/2), speed: 3.5, color: '#c084fc', canShoot: true });
-                else if (type === 'baranz') Object.assign(e, { y: Math.random()*(this.height-120), w: 80, h: 80, hp: 15+this.level, maxHp: 15+this.level, speed: 1.5, color: '#ef4444', canShoot: true });
-                
-                this.enemies.push(e);
-            }
-
-            spawnPowerUp() {
-                const types = ['triple','heal','blast','spread','pierce','laser','rapid'];
-                const type = types[Math.floor(Math.random() * types.length)];
-                const colors = { 'triple': '#8b5cf6', 'heal': '#34d399', 'blast': '#f472b6', 'spread': '#f97316', 'pierce': '#f87171', 'laser': '#ec4899', 'rapid': '#10b981' };
-                this.powerUps.push({ x: this.width, y: Math.random()*(this.height-30), w: 24, h: 24, type: type, speed: 2, color: colors[type] || '#f472b6' });
-            }
-
-            applyPowerUp(p) {
-                switch (p.type) {
-                    case 'triple': this.player.tripleShot = true; setTimeout(() => { this.player.tripleShot = false; }, 8000); break;
-                    case 'heal': this.player.lives = Math.min(5, this.player.lives + 1); break;
-                    case 'blast': this.blastEnergy = Math.min(100, this.blastEnergy + 50); break;
-                    case 'rapid': this.player.shootInterval = 6; this.player.weaponTimer = 480; break;
-                    default: this.player.weaponType = p.type; this.player.weaponTimer = 480; break;
-                }
-                this.sounds.power();
-            }
-
-            spawnEnemyBullet(e) {
-                const b = [];
-                // Standard Enemies
-                if (e.type === 'sinow') b.push({ x: e.x, y: e.y+e.h/2-2, w: 10, h: 4, vx: 6, vy: 0, color: '#f87171' });
-                else if (e.type === 'baranz') [-2,-1,0,1,2].forEach(vy => b.push({ x: e.x, y: e.y+e.h/2-3, w: 14, h: 6, vx: 5, vy: vy, color: '#ef4444' }));
-                
-                // --- BOSS WEAPONS ---
-                else if (e.type === 'dragon') { 
-                    // DRAGON: Fireball
-                    b.push({ x: e.x, y: e.y+e.h/2-10, w: 40, h: 20, vx: 7, vy: 0, color: '#ff7b72' });
-                }
-                else if (e.type === 'derolle') {
-                    // DE ROL LE: Purple Poison Spread (3-way)
-                    [-3, 0, 3].forEach(vy => b.push({ x: e.x, y: e.y+e.h/2, w: 20, h: 20, vx: 5, vy: vy, color: '#a855f7' }));
-                }
-                else if (e.type === 'volopt') {
-                    // VOL OPT: Twin Red Lasers (Fast)
-                    b.push({ x: e.x, y: e.y+20, w: 30, h: 6, vx: 10, vy: 0, color: '#ef4444' });
-                    b.push({ x: e.x, y: e.y+e.h-20, w: 30, h: 6, vx: 10, vy: 0, color: '#ef4444' });
-                }
-                else if (e.type === 'falz') {
-                    // DARK FALZ: "Grants" (Ring Expansion)
-                    for(let i=0; i<8; i++) {
-                        let angle = (i / 8) * Math.PI * 2;
-                        b.push({ 
-                            x: e.x + e.w/2, y: e.y + e.h/2, 
-                            w: 15, h: 15, 
-                            vx: Math.cos(angle)*4 - 2, // Bias left
-                            vy: Math.sin(angle)*4, 
-                            color: '#e2e8f0' 
-                        });
-                    }
-                }
-
-                b.forEach(bullet => this.enemyBullets.push(bullet));
-            }
-
-            killEnemy(e, fromBlast=false) {
-                this.sounds.explode();
-                this.score += e.maxHp * 10;
-                // NERF: Reduced charge rate. Harder to get blast.
-                if (!fromBlast) this.blastEnergy = Math.min(100, this.blastEnergy + (e.maxHp * 0.5)); 
-                if (Math.random() < 0.1) this.spawnPowerUp();
-            }
-
-            takeHit() {
-                this.sounds.explode();
-                this.player.lives--;
-                this.player.invincible = 120;
-                
-                // Visual Feedback
-                document.getElementById('canvas').classList.add('shake-effect');
-                setTimeout(() => document.getElementById('canvas').classList.remove('shake-effect'), 400);
-
-                if (this.player.lives <= 0) this.gameOver();
-            }
-
-            gameOver() {
-                this.running = false;
-                if (this.score > this.highScore) {
-                    this.highScore = this.score;
-                    localStorage.setItem('psoHighScore', this.score.toString());
-                }
-                const ctx = this.ctx;
-                ctx.fillStyle = 'rgba(0,0,0,0.7)';
-                ctx.fillRect(0,0,this.width,this.height);
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 40px Courier New';
-                ctx.textAlign = 'center';
-                ctx.fillText('GAME OVER', this.width/2, this.height/2 - 40);
-                ctx.font = '20px Courier New';
-                ctx.fillText('FINAL SCORE: ' + this.score, this.width/2, this.height/2);
-                ctx.fillText('HIGH SCORE: ' + this.highScore, this.width/2, this.height/2 + 30);
-                
-                document.getElementById('startBtn').textContent = "TRY AGAIN";
-                document.getElementById('startBtn').style.display = 'block';
-            }
-
-            checkCollision(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
-
-            playSfx(freq, type, dur, vol = 0.1) {
-                try {
-                    if (!window.audioCtx) window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    const osc = window.audioCtx.createOscillator();
-                    const gain = window.audioCtx.createGain();
-                    osc.type = type; osc.frequency.setValueAtTime(freq, window.audioCtx.currentTime);
-                    gain.gain.setValueAtTime(vol, window.audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.00001, window.audioCtx.currentTime + dur);
-                    osc.connect(gain); gain.connect(window.audioCtx.destination);
-                    osc.start(); osc.stop(window.audioCtx.currentTime + dur);
-                } catch(e) {}
-            }
-        }
-
-        const canvas = document.getElementById('canvas');
-        let game = null;
-        document.getElementById('startBtn').addEventListener('click', () => {
-            document.getElementById('startBtn').style.display = 'none';
-            game = new Game(canvas);
-            game.start();
+    function playZeldaChime() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const notes = [392.00, 493.88, 587.33, 783.99], now = audioCtx.currentTime;
+        notes.forEach((freq, i) => {
+            const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, now + (i * 0.1));
+            gain.gain.setValueAtTime(0, now + (i * 0.1));
+            gain.gain.linearRampToValueAtTime(0.1, now + (i * 0.1) + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + (i * 0.1) + 0.4);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(now + (i * 0.1)); osc.stop(now + (i * 0.1) + 0.4);
         });
+    }
 
-    </script>
+    function runTimer() {
+        if (isPaused) return;
+        timeLeft--;
+        if (timeLeft < 0) {
+            if (!isFeedingMode) triggerFeeding();
+            else resetToDigestion();
+        }
+        updateDisplay();
+    }
+
+    function triggerFeeding() {
+        isFeedingMode = true; timeLeft = 10;
+        statusLabel.textContent = "FEEDING TIME!"; statusLabel.style.color = "var(--gold)";
+        display.className = 'feeding-active'; magBox.className = 'mag-container excited';
+        playZeldaChime();
+    }
+
+    function resetToDigestion() {
+        isFeedingMode = false; timeLeft = 210;
+        statusLabel.textContent = "DIGESTING..."; statusLabel.style.color = "var(--blue)";
+        document.body.className = ''; card.className = 'timer-card'; display.className = '';
+        magBox.className = 'mag-container sleepy'; updateDisplay();
+    }
+
+    function restartFullCycle() {
+        if (!audioCtx) audioCtx = new AudioContext();
+        clearInterval(timerId); isPaused = false; resetToDigestion();
+        timerId = setInterval(runTimer, 1000);
+    }
+
+    function forceFeedingWindow() {
+        if (!audioCtx) audioCtx = new AudioContext();
+        clearInterval(timerId); isPaused = false; triggerFeeding();
+        timerId = setInterval(runTimer, 1000);
+    }
+
+    function takeBreak() {
+        clearInterval(timerId); isPaused = true;
+        statusLabel.textContent = "TOUCHING GRASS"; statusLabel.style.color = "#2ea043";
+        document.body.className = 'break-active'; card.className = 'timer-card break-card';
+        magBox.className = 'mag-container walking'; display.textContent = "--:--";
+    }
+
+    function updateDisplay() {
+        const min = Math.floor(timeLeft / 60), sec = timeLeft % 60;
+        display.textContent = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+    }
+
+    updateDisplay();
+</script>
 </body>
 </html>
