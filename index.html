@@ -97,4 +97,91 @@
 
           // Populate Selects
           popSel("#tierFilter", Array.from(tiers).sort(), "Tier");
-          popSel("#diffFilter", ["Normal","Hard","Very Hard","Ultimate"], "Diff",
+          popSel("#diffFilter", ["Normal","Hard","Very Hard","Ultimate"], "Diff", true);
+          popSel("#idFilter", Array.from(ids).sort(), "ID");
+
+          applyFilters();
+        }
+      });
+    }
+
+    function popSel(el, arr, label, fixedOrder) {
+      $(el).empty().append(`<option value="">All ${label}s</option>`);
+      arr.forEach(v => {
+        if(v && (!fixedOrder || masterData.some(r => r.Difficulty === v))) {
+           var txt = (v === "U") ? "UBER" : v;
+           $(el).append(`<option value="${v}">${txt}</option>`);
+        }
+      });
+    }
+
+    // --- FILTER & RENDER ---
+    function applyFilters() {
+      var sVal = $("#nameSearch").val().toUpperCase().trim();
+      var tVal = $("#tierFilter").val();
+      var dVal = $("#diffFilter").val();
+      var iVal = $("#idFilter").val();
+
+      var filtered = masterData.filter(r => {
+         return (!sVal || r._name.includes(sVal)) &&
+                (!tVal || r._tier === tVal) &&
+                (!dVal || r.Difficulty === dVal) &&
+                (!iVal || r.SectionID === iVal);
+      });
+      
+      if(currentSort.col) doSort(filtered);
+      render(filtered);
+    }
+
+    function doSort(data) {
+       var c = currentSort.col, d = currentSort.dir === 'asc' ? 1 : -1;
+       data.sort((a,b) => {
+         var va = a[c]||"", vb = b[c]||"";
+         if(c === "Current %") return (parseFloat(va)||0) - (parseFloat(vb)||0) * d;
+         return va.toString().localeCompare(vb) * d;
+       });
+    }
+
+    function render(data) {
+      var tbody = $("#dropTable tbody").empty();
+      var RARE = ["HILDEBLUE","NAR LILY","POUILLY SLIME","AL RAPPY","PAL RAPPY","LOVE RAPPY","MIL LILY"];
+
+      data.forEach(r => {
+         var rate = parseFloat(r["Current %"]||0);
+         var dispRate = (rate > 1) ? rate.toFixed(1)+"%" : rate.toFixed(6);
+         var odds = (rate > 0) ? (rate > 1 ? 100/rate : 1/rate) : 0;
+         var dispOdds = (odds > 10) ? Math.round(odds).toLocaleString() : odds.toFixed(2);
+         var isRare = RARE.some(x => (r.Entity||"").toUpperCase().includes(x));
+         
+         var tierHtml = r._tier ? `<span class="tier-tag tier-${r._tier.toLowerCase()}">${r._tier}</span>` : "";
+         var rareHtml = isRare ? `<span class="rare-badge">R</span>` : "";
+         var wiki = `https://wiki.pioneer2.net/w/${encodeURIComponent(r.Name.trim().replace(/\s+/g,'_'))}`;
+         var idColor = SECTION_ID_COLORS[r.SectionID] || "#555";
+
+         var row = `
+         <tr class="${isRare ? 'row-rare' : ''}">
+           <td data-label="Ep">${r.Episode||""}</td>
+           <td data-label="Diff">${r.Difficulty||""}</td>
+           <td data-label="Map">${r.Map||""}</td>
+           <td data-label="Entity">${r.Entity}${rareHtml}</td>
+           <td data-label="Item"><a href="${wiki}" target="_blank" class="wiki-link">${r.Name}</a>${tierHtml}</td>
+           <td data-label="Rate">${dispRate} <br><small style="opacity:0.6">1/${dispOdds}</small></td>
+           <td data-label="ID"><span class="tag" style="background:${idColor}">${r.SectionID||""}</span></td>
+         </tr>`;
+         tbody.append(row);
+      });
+    }
+
+    // --- BINDINGS ---
+    $("input, select").on("change keyup", applyFilters);
+    $("th").click(function(){
+       var col = $(this).data("sort");
+       if(currentSort.col === col) currentSort.dir = currentSort.dir==='asc'?'desc':'asc';
+       else currentSort = {col:col, dir:'asc'};
+       $("th").removeClass("asc desc");
+       $(this).addClass(currentSort.dir);
+       applyFilters();
+    });
+  </script>
+</body>
+</html>
