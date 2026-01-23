@@ -222,11 +222,6 @@
             color: #8b949e;
             margin-top: 5px;
         }
-        /* Heart icons used to represent player lives in the HUD */
-        #life-icons {
-            color: #ef4444;
-            font-size: 1.2rem;
-        }
         @media (pointer: coarse) { .mobile-hint { display: block; } }
     </style>
 </head>
@@ -244,7 +239,6 @@
                     SCORE: <span id="score">0</span>
                     &nbsp;|&nbsp; LVL: <span id="level">1</span>
                     &nbsp;|&nbsp; LIVES: <span id="lives">0</span>
-                    <span id="life-icons" style="margin-left:4px;"></span>
                     &nbsp;|&nbsp; <span id="dmg-mult" style="color:#facc15; font-weight:bold;">DMG: x1.00</span>
                 </div>
                 <div>
@@ -320,6 +314,27 @@
         bossBackgrounds.derolle.src = 'boss_background_derolle.png';
         bossBackgrounds.volopt.src = 'boss_background_volopt.png';
         bossBackgrounds.falz.src = 'boss_background_falz.png';
+
+        /*
+         * Utility: lighten a hex colour by a percentage.  Takes a hex string
+         * (e.g. "#ef4444") and returns a new colour string with RGB values
+         * increased towards 255 by the specified percent.  Used to create
+         * telegraph colours for bosses when they are about to attack.
+         */
+        function lightenColor(color, percent) {
+            try {
+                let num = parseInt(color.slice(1), 16);
+                let r = (num >> 16) & 0xFF;
+                let g = (num >> 8) & 0xFF;
+                let b = num & 0xFF;
+                r = Math.min(255, Math.round(r + (255 - r) * percent));
+                g = Math.min(255, Math.round(g + (255 - g) * percent));
+                b = Math.min(255, Math.round(b + (255 - b) * percent));
+                return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+            } catch(e) {
+                return color;
+            }
+        }
 
         class Game {
             constructor(canvas, playerClass) {
@@ -524,10 +539,22 @@
                     // of 250 to soften later bosses as well.
                     let hp = baseHp + (this.level * 200);
                     let boss = {
-                        type: type, isBoss: true, x: this.width + 100, y: this.height/2 - 75,
-                        w: 150, h: 150,
-                        hp: hp, maxHp: hp,
-                        speed: 2, color: color, canShoot: true, shotTimer: 60
+                        type: type,
+                        isBoss: true,
+                        x: this.width + 100,
+                        y: this.height/2 - 75,
+                        w: 150,
+                        h: 150,
+                        hp: hp,
+                        maxHp: hp,
+                        speed: 2,
+                        color: color,
+                        baseColor: color,
+                        canShoot: true,
+                        shotTimer: 60,
+                        telegraph: 0,
+                        telegraphColor: null,
+                        patternIndex: 0
                     };
                     this.enemies.push(boss);
 
@@ -692,9 +719,41 @@
                     if (e.x + e.w < 0) this.enemies.splice(i, 1);
                     if (e.canShoot) {
                         e.shotTimer--;
-                        if (e.shotTimer <= 0) {
-                            this.spawnEnemyBullet(e);
-                            e.shotTimer = (e.isBoss ? 20 : 90) + Math.random() * 20;
+                        if (e.isBoss) {
+                            // Bosses telegraph their attacks: when the shot timer
+                            // expires and no telegraph is in progress, begin a
+                            // telegraph period.  During telegraph, the boss
+                            // changes colour (lighter) and enlarges.  When
+                            // telegraph ends, the attack is executed.
+                            if (e.telegraph > 0) {
+                                e.telegraph--;
+                                if (e.telegraph === 0) {
+                                    // Telegraph finished: fire the attack
+                                    this.spawnEnemyBullet(e);
+                                    // Reset boss colour
+                                    e.color = e.baseColor;
+                                    // Set next shot timer for bosses.  Longer
+                                    // cooldown produces bullet hell without
+                                    // overwhelming the player.  Add some
+                                    // randomness to avoid monotony.
+                                    e.shotTimer = 100 + Math.random() * 40;
+                                }
+                            } else if (e.shotTimer <= 0) {
+                                // Begin telegraph
+                                e.telegraph = 30; // telegraph duration in frames
+                                // Compute lighter colour for telegraph effect
+                                e.telegraphColor = lightenColor(e.baseColor, 0.5);
+                                e.color = e.telegraphColor;
+                                // Reset shot timer to 0 so that telegraph countdown
+                                // handles the firing schedule
+                                e.shotTimer = 0;
+                            }
+                        } else {
+                            // Non-boss shooting behaviour remains unchanged
+                            if (e.shotTimer <= 0) {
+                                this.spawnEnemyBullet(e);
+                                e.shotTimer = 90 + Math.random() * 20;
+                            }
                         }
                     }
                 });
@@ -760,13 +819,6 @@
                 document.getElementById('level').textContent = lvlDisplay;
                 // Update lives display
                 document.getElementById('lives').textContent = this.player.lives;
-                // Draw heart icons to visually represent remaining lives.  Use a
-                // Unicode heart symbol repeated once per life.  CSS sets the
-                // colour of the icons.
-                const lifeIconContainer = document.getElementById('life-icons');
-                if (lifeIconContainer) {
-                    lifeIconContainer.innerHTML = '❤'.repeat(this.player.lives);
-                }
                 document.getElementById('dmg-mult').textContent = "DMG: x" + this.player.damageMultiplier.toFixed(2);
                 document.getElementById('blast-fill').style.width = Math.min(this.blastEnergy, 100) + '%';
                 let syncPct = (this.player.syncTimer / this.player.maxSync) * 100;
@@ -877,6 +929,20 @@
                     ctx.fillStyle = eb.color || '#f87171';
                     ctx.fillRect(eb.x, eb.y, eb.w, eb.h);
                 });
+
+                // Draw player lives as heart icons outside the HUD.  This
+                // provides a visual, PSO‑inspired representation of the
+                // remaining HP.  Hearts are coloured to match the player's
+                // class and spaced evenly along the top-left of the canvas.
+                const heartSize = 16;
+                ctx.font = heartSize + 'px Arial';
+                const heartColorMap = { hunter: '#f97316', ranger: '#22c55e', force: '#a855f7' };
+                ctx.fillStyle = heartColorMap[this.playerClass] || '#f87171';
+                for (let i = 0; i < this.player.lives; i++) {
+                    const hx = 10 + i * (heartSize + 4);
+                    const hy = 8;
+                    ctx.fillText('❤', hx, hy + heartSize);
+                }
             }
             shoot() {
                 this.sounds.shoot();
@@ -1025,37 +1091,123 @@
                 setTimeout(() => el.remove(), 1500);
             }
             spawnEnemyBullet(e) {
-                const b = [];
-                if (e.type === 'sinow') {
-                    b.push({ x: e.x, y: e.y+e.h/2-5, w: 10, h: 4, vx: 7, vy: 0, color: '#f87171' });
-                    b.push({ x: e.x, y: e.y+e.h/2+5, w: 10, h: 4, vx: 7, vy: 0, color: '#f87171' });
-                } else if (e.type === 'baranz') {
-                    [-2,0,2].forEach(vy => b.push({ x: e.x, y: e.y+e.h/2-3, w: 14, h: 6, vx: 6, vy: vy, color: '#ef4444' }));
-                } else if (e.type === 'dragon') {
-                    b.push({ x: e.x, y: e.y+e.h/2-10, w: 40, h: 20, vx: 10, vy: 0, color: '#ff7b72' });
-                    b.push({ x: e.x, y: e.y+e.h/2+10, w: 40, h: 20, vx: 10, vy: 0, color: '#ff7b72' });
-                    if (Math.random() < 0.2) this.spawnEnemy();
-                } else if (e.type === 'derolle') {
-                    [-4,-2, 0, 2, 4].forEach(vy => b.push({ x: e.x, y: e.y+e.h/2, w: 20, h: 20, vx: 6, vy: vy, color: '#a855f7' }));
-                } else if (e.type === 'volopt') {
-                    b.push({ x: e.x, y: e.y+20, w: 30, h: 6, vx: 13, vy: 0, color: '#ef4444' });
-                    b.push({ x: e.x, y: e.y+e.h-20, w: 30, h: 6, vx: 13, vy: 0, color: '#ef4444' });
-                    if (Math.random() < 0.3) {
-                        for(let i=0; i<12; i++) {
-                            let angle = (i / 12) * Math.PI * 2;
-                            b.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 12, h: 12, vx: Math.cos(angle)*5 - 2, vy: Math.sin(angle)*5, color: '#e2e8f0' });
+                const bullets = [];
+                // Bosses have their own bullet patterns with multiple phases
+                if (e.isBoss) {
+                    // Determine which pattern to use.  Use a random pattern for
+                    // variation.  Each boss type has three patterns.
+                    const patternIndex = Math.floor(Math.random() * 3);
+                    if (e.type === 'dragon') {
+                        switch (patternIndex) {
+                            case 0:
+                                // Two large fireballs.  Slower than before to allow dodging.
+                                bullets.push({ x: e.x, y: e.y + e.h/2 - 15, w: 40, h: 20, vx: 6, vy: 0, color: '#ff7b72' });
+                                bullets.push({ x: e.x, y: e.y + e.h/2 + 15, w: 40, h: 20, vx: 6, vy: 0, color: '#ff7b72' });
+                                break;
+                            case 1:
+                                // Vertical spread: five bullets with slight vertical offsets.
+                                [-2, -1, 0, 1, 2].forEach(offset => {
+                                    bullets.push({ x: e.x, y: e.y + e.h/2 + offset * 15, w: 20, h: 10, vx: 5, vy: offset, color: '#eab308' });
+                                });
+                                break;
+                            case 2:
+                            default:
+                                // Radial ring: 12 bullets in all directions.
+                                for (let i = 0; i < 12; i++) {
+                                    const angle = (i / 12) * Math.PI * 2;
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 12, h: 12, vx: Math.cos(angle) * 4 - 2, vy: Math.sin(angle) * 4, color: '#f87171' });
+                                }
+                                break;
+                        }
+                    } else if (e.type === 'derolle') {
+                        switch (patternIndex) {
+                            case 0:
+                                // Spiral vertical spread: seven bullets with vertical velocities from -4 to 4
+                                [-4, -3, -2, -1, 0, 1, 2, 3, 4].forEach(vy => {
+                                    bullets.push({ x: e.x, y: e.y + e.h/2, w: 18, h: 18, vx: 5, vy: vy, color: '#a855f7' });
+                                });
+                                break;
+                            case 1:
+                                // Radial pattern: 16 bullets outward
+                                for (let i = 0; i < 16; i++) {
+                                    const angle = (i / 16) * Math.PI * 2;
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle) * 4 - 2, vy: Math.sin(angle) * 4, color: '#a855f7' });
+                                }
+                                break;
+                            case 2:
+                            default:
+                                // Wide spread: 10 bullets with varying vertical speeds
+                                [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5].forEach(vy => {
+                                    bullets.push({ x: e.x, y: e.y + e.h/2, w: 18, h: 18, vx: 4, vy: vy, color: '#c084fc' });
+                                });
+                                break;
+                        }
+                    } else if (e.type === 'volopt') {
+                        switch (patternIndex) {
+                            case 0:
+                                // Horizontal lasers: two large beams
+                                bullets.push({ x: e.x, y: e.y + 20, w: 30, h: 6, vx: 8, vy: 0, color: '#ef4444' });
+                                bullets.push({ x: e.x, y: e.y + e.h - 20, w: 30, h: 6, vx: 8, vy: 0, color: '#ef4444' });
+                                break;
+                            case 1:
+                                // Radial ring: 12 bullets outward
+                                for (let i = 0; i < 12; i++) {
+                                    const angle = (i / 12) * Math.PI * 2;
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 12, h: 12, vx: Math.cos(angle) * 5 - 2, vy: Math.sin(angle) * 5, color: '#e2e8f0' });
+                                }
+                                break;
+                            case 2:
+                            default:
+                                // Spread: eight bullets with slight vertical offsets
+                                [-3, -2, -1, 0, 1, 2, 3].forEach(vy => {
+                                    bullets.push({ x: e.x, y: e.y + e.h/2 + vy * 10, w: 20, h: 10, vx: 6, vy: vy, color: '#c084fc' });
+                                });
+                                break;
+                        }
+                    } else if (e.type === 'falz') {
+                        switch (patternIndex) {
+                            case 0:
+                                // Dense radial ring: 20 bullets outward
+                                for (let i = 0; i < 20; i++) {
+                                    const angle = (i / 20) * Math.PI * 2;
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle) * 4 - 2, vy: Math.sin(angle) * 4, color: '#e2e8f0' });
+                                }
+                                break;
+                            case 1:
+                                // Spiral burst: 12 bullets with alternating speeds
+                                for (let i = 0; i < 12; i++) {
+                                    const angle = (i / 12) * Math.PI * 2;
+                                    const speedX = Math.cos(angle) * (i % 2 === 0 ? 3 : 5);
+                                    const speedY = Math.sin(angle) * (i % 2 === 0 ? 5 : 3);
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: speedX - 2, vy: speedY, color: '#e2e8f0' });
+                                }
+                                break;
+                            case 2:
+                            default:
+                                // Double ring: two offset rings of 8 bullets each
+                                for (let i = 0; i < 8; i++) {
+                                    const angle1 = (i / 8) * Math.PI * 2;
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle1) * 3 - 2, vy: Math.sin(angle1) * 3, color: '#e2e8f0' });
+                                    const angle2 = ((i + 0.5) / 8) * Math.PI * 2;
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle2) * 5 - 2, vy: Math.sin(angle2) * 5, color: '#e2e8f0' });
+                                }
+                                break;
+                        }
+                        // Falz special: when the force is fully powered, slow time a bit
+                        if (this.playerClass === 'force' && this.player.weaponLevel >= 10) {
+                            this.player.slowTimer = 120;
                         }
                     }
-                } else if (e.type === 'falz') {
-                    for(let i=0; i<16; i++) {
-                        let angle = (i / 16) * Math.PI * 2;
-                        b.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle)*5 - 2, vy: Math.sin(angle)*5, color: '#e2e8f0' });
-                    }
-                    if (this.playerClass === 'force' && this.player.weaponLevel >= 10) {
-                        this.player.slowTimer = 120;
+                } else {
+                    // Non-boss patterns remain unchanged
+                    if (e.type === 'sinow') {
+                        bullets.push({ x: e.x, y: e.y + e.h/2 - 5, w: 10, h: 4, vx: 7, vy: 0, color: '#f87171' });
+                        bullets.push({ x: e.x, y: e.y + e.h/2 + 5, w: 10, h: 4, vx: 7, vy: 0, color: '#f87171' });
+                    } else if (e.type === 'baranz') {
+                        [-2, 0, 2].forEach(vy => bullets.push({ x: e.x, y: e.y + e.h/2 - 3, w: 14, h: 6, vx: 6, vy: vy, color: '#ef4444' }));
                     }
                 }
-                b.forEach(bullet => this.enemyBullets.push(bullet));
+                bullets.forEach(bullet => this.enemyBullets.push(bullet));
             }
             killEnemy(e, fromBlast=false) {
                 this.sounds.explode();
