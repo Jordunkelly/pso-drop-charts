@@ -1,5 +1,4 @@
-<script>
- const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx6T_nPSiK2jQIyWI09Jgcf2g8q9F_6JENVPWoaGbWoft2xIGOCJpnbehX2VJwGXpc/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx6T_nPSiK2jQIyWI09Jgcf2g8q9F_6JENVPWoaGbWoft2xIGOCJpnbehX2VJwGXpc/exec";
 
 // Visual Asset Preloading (Placeholder colors if images fail)
 const areaBackgroundImg = new Image();
@@ -264,4 +263,3 @@ function startGame(pClass) {
     game = new Game(document.getElementById('canvas'), pClass);
     game.start();
 }
-  </script>
