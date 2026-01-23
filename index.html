@@ -164,63 +164,53 @@
     }
 
     function renderTable(data) {
-      var tbody = $("#dropTable tbody");
-      var RARE_ENEMIES = new Set([
-        "HILDEBLUE",
-        "RAPPY",
-        "NAR LILY",
-        "POUILLY SLIME",
-        "MERICAR",
-        "MERISSA AA",
-        "PAZUZU",
-        "DORPHON ECLAIR",
-        "KONDRIEU"
-      ]);
+  var tbody = $("#dropTable tbody");
+  var RARE_ENEMIES = new Set(["HILDEBLUE", "RAPPY", "NAR LILY", "POUILLY SLIME", "MERICAR", "MERISSA AA", "PAZUZU", "DORPHON ECLAIR", "KONDRIEU"]);
+  tbody.empty();
 
-      tbody.empty();
+  data.forEach(function (row) {
+    var nameStr = (row.Name || "").trim();
+    var n = row.NormName;
+    var entRaw = (row.Entity || "").trim();
+    var isRare = RARE_ENEMIES.has(entRaw.toUpperCase().replace(/_/g, " "));
 
-      data.forEach(function (row) {
-        var nameStr = (row.Name || "").trim();
-        var n = row.NormName;
-        var entRaw = (row.Entity || "").trim();
-        var entKey = entRaw.toUpperCase().replace(/_/g, " ");
-        var isRare = RARE_ENEMIES.has(entKey);
+    var pct = parseFloat(row["Current %"] || 0);
+    var odds = pct > 0 ? "1 in " + Math.round(100 / pct).toLocaleString() : "N/A";
 
-        var pct = parseFloat(row["Current %"] || 0);
-        var odds = "N/A";
-        if (pct > 0) odds = "1 in " + Math.round(100 / pct).toLocaleString();
+    // --- NEW DECIMAL LOGIC ---
+    // If rate is 1% or higher, show 1 decimal; if lower, show 4 for accuracy
+    var pctText = (pct >= 1) ? Math.round(pct) + "%" : pct.toFixed(4) + "%";
 
-        var rawTier = row.Tier ? row.Tier.trim() : "";
-        var tierClass = rawTier.toLowerCase();
-        var tierBadge = rawTier ? '<span class="tier-tag tier-' + tierClass + '">' + esc(rawTier) + "</span>" : "";
+    var rawTier = row.Tier ? row.Tier.trim() : "";
+    var tierBadge = rawTier ? '<span class="tier-tag tier-' + rawTier.toLowerCase() + '">' + esc(rawTier) + "</span>" : "";
 
-        var wikiSlug = encodeURIComponent(nameStr.replace(/\s+/g, "_"));
-        var wikiUrl = "https://wiki.pioneer2.net/w/" + wikiSlug;
+    var wikiSlug = encodeURIComponent(nameStr.replace(/\s+/g, "_"));
+    var wikiUrl = "https://wiki.pioneer2.net/w/" + wikiSlug;
 
-        var section = (row.SectionID || "").trim();
-        var bg = SECTION_ID_COLORS[section] || "#333";
+    var section = (row.SectionID || "").trim();
+    var bg = SECTION_ID_COLORS[section] || "#333";
 
-        var pctText = (pct >= 1) ? pct.toFixed(1) : pct.toFixed(4);
-
-        tbody.append(
-          '<tr class="' + (isRare ? "row-rare" : "") + '">' +
-            '<td class="col-ep" data-label="Ep">' + esc(row.Episode) + "</td>" +
-            '<td data-label="Diff"><strong>' + esc(row.Difficulty) + "</strong></td>" +
-            '<td class="col-map" data-label="Map">' + esc(row.Map) + "</td>" +
-            '<td data-label="Entity">' + esc(entRaw) + (isRare ? ' <span class="rare-badge">R</span>' : "") + "</td>" +
-            '<td data-label="Item">' +
-              '<a href="' + wikiUrl + '" target="_blank" class="wiki-link">' + esc(nameStr) + "</a>" +
-              tierBadge +
-            "</td>" +
-            '<td data-label="Rate">' + pctText + '% <br><small style="opacity:0.6">' + esc(odds) + "</small></td>" +
-            '<td data-label="ID"><span class="tag" style="background:' + bg + '">' + esc(section) + "</span></td>" +
-          "</tr>"
-        );
-      });
-    }
+    tbody.append(
+      '<tr class="' + (isRare ? "row-rare" : "") + '">' +
+        '<td class="col-ep" data-label="Ep">' + esc(row.Episode) + "</td>" +
+        '<td data-label="Diff"><strong>' + esc(row.Difficulty) + "</strong></td>" +
+        '<td class="col-map" data-label="Map">' + esc(row.Map) + "</td>" +
+        '<td data-label="Entity">' + esc(entRaw) + (isRare ? ' <span class="rare-badge">R</span>' : "") + "</td>" +
+        '<td data-label="Item">' +
+          '<a href="' + wikiUrl + '" target="_blank" class="wiki-link">' + esc(nameStr) + "</a>" +
+          tierBadge +
+        "</td>" +
+        '<td data-label="Rate">' + pctText + ' <br><small style="opacity:0.6">' + esc(odds) + "</small></td>" +
+        // FIX: Removed .charAt(0) to show full Section ID name
+        '<td data-label="ID"><span class="tag" style="background:' + bg + '">' + esc(section) + "</span></td>" +
+      "</tr>"
+    );
+  });
+}
 
     $(document).ready(init);
     $(document).on("change keyup", "input, select", applyFilters);
   </script>
 </body>
 </html>
+
