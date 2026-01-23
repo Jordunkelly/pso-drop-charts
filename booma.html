@@ -240,6 +240,8 @@
                     &nbsp;|&nbsp; LVL: <span id="level">1</span>
                     &nbsp;|&nbsp; LIVES: <span id="lives">0</span>
                     &nbsp;|&nbsp; <span id="dmg-mult" style="color:#facc15; font-weight:bold;">DMG: x1.00</span>
+                    <!-- Display the current weapon or tech for the player.  This helps convey class builds and makes upgrades more obvious. -->
+                    &nbsp;|&nbsp; <span id="weapon-info" style="color:#58a6ff; font-weight:bold;">---</span>
                 </div>
                 <div>
                     SYNC:
@@ -928,6 +930,28 @@
                 let syncPct = (this.player.syncTimer / this.player.maxSync) * 100;
                 document.getElementById('sync-fill').style.width = syncPct + '%';
 
+                // Update the weapon/tech display in the HUD.  Display the current
+                // weapon or element depending on the class.  Hunters show
+                // "LASER" when the beam is active, otherwise "SABER".
+                // Rangers show their equipped gun type (handgun, shotgun,
+                // rifle, bazooka).  Forces show their current element.
+                const weaponLabelEl = document.getElementById('weapon-info');
+                if (weaponLabelEl) {
+                    const lvlText = ` L${Math.min(this.player.weaponLevel, 10)}`;
+                    if (this.playerClass === 'hunter') {
+                        const label = (this.player.weaponType === 'laser') ? 'LASER' : 'SABER';
+                        weaponLabelEl.textContent = label + lvlText;
+                    } else if (this.playerClass === 'ranger') {
+                        const gunMap = { handgun:'HANDGUN', shotgun:'SHOTGUN', rifle:'RIFLE', bazooka:'BAZOOKA' };
+                        const label = gunMap[this.player.weaponType] || this.player.weaponType.toUpperCase();
+                        weaponLabelEl.textContent = label + lvlText;
+                    } else if (this.playerClass === 'force') {
+                        const techMap = { fire:'FIRE', lightning:'LIGHTNING', ice:'ICE' };
+                        const label = techMap[this.player.element] || (this.player.element || '').toUpperCase();
+                        weaponLabelEl.textContent = label + lvlText;
+                    }
+                }
+
                 // ---------------- LEVEL PROGRESSION BY KILL COUNT ----------------
                 // After handling all per‑frame updates, check whether the
                 // player has defeated enough enemies to progress to the next
@@ -1007,8 +1031,12 @@
                 }
                 const spriteImg = this.spriteImages[this.playerClass];
                 if (spriteImg && spriteImg.complete && spriteImg.naturalWidth > 0) {
-                    // Draw sprite
+                    // Disable smoothing to preserve crisp pixel art when scaling
+                    const prevSmoothing = ctx.imageSmoothingEnabled;
+                    ctx.imageSmoothingEnabled = false;
                     ctx.drawImage(spriteImg, this.player.x, this.player.y, this.player.w, this.player.h);
+                    // Restore previous smoothing setting
+                    ctx.imageSmoothingEnabled = prevSmoothing;
                 } else {
                     // Fallback triangle in class colour
                     if (this.playerClass === 'hunter') ctx.fillStyle = '#f97316';
@@ -1239,35 +1267,47 @@
                          */
                         const gun = this.player.weaponType;
                         if (gun === 'handgun') {
-                            bulletProps.w = 14;
+                            // Handgun: balanced single shots that gain speed and
+                            // modest spread at higher levels.  Increase
+                            // width slightly at high levels to make the
+                            // bullets more noticeable.
+                            bulletProps.w = (lvl >= 10 ? 18 : (lvl >= 7 ? 16 : 14));
                             bulletProps.h = 4;
-                            bulletProps.s = 15;
+                            bulletProps.s = (lvl >= 10 ? 20 : (lvl >= 7 ? 18 : 15));
                             bulletProps.color = '#34d399';
                             if (lvl >= 4) offsets = [-10, 10];
                             if (lvl >= 7) offsets = [-20, -10, 0, 10, 20];
                             if (lvl >= 10) offsets = [-30,-20,-10,0,10,20,30];
                         } else if (gun === 'shotgun') {
-                            bulletProps.w = 8;
-                            bulletProps.h = 6;
-                            bulletProps.s = 10;
+                            // Shotgun: fires multiple pellets.  Pellet size and
+                            // number increase with level.  Speed increases
+                            // slightly at higher levels.
+                            bulletProps.w = (lvl >= 10 ? 16 : (lvl >= 7 ? 14 : (lvl >= 4 ? 12 : 8)));
+                            bulletProps.h = (lvl >= 10 ? 8 : (lvl >= 7 ? 7 : 6));
+                            bulletProps.s = (lvl >= 10 ? 12 : (lvl >= 7 ? 11 : 10));
                             bulletProps.color = '#f87171';
                             offsets = [-10, 0, 10];
                             if (lvl >= 4) offsets = [-20,-10,0,10,20];
                             if (lvl >= 7) offsets = [-30,-20,-10,0,10,20,30];
                             if (lvl >= 10) offsets = [-40,-30,-20,-10,0,10,20,30,40];
                         } else if (gun === 'rifle') {
-                            bulletProps.w = 28;
+                            // Rifle: long, powerful rounds.  Bullet size and
+                            // speed scale with level.  Slight spread at
+                            // higher levels but primarily single shot.
+                            bulletProps.w = (lvl >= 10 ? 34 : (lvl >= 7 ? 32 : (lvl >= 4 ? 30 : 28)));
                             bulletProps.h = 4;
-                            bulletProps.s = 18;
+                            bulletProps.s = (lvl >= 10 ? 24 : (lvl >= 7 ? 22 : (lvl >= 4 ? 20 : 18)));
                             bulletProps.color = '#facc15';
                             offsets = [0];
                             if (lvl >= 4) offsets = [-5, 5];
                             if (lvl >= 7) offsets = [-10, 0, 10];
                             if (lvl >= 10) offsets = [-15,-5,5,15];
                         } else if (gun === 'bazooka') {
-                            bulletProps.w = 26;
-                            bulletProps.h = 26;
-                            bulletProps.s = 5;
+                            // Bazooka: slow, massive shells.  Shell size and
+                            // spread increase significantly at higher levels.
+                            bulletProps.w = (lvl >= 10 ? 36 : (lvl >= 7 ? 32 : (lvl >= 4 ? 28 : 26)));
+                            bulletProps.h = bulletProps.w;
+                            bulletProps.s = (lvl >= 10 ? 7 : (lvl >= 7 ? 6 : 5));
                             bulletProps.piercing = true;
                             bulletProps.color = '#c084fc';
                             offsets = [0];
@@ -1275,10 +1315,10 @@
                             if (lvl >= 7) offsets = [-16, 0, 16];
                             if (lvl >= 10) offsets = [-24,-12,0,12,24];
                         } else {
-                            // Fallback to handgun
-                            bulletProps.w = 14;
+                            // Fallback to handgun with balanced stats
+                            bulletProps.w = (lvl >= 10 ? 18 : (lvl >= 7 ? 16 : 14));
                             bulletProps.h = 4;
-                            bulletProps.s = 15;
+                            bulletProps.s = (lvl >= 10 ? 20 : (lvl >= 7 ? 18 : 15));
                             bulletProps.color = '#34d399';
                             if (lvl >= 4) offsets = [-10, 10];
                             if (lvl >= 7) offsets = [-20, -10, 0, 10, 20];
@@ -1293,38 +1333,69 @@
                          */
                         const elem = this.player.element || 'fire';
                         if (elem === 'fire') {
-                            bulletProps.w = 14;
-                            bulletProps.h = 14;
-                            bulletProps.s = 6;
+                            // Fire tech: emphasise large, fiery explosions as
+                            // levels increase.  Increase the size of the
+                            // projectile dramatically and ramp up speed at
+                            // high levels.  Offsets widen to create a wide
+                            // spread of flames.  Colours remain bright
+                            // orange/red.
+                            if (lvl >= 10) {
+                                bulletProps.w = 40; bulletProps.h = 40; bulletProps.s = 8;
+                                offsets = [-45, -15, 15, 45];
+                            } else if (lvl >= 7) {
+                                bulletProps.w = 32; bulletProps.h = 32; bulletProps.s = 7;
+                                offsets = [-30, 0, 30];
+                            } else if (lvl >= 4) {
+                                bulletProps.w = 26; bulletProps.h = 26; bulletProps.s = 6;
+                                offsets = [-20, 20];
+                            } else {
+                                bulletProps.w = 20; bulletProps.h = 20; bulletProps.s = 5;
+                                offsets = [0];
+                            }
                             bulletProps.piercing = false;
                             bulletProps.homing = false;
                             bulletProps.color = '#f97316';
-                            offsets = [0];
-                            if (lvl >= 4) offsets = [-15, 15];
-                            if (lvl >= 7) offsets = [-25, 0, 25];
-                            if (lvl >= 10) offsets = [-35,-15,15,35];
                         } else if (elem === 'lightning') {
-                            bulletProps.w = 8;
-                            bulletProps.h = 8;
-                            bulletProps.s = 12;
+                            // Lightning tech: unleash increasingly fast bolts.
+                            // Speed and size scale with level; offsets spread
+                            // out widely at higher tiers.  Lightning bolts
+                            // home towards targets.
+                            if (lvl >= 10) {
+                                bulletProps.w = 16; bulletProps.h = 16; bulletProps.s = 20;
+                                offsets = [-35, -15, 15, 35];
+                            } else if (lvl >= 7) {
+                                bulletProps.w = 14; bulletProps.h = 14; bulletProps.s = 16;
+                                offsets = [-20, 0, 20];
+                            } else if (lvl >= 4) {
+                                bulletProps.w = 12; bulletProps.h = 12; bulletProps.s = 14;
+                                offsets = [-10, 10];
+                            } else {
+                                bulletProps.w = 10; bulletProps.h = 10; bulletProps.s = 12;
+                                offsets = [0];
+                            }
                             bulletProps.piercing = false;
                             bulletProps.homing = true;
                             bulletProps.color = '#facc15';
-                            offsets = [0];
-                            if (lvl >= 4) offsets = [-10, 10];
-                            if (lvl >= 7) offsets = [-20, 0, 20];
-                            if (lvl >= 10) offsets = [-30,-15,15,30];
                         } else if (elem === 'ice') {
-                            bulletProps.w = 16;
-                            bulletProps.h = 16;
-                            bulletProps.s = 4;
+                            // Ice tech: slow but massive shards that fill the
+                            // screen.  At higher levels the crystals become
+                            // much larger and offsets widen dramatically.
+                            if (lvl >= 10) {
+                                bulletProps.w = 40; bulletProps.h = 40; bulletProps.s = 2;
+                                offsets = [-40, -20, -10, 0, 10, 20, 40];
+                            } else if (lvl >= 7) {
+                                bulletProps.w = 30; bulletProps.h = 30; bulletProps.s = 3;
+                                offsets = [-25, 0, 25];
+                            } else if (lvl >= 4) {
+                                bulletProps.w = 24; bulletProps.h = 24; bulletProps.s = 3;
+                                offsets = [-15, 15];
+                            } else {
+                                bulletProps.w = 20; bulletProps.h = 20; bulletProps.s = 3;
+                                offsets = [0];
+                            }
                             bulletProps.piercing = true;
                             bulletProps.homing = false;
                             bulletProps.color = '#38bdf8';
-                            offsets = [0];
-                            if (lvl >= 4) offsets = [-15, 15];
-                            if (lvl >= 7) offsets = [-25, 0, 25];
-                            if (lvl >= 10) offsets = [-35,-20,-10,0,10,20,35];
                         } else {
                             // Fallback: treat as fire
                             bulletProps.w = 14;
@@ -1428,7 +1499,8 @@
                     type = 'blast';
                     color = '#f472b6';
                 }
-                let size = (type.startsWith('rare')) ? 30 : 24;
+                // Increase the size of powerup icons to make them stand out.
+                let size = (type.startsWith('rare')) ? 32 : 28;
                 this.powerUps.push({ x: this.width, y: Math.random()*(this.height-30), w: size, h: size, type: type, speed: 2, color: color });
             }
             applyPowerUp(p) {
