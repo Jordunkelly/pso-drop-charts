@@ -9,6 +9,14 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
 
   <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Add cursor to headers to indicate sortability */
+    th { cursor: pointer; user-select: none; }
+    th:hover { background: #30363d; color: #fff; }
+    th::after { content: ' \21F3'; opacity: 0.3; font-size: 0.8em; margin-left: 5px; }
+    th.asc::after { content: ' \2193'; opacity: 1; color: var(--blue); }
+    th.desc::after { content: ' \2191'; opacity: 1; color: var(--blue); }
+  </style>
 </head>
 
 <body>
@@ -26,13 +34,13 @@
       <table id="dropTable">
         <thead>
           <tr>
-            <th class="col-ep">Ep</th>
-            <th>Diff</th>
-            <th class="col-map">Map</th>
-            <th>Entity</th>
-            <th>Item Name</th>
-            <th>Rate &amp; Odds</th>
-            <th>ID</th>
+            <th data-sort="Episode" class="col-ep">Ep</th>
+            <th data-sort="Difficulty">Diff</th>
+            <th data-sort="Map" class="col-map">Map</th>
+            <th data-sort="Entity">Entity</th>
+            <th data-sort="Name">Item Name</th>
+            <th data-sort="Current %">Rate &amp; Odds</th>
+            <th data-sort="SectionID">ID</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -41,6 +49,7 @@
   </div>
 
   <script>
+    // --- NAVIGATION LOADER ---
     (function loadNav() {
       fetch("nav.html")
         .then(function (res) { return res.text(); })
@@ -58,37 +67,30 @@
         .catch(function () {});
     })();
 
+    // --- CONFIG & GLOBALS ---
     var SECTION_ID_COLORS = {
-      Viridia: "#22C55E",
-      Greenill: "#16A34A",
-      Skyly: "#38BDF8",
-      Bluefull: "#2563EB",
-      Purplenum: "#A855F7",
-      Pinkal: "#EC4899",
-      Redria: "#EF4444",
-      Oran: "#F97316",
-      Yellowboze: "#FACC15",
-      Whitill: "#E5E7EB"
+      Viridia: "#22C55E", Greenill: "#16A34A", Skyly: "#38BDF8", Bluefull: "#2563EB",
+      Purplenum: "#A855F7", Pinkal: "#EC4899", Redria: "#EF4444", Oran: "#F97316",
+      Yellowboze: "#FACC15", Whitill: "#E5E7EB"
     };
 
     var csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS-nCzkALWoSyKOLXNORN_zgy2ONKn4Hcwi-jQNHCgmEW8DJ7yX3AyO9Uod44ecEUwklr76Dw4-p1o0/pub?gid=0&single=true&output=csv";
     var tierTableUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS-nCzkALWoSyKOLXNORN_zgy2ONKn4Hcwi-jQNHCgmEW8DJ7yX3AyO9Uod44ecEUwklr76Dw4-p1o0/pub?gid=292779988&single=true&output=csv";
 
     var masterData = [];
+    var currentFilteredData = []; // Store filtered data for sorting
     var globalTierMap = new Map();
-    var tierModMap = new Map();
+    var currentSort = { col: null, dir: 'asc' }; // Sort State
 
     function normName(s) {
       return String(s || "").trim().toUpperCase().replace(/\s+/g, " ");
     }
 
     function esc(v) {
-      return String(v ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+      return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
+    // --- INITIALIZATION ---
     function init() {
       Papa.parse(tierTableUrl, {
         download: true,
@@ -98,7 +100,6 @@
             var name = normName(row["ITEM NAME"]);
             if (!name) return;
             globalTierMap.set(name, row["TIER RANK"]);
-            tierModMap.set(name, parseInt(row["TIER MOD"], 10) || 0);
           });
           fetchDropData();
         }
@@ -133,7 +134,8 @@
           populateSelect("#tierFilter", Array.from(tiers).sort(), "Tiers");
           populateSelect("#diffFilter", sortedDiffs, "Diffs");
           populateSelect("#idFilter", Array.from(sections).sort(), "IDs");
-          applyFilters();
+          
+          applyFilters(); // Initial render
         }
       });
     }
@@ -146,13 +148,14 @@
       });
     }
 
+    // --- FILTERING ---
     function applyFilters() {
       var name = normName($("#nameSearch").val());
       var tier = $("#tierFilter").val();
       var diff = $("#diffFilter").val();
       var id = $("#idFilter").val();
 
-      var filtered = masterData.filter(function (r) {
+      currentFilteredData = masterData.filter(function (r) {
         var okName = r.NormName.includes(name);
         var okTier = (!tier || r.Tier === tier);
         var okDiff = (!diff || r.Difficulty === diff);
@@ -160,9 +163,53 @@
         return okName && okTier && okDiff && okId;
       });
 
-      renderTable(filtered);
+      // Re-apply sort if active
+      if (currentSort.col) {
+        sortData(currentSort.col, currentSort.dir, false);
+      } else {
+        renderTable(currentFilteredData);
+      }
     }
 
+    // --- SORTING LOGIC ---
+    function sortData(column, direction, updateUI) {
+      var isAsc = direction === 'asc';
+      
+      currentFilteredData.sort(function(a, b) {
+        var valA = a[column] || "";
+        var valB = b[column] || "";
+
+        // Numeric Sort for Rate
+        if (column === "Current %") {
+          valA = parseFloat(valA) || 0;
+          valB = parseFloat(valB) || 0;
+          return isAsc ? valA - valB : valB - valA;
+        }
+
+        // Custom Sort for Difficulty
+        if (column === "Difficulty") {
+           var diffOrder = ["Normal", "Hard", "Very Hard", "Ultimate"];
+           var idxA = diffOrder.indexOf(valA.trim());
+           var idxB = diffOrder.indexOf(valB.trim());
+           if(idxA === -1) idxA = 99; 
+           if(idxB === -1) idxB = 99;
+           return isAsc ? idxA - idxB : idxB - idxA;
+        }
+
+        // String Sort
+        return isAsc ? valA.toString().localeCompare(valB) : valB.toString().localeCompare(valA);
+      });
+
+      if (updateUI) {
+        // Update header classes
+        $('th').removeClass('asc desc');
+        $('th[data-sort="' + column + '"]').addClass(direction);
+      }
+      
+      renderTable(currentFilteredData);
+    }
+
+    // --- RENDER TABLE ---
     function renderTable(data) {
       var tbody = $("#dropTable tbody");
       var RARE_ENEMIES = new Set([
@@ -173,24 +220,28 @@
     
       data.forEach(function (row) {
         var nameStr = (row.Name || "").trim();
-        var n = row.NormName;
         var entRaw = (row.Entity || "").trim();
         var isRare = RARE_ENEMIES.has(entRaw.toUpperCase().replace(/_/g, " "));
     
-        // 1. READ RAW: Grab the exact string from the CSV. No dividing.
-        var rawRate = row["Current %"] || "0"; 
-        var val = parseFloat(rawRate);
-
-        // 2. CALCULATE ODDS (1 in X)
-        // If val > 1, treat as Percentage (e.g. 88 -> 100/88)
-        // If val <= 1, treat as Decimal (e.g. 0.0078 -> 1/0.0078)
+        // 1. READ RAW & CLEAN UP
+        var rawRate = parseFloat(row["Current %"] || "0");
+        var displayRate = "";
         var oddsVal = 0;
-        if (val > 1) {
-            oddsVal = 100 / val;
-        } else if (val > 0) {
-            oddsVal = 1 / val;
+
+        // 2. SMART DISPLAY LOGIC
+        if (rawRate > 1) {
+            // It's a Percentage (e.g., 87.500000) -> 87.5%
+            // parseFloat(string) strips trailing zeros automatically
+            displayRate = parseFloat(rawRate.toFixed(2)) + "%"; 
+            oddsVal = 100 / rawRate;
+        } else {
+            // It's a Raw Decimal (e.g., 0.0078125) -> Keep as is
+            // Truncate if insanely long, otherwise show logic
+            displayRate = parseFloat(rawRate.toFixed(9)); 
+            oddsVal = (rawRate > 0) ? (1 / rawRate) : 0;
         }
-        var odds = (val > 0) ? "1 in " + Math.round(oddsVal).toLocaleString() : "N/A";
+
+        var odds = (rawRate > 0) ? "1 in " + Math.round(oddsVal).toLocaleString() : "N/A";
     
         var rawTier = row.Tier ? row.Tier.trim() : "";
         var tierBadge = rawTier ? '<span class="tier-tag tier-' + rawTier.toLowerCase() + '">' + esc(rawTier) + "</span>" : "";
@@ -209,21 +260,30 @@
               '<a href="' + wikiUrl + '" target="_blank" class="wiki-link">' + esc(nameStr) + "</a>" +
               tierBadge +
             "</td>" +
-            // DISPLAY RAW RATE + CALCULATED ODDS
-            '<td data-label="Rate">' + esc(rawRate) + ' <br><small style="opacity:0.6">' + esc(odds) + "</small></td>" +
+            '<td data-label="Rate">' + displayRate + ' <br><small style="opacity:0.6">' + esc(odds) + "</small></td>" +
             '<td data-label="ID"><span class="tag" style="background:' + bg + '">' + esc(section) + "</span></td>" +
           "</tr>"
         );
       });
     }
     
+    // --- EVENT LISTENERS ---
     $(document).ready(init);
     $(document).on("change keyup", "input, select", applyFilters);
+
+    // Sorting Click Handler
+    $('th[data-sort]').on('click', function() {
+        var col = $(this).data('sort');
+        var dir = 'asc';
+        
+        // Toggle direction if clicking same column
+        if (currentSort.col === col && currentSort.dir === 'asc') {
+            dir = 'desc';
+        }
+        
+        currentSort = { col: col, dir: dir };
+        sortData(col, dir, true);
+    });
   </script>
 </body>
 </html>
-
-
-
-
-
