@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PSO Photon Defender</title>
+    <title>PSO Photon Defender 1.0</title>
     <link rel="stylesheet" href="style.css">
     <!--
         This copy of the original Photon Defender has been modified to address
@@ -316,6 +316,44 @@
         bossBackgrounds.falz.src = 'boss_background_falz.png';
 
         /*
+         * Define stats for each enemy type, including new area‑specific and
+         * elite enemies.  Each entry specifies the sprite dimensions,
+         * hitpoints, speed, colour and whether the enemy can shoot.  Elite
+         * enemies (isElite: true) have more HP and unique bullet hell
+         * patterns, and they drop powerups more often when defeated.
+         */
+        const enemyData = {
+            // Forest
+            rappy:   { w: 36, h: 36, hp: 1,  speed: 3,   color: '#facc15', canShoot: false, isElite: false },
+            booma:   { w: 42, h: 42, hp: 2,  speed: 2.5, color: '#2ea043', canShoot: false, isElite: false },
+            sinow:   { w: 50, h: 50, hp: 3,  speed: 3.5, color: '#c084fc', canShoot: true,  isElite: false },
+            alrappy:{ w: 36, h: 36, hp: 3,  speed: 2.5, color: '#f87171', canShoot: true,  isElite: true  },
+            // Caves
+            evilshark:{ w: 48, h: 48, hp: 3,  speed: 3,   color: '#0ea5e9', canShoot: false, isElite: false },
+            poisonlily:{w: 44, h: 50, hp: 2,  speed: 2.5, color: '#6d28d9', canShoot: true,  isElite: false },
+            grassass:{ w: 38, h: 38, hp: 2,  speed: 3.5, color: '#15803d', canShoot: false, isElite: false },
+            nano:    { w: 60, h: 60, hp: 5,  speed: 2,   color: '#c084fc', canShoot: true,  isElite: true  },
+            // Mines
+            baranz:  { w: 80, h: 80, hp: 8,  speed: 1.5, color: '#ef4444', canShoot: true,  isElite: true  },
+            gilchic:{ w: 44, h: 50, hp: 3,  speed: 2.5, color: '#8b5cf6', canShoot: true,  isElite: false },
+            canane: { w: 60, h: 60, hp: 6,  speed: 1.8, color: '#3b82f6', canShoot: true,  isElite: true  },
+            // Ruins
+            dimeni:  { w: 50, h: 50, hp: 4,  speed: 2.8, color: '#eab308', canShoot: false, isElite: false },
+            chaos:   { w: 80, h: 80, hp: 8,  speed: 1.8, color: '#ef4444', canShoot: true,  isElite: true  }
+        };
+
+        /*
+         * Map each area to the list of enemy type keys that can appear there.
+         * Rare/elite enemies are included but will be selected less often.
+         */
+        const areaEnemies = {
+            forest: ['rappy','booma','sinow','alrappy'],
+            caves:  ['booma','sinow','evilshark','poisonlily','grassass','nano'],
+            mines:  ['sinow','baranz','gilchic','canane'],
+            ruins:  ['booma','sinow','dimeni','chaos']
+        };
+
+        /*
          * Utility: lighten a hex colour by a percentage.  Takes a hex string
          * (e.g. "#ef4444") and returns a new colour string with RGB values
          * increased towards 255 by the specified percent.  Used to create
@@ -357,6 +395,12 @@
                     // rareEffect tracks which rare upgrade is active (hunter, ranger, force) or null
                     rareEffect: null,
                     slowTimer: 0
+            ,
+            // Shields absorb hits before lives are reduced.  Each shield
+            // collected via a powerup allows the player to take one hit
+            // without losing a life.  Shields are displayed next to
+            // hearts.  Starts at zero.
+            shield: 0
                 };
 
         // Track which boss is currently active.  When a boss spawns,
@@ -531,13 +575,14 @@
                     // overall health values are lower than before. See issue
                     // report “boss is too hard. less hp on boss. slightly easier
                     // for first boss.”
-                    let baseHp = 600;
-                    // The Dragon boss on level 5 gets a slightly larger pool to
-                    // remain threatening but still easier than original values.
-                    if (type === 'dragon' && this.level === 5) baseHp = 1000;
-                    // Reduce the per‑level scaling to 200 HP per level instead
-                    // of 250 to soften later bosses as well.
-                    let hp = baseHp + (this.level * 200);
+                    // Further reduce boss HP to address feedback that fights
+                    // remain too long.  Base HP starts lower and scales
+                    // modestly with level.  Dragon on level 5 still gets a
+                    // slightly larger pool.
+                    let baseHp = 500;
+                    if (type === 'dragon' && this.level === 5) baseHp = 800;
+                    // Scale by 150 HP per level instead of 200
+                    let hp = baseHp + (this.level * 150);
                     let boss = {
                         type: type,
                         isBoss: true,
@@ -943,6 +988,13 @@
                     const hy = 8;
                     ctx.fillText('❤', hx, hy + heartSize);
                 }
+                // Draw shield icons (🛡️) next to hearts to indicate extra hits
+                ctx.fillStyle = '#38bdf8';
+                for (let i = 0; i < this.player.shield; i++) {
+                    const sx = 10 + (this.player.lives + i) * (heartSize + 4);
+                    const sy = 8;
+                    ctx.fillText('🛡️', sx, sy + heartSize);
+                }
             }
             shoot() {
                 this.sounds.shoot();
@@ -1009,14 +1061,44 @@
                 this.enemies = this.enemies.filter(e => e.hp > 0);
             }
             spawnEnemy() {
-                const types = ['rappy','booma','sinow'];
-                if (this.level >= 2 && Math.random() < 0.1) types.push('baranz');
-                const type = types[Math.floor(Math.random() * types.length)];
-                let e = { type: type, x: this.width, canShoot: false };
-                if (type === 'rappy') Object.assign(e, { y: Math.random()*(this.height-40), w: 36, h: 36, hp: 1, maxHp: 1, speed: 3, color: '#facc15' });
-                else if (type === 'booma') Object.assign(e, { y: Math.random()*(this.height-50), w: 42, h: 42, hp: 2, maxHp: 2, speed: 2.5, color: '#2ea043' });
-                else if (type === 'sinow') Object.assign(e, { y: Math.random()*(this.height-60), w: 50, h: 50, hp: 3, maxHp: 3, speed: 3.5, color: '#c084fc', canShoot: true });
-                else if (type === 'baranz') Object.assign(e, { y: Math.random()*(this.height-120), w: 80, h: 80, hp: 8, maxHp: 8, speed: 1.5, color: '#ef4444', canShoot: true });
+                /*
+                 * Spawn an enemy appropriate for the current area.  Each area
+                 * has its own list of possible enemies defined in
+                 * areaEnemies.  When choosing an enemy, avoid spawning
+                 * elite types too often by retrying selection if an elite is
+                 * picked and a random roll fails.  This keeps rare foes
+                 * uncommon without hard‑coding weights into the array.
+                 */
+                const pool = areaEnemies[this.area] || ['rappy'];
+                let type;
+                let attempts = 0;
+                do {
+                    type = pool[Math.floor(Math.random() * pool.length)];
+                    attempts++;
+                    // If the chosen type is an elite, allow it only about 10% of
+                    // the time to maintain rarity.  On subsequent attempts we
+                    // progressively relax the condition to avoid an infinite
+                    // loop in edge cases.
+                } while (enemyData[type] && enemyData[type].isElite && Math.random() > (0.1 + attempts * 0.05) && attempts < 5);
+                // Fall back to a default type if selection fails
+                if (!type || !enemyData[type]) type = 'rappy';
+                const def = enemyData[type];
+                // Construct the enemy using its definition.  Spread its
+                // vertical position across the canvas height.  The x
+                // coordinate starts off‑screen to the right.
+                const e = {
+                    type: type,
+                    x: this.width,
+                    y: Math.random() * (this.height - def.h),
+                    w: def.w,
+                    h: def.h,
+                    hp: def.hp,
+                    maxHp: def.hp,
+                    speed: def.speed,
+                    color: def.color,
+                    canShoot: def.canShoot,
+                    isElite: def.isElite
+                };
                 this.enemies.push(e);
             }
             spawnPowerUp() {
@@ -1075,7 +1157,12 @@
                         this.sounds.power();
                     }
                 } else if (p.type === 'heal') {
+                    // Heal restores one life up to a max of 10
                     this.player.lives = Math.min(10, this.player.lives + 1);
+                } else if (p.type === 'shield') {
+                    // Shield grants an extra hit point that is consumed before lives
+                    this.player.shield = Math.min(5, this.player.shield + 1);
+                    this.showFloatText("+SHIELD", this.player.x, this.player.y);
                 } else if (p.type === 'blast') {
                     this.blastEnergy = Math.min(100, this.blastEnergy + 50);
                 }
@@ -1101,13 +1188,13 @@
                         switch (patternIndex) {
                             case 0:
                                 // Two large fireballs.  Slower than before to allow dodging.
-                                bullets.push({ x: e.x, y: e.y + e.h/2 - 15, w: 40, h: 20, vx: 6, vy: 0, color: '#ff7b72' });
-                                bullets.push({ x: e.x, y: e.y + e.h/2 + 15, w: 40, h: 20, vx: 6, vy: 0, color: '#ff7b72' });
+                                bullets.push({ x: e.x, y: e.y + e.h/2 - 15, w: 40, h: 20, vx: 4, vy: 0, color: '#ff7b72' });
+                                bullets.push({ x: e.x, y: e.y + e.h/2 + 15, w: 40, h: 20, vx: 4, vy: 0, color: '#ff7b72' });
                                 break;
                             case 1:
                                 // Vertical spread: five bullets with slight vertical offsets.
                                 [-2, -1, 0, 1, 2].forEach(offset => {
-                                    bullets.push({ x: e.x, y: e.y + e.h/2 + offset * 15, w: 20, h: 10, vx: 5, vy: offset, color: '#eab308' });
+                                    bullets.push({ x: e.x, y: e.y + e.h/2 + offset * 15, w: 20, h: 10, vx: 3, vy: offset * 0.6, color: '#eab308' });
                                 });
                                 break;
                             case 2:
@@ -1115,7 +1202,7 @@
                                 // Radial ring: 12 bullets in all directions.
                                 for (let i = 0; i < 12; i++) {
                                     const angle = (i / 12) * Math.PI * 2;
-                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 12, h: 12, vx: Math.cos(angle) * 4 - 2, vy: Math.sin(angle) * 4, color: '#f87171' });
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 12, h: 12, vx: Math.cos(angle) * 2.5 - 1.2, vy: Math.sin(angle) * 2.5, color: '#f87171' });
                                 }
                                 break;
                         }
@@ -1124,21 +1211,21 @@
                             case 0:
                                 // Spiral vertical spread: seven bullets with vertical velocities from -4 to 4
                                 [-4, -3, -2, -1, 0, 1, 2, 3, 4].forEach(vy => {
-                                    bullets.push({ x: e.x, y: e.y + e.h/2, w: 18, h: 18, vx: 5, vy: vy, color: '#a855f7' });
+                                    bullets.push({ x: e.x, y: e.y + e.h/2, w: 18, h: 18, vx: 3, vy: vy * 0.6, color: '#a855f7' });
                                 });
                                 break;
                             case 1:
                                 // Radial pattern: 16 bullets outward
                                 for (let i = 0; i < 16; i++) {
                                     const angle = (i / 16) * Math.PI * 2;
-                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle) * 4 - 2, vy: Math.sin(angle) * 4, color: '#a855f7' });
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle) * 2.5 - 1.2, vy: Math.sin(angle) * 2.5, color: '#a855f7' });
                                 }
                                 break;
                             case 2:
                             default:
                                 // Wide spread: 10 bullets with varying vertical speeds
                                 [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5].forEach(vy => {
-                                    bullets.push({ x: e.x, y: e.y + e.h/2, w: 18, h: 18, vx: 4, vy: vy, color: '#c084fc' });
+                                    bullets.push({ x: e.x, y: e.y + e.h/2, w: 18, h: 18, vx: 3, vy: vy * 0.6, color: '#c084fc' });
                                 });
                                 break;
                         }
@@ -1146,21 +1233,21 @@
                         switch (patternIndex) {
                             case 0:
                                 // Horizontal lasers: two large beams
-                                bullets.push({ x: e.x, y: e.y + 20, w: 30, h: 6, vx: 8, vy: 0, color: '#ef4444' });
-                                bullets.push({ x: e.x, y: e.y + e.h - 20, w: 30, h: 6, vx: 8, vy: 0, color: '#ef4444' });
+                                bullets.push({ x: e.x, y: e.y + 20, w: 30, h: 6, vx: 5, vy: 0, color: '#ef4444' });
+                                bullets.push({ x: e.x, y: e.y + e.h - 20, w: 30, h: 6, vx: 5, vy: 0, color: '#ef4444' });
                                 break;
                             case 1:
                                 // Radial ring: 12 bullets outward
                                 for (let i = 0; i < 12; i++) {
                                     const angle = (i / 12) * Math.PI * 2;
-                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 12, h: 12, vx: Math.cos(angle) * 5 - 2, vy: Math.sin(angle) * 5, color: '#e2e8f0' });
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 12, h: 12, vx: Math.cos(angle) * 3 - 1.5, vy: Math.sin(angle) * 3, color: '#e2e8f0' });
                                 }
                                 break;
                             case 2:
                             default:
                                 // Spread: eight bullets with slight vertical offsets
                                 [-3, -2, -1, 0, 1, 2, 3].forEach(vy => {
-                                    bullets.push({ x: e.x, y: e.y + e.h/2 + vy * 10, w: 20, h: 10, vx: 6, vy: vy, color: '#c084fc' });
+                                    bullets.push({ x: e.x, y: e.y + e.h/2 + vy * 10, w: 20, h: 10, vx: 4, vy: vy * 0.6, color: '#c084fc' });
                                 });
                                 break;
                         }
@@ -1170,16 +1257,16 @@
                                 // Dense radial ring: 20 bullets outward
                                 for (let i = 0; i < 20; i++) {
                                     const angle = (i / 20) * Math.PI * 2;
-                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle) * 4 - 2, vy: Math.sin(angle) * 4, color: '#e2e8f0' });
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle) * 3 - 1.5, vy: Math.sin(angle) * 3, color: '#e2e8f0' });
                                 }
                                 break;
                             case 1:
                                 // Spiral burst: 12 bullets with alternating speeds
                                 for (let i = 0; i < 12; i++) {
                                     const angle = (i / 12) * Math.PI * 2;
-                                    const speedX = Math.cos(angle) * (i % 2 === 0 ? 3 : 5);
-                                    const speedY = Math.sin(angle) * (i % 2 === 0 ? 5 : 3);
-                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: speedX - 2, vy: speedY, color: '#e2e8f0' });
+                                    const speedX = Math.cos(angle) * (i % 2 === 0 ? 2 : 4);
+                                    const speedY = Math.sin(angle) * (i % 2 === 0 ? 4 : 2);
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: speedX - 1.2, vy: speedY, color: '#e2e8f0' });
                                 }
                                 break;
                             case 2:
@@ -1187,9 +1274,9 @@
                                 // Double ring: two offset rings of 8 bullets each
                                 for (let i = 0; i < 8; i++) {
                                     const angle1 = (i / 8) * Math.PI * 2;
-                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle1) * 3 - 2, vy: Math.sin(angle1) * 3, color: '#e2e8f0' });
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle1) * 2.5 - 1.2, vy: Math.sin(angle1) * 2.5, color: '#e2e8f0' });
                                     const angle2 = ((i + 0.5) / 8) * Math.PI * 2;
-                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle2) * 5 - 2, vy: Math.sin(angle2) * 5, color: '#e2e8f0' });
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle2) * 4 - 1.2, vy: Math.sin(angle2) * 4, color: '#e2e8f0' });
                                 }
                                 break;
                         }
@@ -1199,12 +1286,54 @@
                         }
                     }
                 } else {
-                    // Non-boss patterns remain unchanged
+                    /*
+                     * Bullet patterns for standard and elite enemies.  To
+                     * encourage “bullet hell” gameplay without overwhelming
+                     * players, non‑boss projectiles travel slower than
+                     * previous versions and often include radial spreads.
+                     */
                     if (e.type === 'sinow') {
-                        bullets.push({ x: e.x, y: e.y + e.h/2 - 5, w: 10, h: 4, vx: 7, vy: 0, color: '#f87171' });
-                        bullets.push({ x: e.x, y: e.y + e.h/2 + 5, w: 10, h: 4, vx: 7, vy: 0, color: '#f87171' });
+                        // Two horizontal slashes
+                        bullets.push({ x: e.x, y: e.y + e.h/2 - 5, w: 10, h: 4, vx: 5, vy: 0, color: '#f87171' });
+                        bullets.push({ x: e.x, y: e.y + e.h/2 + 5, w: 10, h: 4, vx: 5, vy: 0, color: '#f87171' });
                     } else if (e.type === 'baranz') {
-                        [-2, 0, 2].forEach(vy => bullets.push({ x: e.x, y: e.y + e.h/2 - 3, w: 14, h: 6, vx: 6, vy: vy, color: '#ef4444' }));
+                        // Spread shot of three slower bullets
+                        [-2, 0, 2].forEach(vy => bullets.push({ x: e.x, y: e.y + e.h/2 - 3, w: 14, h: 6, vx: 4, vy: vy, color: '#ef4444' }));
+                    } else if (e.type === 'alrappy') {
+                        // Forest elite: radial burst of eight shots
+                        for (let i = 0; i < 8; i++) {
+                            const angle = (i / 8) * Math.PI * 2;
+                            bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 8, h: 8, vx: Math.cos(angle) * 3 - 1.5, vy: Math.sin(angle) * 3, color: '#f87171' });
+                        }
+                    } else if (e.type === 'nano') {
+                        // Caves elite: spiral of six shots with varying vy
+                        [-3,-2,-1,1,2,3].forEach(vy => {
+                            bullets.push({ x: e.x, y: e.y + e.h/2, w: 12, h: 6, vx: 3, vy: vy, color: '#c084fc' });
+                        });
+                    } else if (e.type === 'canane') {
+                        // Mines elite: 12 bullet ring slower speeds
+                        for (let i = 0; i < 12; i++) {
+                            const angle = (i / 12) * Math.PI * 2;
+                            bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 10, h: 10, vx: Math.cos(angle) * 2.5 - 1.2, vy: Math.sin(angle) * 2.5, color: '#3b82f6' });
+                        }
+                    } else if (e.type === 'chaos') {
+                        // Ruins elite: double ring of 16 bullets
+                        for (let i = 0; i < 8; i++) {
+                            const angle1 = (i / 8) * Math.PI * 2;
+                            bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 12, h: 12, vx: Math.cos(angle1) * 2.5 - 1.2, vy: Math.sin(angle1) * 2.5, color: '#ef4444' });
+                            const angle2 = ((i + 0.5) / 8) * Math.PI * 2;
+                            bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 12, h: 12, vx: Math.cos(angle2) * 3.5 - 1.2, vy: Math.sin(angle2) * 3.5, color: '#ef4444' });
+                        }
+                    } else if (e.type === 'poisonlily') {
+                        // Shoots three vertically oriented poison orbs downward/upward
+                        [-2, 0, 2].forEach(vy => bullets.push({ x: e.x, y: e.y + e.h/2, w: 10, h: 10, vx: 2, vy: vy * 0.5, color: '#6d28d9' }));
+                    } else if (e.type === 'gilchic') {
+                        // Mines shooter: horizontal beam and two angled shots
+                        bullets.push({ x: e.x, y: e.y + e.h/2 - 8, w: 8, h: 8, vx: 4, vy: -1, color: '#8b5cf6' });
+                        bullets.push({ x: e.x, y: e.y + e.h/2 + 8, w: 8, h: 8, vx: 4, vy: 1, color: '#8b5cf6' });
+                    } else if (e.type === 'dimeni') {
+                        // Ruins common shooter: simple slow bullets
+                        bullets.push({ x: e.x, y: e.y + e.h/2, w: 10, h: 10, vx: 2.5, vy: 0, color: '#eab308' });
                     }
                 }
                 bullets.forEach(bullet => this.enemyBullets.push(bullet));
@@ -1226,22 +1355,47 @@
                      */
                     const dropChance = (e.alwaysDrops ? 1 : 0.4);
                     if (Math.random() < dropChance) {
+                        // By default, defeated enemies drop a weapon data.  In
+                        // addition, there is a very small chance of dropping a
+                        // heal or shield to prolong long runs.  Elite
+                        // enemies have an increased chance to drop a heal or
+                        // shield instead of a weapon.  Bosses always drop
+                        // additional consumables (handled below).
+                        let dropType = 'weapondata';
+                        let dropColor = '#f97316';
+                        // Rare chance for heal (restore a life)
+                        let healChance = e.isElite ? 0.1 : 0.02;
+                        // Rare chance for shield (absorb damage)
+                        let shieldChance = e.isElite ? 0.05 : 0.01;
+                        const roll = Math.random();
+                        if (roll < shieldChance) {
+                            dropType = 'shield';
+                            dropColor = '#38bdf8';
+                        } else if (roll < shieldChance + healChance) {
+                            dropType = 'heal';
+                            dropColor = '#34d399';
+                        }
                         this.powerUps.push({
                             x: e.x,
                             y: e.y,
                             w: 24,
                             h: 24,
-                            type: 'weapondata',
+                            type: dropType,
                             speed: 2,
-                            color: '#f97316'
+                            color: dropColor
                         });
                     }
-                    // Remove the random extra power‑up spawn entirely.  Only
-                    // weapon upgrades (and the occasional heal/blast/rare from
-                    // spawnPowerUp invoked elsewhere) will appear now.
-                    // if (Math.random() < 0.05) {
-                    //     this.spawnPowerUp();
-                    // }
+                    // Bosses drop an extra powerup to reward completion.  For
+                    // bosses, always drop a blast recharge plus a heal or
+                    // shield.
+                    if (e.isBoss) {
+                        // Drop blast
+                        this.powerUps.push({ x: e.x, y: e.y, w: 24, h: 24, type:'blast', speed:2, color:'#f472b6' });
+                        // Drop heal or shield
+                        const t = (Math.random() < 0.5) ? 'heal' : 'shield';
+                        const cMap = { heal:'#34d399', shield:'#38bdf8' };
+                        this.powerUps.push({ x: e.x + 26, y: e.y, w: 24, h: 24, type:t, speed:2, color:cMap[t] });
+                    }
                 }
                 // When a boss is defeated, clear the currentBossType so that
                 // the game returns to the standard area background.
@@ -1251,7 +1405,12 @@
             }
             takeHit() {
                 this.sounds.explode();
-                this.player.lives--;
+                // If the player has shields, consume a shield before losing a life
+                if (this.player.shield > 0) {
+                    this.player.shield--;
+                } else {
+                    this.player.lives--;
+                }
                 this.player.invincible = 120;
                 if(this.player.weaponLevel > 1) this.player.weaponLevel--;
                 if (this.player.weaponLevel < 10) this.player.damageMultiplier = 1.0;
