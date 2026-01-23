@@ -13,11 +13,25 @@
 
 <body>
 
-  <nav class="main-nav">
-    <div class="nav-links">
-      <a href="index.html" class="nav-link active">Drop Charts</a>
-      </div>
-  </nav>
+ <script>
+    fetch('nav.html')
+    .then(res => res.text())
+    .then(data => {
+        document.getElementById('nav-placeholder').innerHTML = data;
+        
+        // AUTOMATIC ACTIVE CLASS LOGIC
+        // This detects which page you are on and highlights the correct tab
+        const currentPage = window.location.pathname.split("/").pop() || "mag.html";
+        const navLinks = document.querySelectorAll('.nav-link');
+        
+        navLinks.forEach(link => {
+            if (link.getAttribute('href') === currentPage) {
+                link.classList.add('active');
+            }
+        });
+    });
+</script>
+<div id="nav-placeholder"></div>
 
   <div class="content-section">
     <div class="controls">
@@ -219,5 +233,6 @@
   </script>
 </body>
 </html>
+
 
 
