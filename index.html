@@ -40,8 +40,16 @@
         th { background: #21262d; color: var(--blue); padding: 12px; text-align: left; font-size: 0.8em; position: sticky; top: 0; z-index: 1000; }
         td { padding: 10px; border-bottom: 1px solid var(--border); font-size: 0.85em; }
         
-        .item-name-text { cursor: pointer; color: white; font-weight: bold; border-bottom: 1px dashed var(--blue); }
-        
+        /* Updated Wiki Link Styling */
+        .wiki-link { 
+            color: white; 
+            font-weight: bold; 
+            text-decoration: none; 
+            border-bottom: 1px dashed var(--blue); 
+            display: inline-block;
+        }
+        .wiki-link:active { color: var(--blue); }
+
         /* TIER BADGES */
         .tier-tag { padding: 2px 4px; border-radius: 4px; font-size: 0.65em; font-weight: bold; margin-left: 5px; text-transform: uppercase; color: black; }
         .tier-S { background: var(--god); }
@@ -109,7 +117,6 @@
 <script>
     const SECTION_ID_COLORS = { Viridia: "#22C55E", Greenill: "#16A34A", Skyly: "#38BDF8", Bluefull: "#2563EB", Purplenum: "#A855F7", Pinkal: "#EC4899", Redria: "#EF4444", Oran: "#F97316", Yellowboze: "#FACC15", Whitill: "#E5E7EB" };
     
-    // Updated URLs
     const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS-nCzkALWoSyKOLXNORN_zgy2ONKn4Hcwi-jQNHCgmEW8DJ7yX3AyO9Uod44ecEUwklr76Dw4-p1o0/pub?gid=0&single=true&output=csv';
     const tierTableUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS-nCzkALWoSyKOLXNORN_zgy2ONKn4Hcwi-jQNHCgmEW8DJ7yX3AyO9Uod44ecEUwklr76Dw4-p1o0/pub?gid=292779988&single=true&output=csv';
 
@@ -121,7 +128,6 @@
     function esc(v) { return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
     function init() {
-        // Step 1: Load updated Tier Table
         Papa.parse(tierTableUrl, {
             download: true,
             header: true,
@@ -148,13 +154,10 @@
                     const n = normName(row.Name);
                     if (row.SectionID) sections.add(row.SectionID.trim());
                     if (row.Difficulty) diffs.add(row.Difficulty.trim());
-                    
                     const tier = globalTierMap.get(n) || "";
                     if (tier) tiers.add(tier);
-
                     return { ...row, NormName: n, Tier: tier };
                 });
-
                 populateSelect('#tierFilter', Array.from(tiers).sort(), 'Tiers');
                 populateSelect('#diffFilter', Array.from(diffs).sort(), 'Diffs');
                 populateSelect('#idFilter', Array.from(sections).sort(), 'IDs');
@@ -173,7 +176,6 @@
         const tier = $('#tierFilter').val();
         const diff = $('#diffFilter').val();
         const id = $('#idFilter').val();
-
         renderTable(masterData.filter(r => 
             r.NormName.includes(name) && 
             (!tier || r.Tier === tier) && 
@@ -188,6 +190,7 @@
         tbody.empty();
 
         data.forEach(row => {
+            const nameStr = (row.Name || "").trim();
             const n = row.NormName;
             const entRaw = (row.Entity || "").trim();
             const isRare = RARE_ENEMIES.has(entRaw.toUpperCase().replace(/_/g, " "));
@@ -202,12 +205,19 @@
             const odds = `1 in ${Math.round(100/pct).toLocaleString()}`;
             const tierBadge = row.Tier ? `<span class="tier-tag tier-${esc(row.Tier)}">${row.Tier}</span>` : "";
 
+            // Dynamic Wiki URL Generation
+            const wikiSlug = encodeURIComponent(nameStr.replace(/\s+/g, '_'));
+            const wikiUrl = `https://wiki.pioneer2.net/w/${wikiSlug}`;
+
             tbody.append(`<tr class="${isRare ? 'row-rare' : ''}">
                 <td class="col-ep">${esc(row.Episode)}</td>
                 <td><strong>${esc(row.Difficulty).charAt(0)}</strong></td>
                 <td class="col-map">${esc(row.Map)}</td>
                 <td>${esc(entRaw)} ${isRare ? '<span class="rare-badge">R</span>' : ''}</td>
-                <td><span class="item-name-text">${esc(row.Name)}</span> ${tierBadge} <span class="class-val-badge">${classVal}</span></td>
+                <td>
+                    <a href="${wikiUrl}" target="_blank" class="wiki-link">${esc(nameStr)}</a>
+                    ${tierBadge} <span class="class-val-badge">${classVal}</span>
+                </td>
                 <td>${pct >= 1 ? pct.toFixed(1) : pct.toFixed(4)}% <br><small style="opacity:0.6">${odds}</small></td>
                 <td><span class="tag" style="background:${SECTION_ID_COLORS[row.SectionID] || '#333'}">${esc(row.SectionID).charAt(0)}</span></td>
             </tr>`);
