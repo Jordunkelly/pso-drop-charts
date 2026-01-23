@@ -25,7 +25,7 @@ body {
     background: #010409; 
     border-bottom: 1px solid var(--border); 
     display: flex; 
-    justify-content: center; /* Centered links since VIEW AS is removed */
+    justify-content: center; 
     align-items: center; 
     padding: 10px 20px; 
     position: sticky; 
@@ -55,27 +55,12 @@ body {
 .nav-link:hover { background: rgba(255,255,255,0.1); }
 .nav-link.active { background: var(--blue); color: white; }
 
-.nav-link { 
-    display: flex; 
-    align-items: center; 
-    color: var(--text); 
-    text-decoration: none; 
-    font-weight: bold; 
-    padding: 8px 12px; 
-    border-radius: 6px; 
-}
-
-/* On mobile, we hide the text "Defender" to keep the nav from wrapping */
-@media (max-width: 768px) {
-    .nav-text { display: none; }
-}
-
 /* --- TIER TAGS (PILL STYLE) --- */
 .tier-tag {
     display: inline-block;
     padding: 3px 10px;
-    margin-left: 15px; /* Spacing from item name */
-    border-radius: 50px; /* Pill shape */
+    margin-left: 15px; 
+    border-radius: 50px; 
     font-size: 0.75rem;
     font-weight: 800;
     color: #fff;
@@ -86,7 +71,6 @@ body {
     text-align: center;
 }
 
-/* UBER - Diablo 4 Legendary Style */
 .tier-tag.tier-u {
     background: linear-gradient(135deg, #ff8c00, #b8860b) !important;
     border: 1px solid #ffd700 !important;
@@ -96,14 +80,12 @@ body {
     padding: 3px 12px;
 }
 
-/* Visually translates 'u' to 'UBER' */
 .tier-tag.tier-u::after {
     content: 'UBER';
     font-size: 0.75rem;
     letter-spacing: 0.8px;
 }
 
-/* Tier Colors (Lowercase matching your logic) */
 .tier-tag.tier-s { background-color: #d122e3 !important; }
 .tier-tag.tier-a { background-color: #2ea043 !important; }
 .tier-tag.tier-b { background-color: #1f6feb !important; }
@@ -115,7 +97,7 @@ body {
     .main-nav { padding: 10px; }
     .nav-links { gap: 8px; }
     .nav-link { padding: 8px 10px; font-size: 0.85em; }
-    .nav-text { display: none; } /* Show only icons on small screens to save space */
+    .nav-text { display: none; } /* Hide 'Defender' text on mobile */
     
-    input, select { font-size: 16px !important; } /* Prevent iOS zoom */
+    input, select { font-size: 16px !important; }
 }
