@@ -196,7 +196,11 @@
 
     function populateSelect(id, values, label) {
         $(id).empty().append(`<option value="">All ${label}</option>`);
-        values.forEach(v => $(id).append(`<option value="${v}">${v}</option>`));
+        values.forEach(v => {
+            // Translate 'U' to 'UBER' for display only
+            const displayName = (v === "U") ? "UBER" : v;
+            $(id).append(`<option value="${v}">${displayName}</option>`);
+        });
     }
 
     function applyFilters() {
@@ -262,6 +266,7 @@
 </script>
 </body>
 </html>
+
 
 
 
