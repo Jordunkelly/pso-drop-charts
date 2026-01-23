@@ -300,6 +300,20 @@
             mines:  { sx: 0,   sy: 512 },
             ruins:  { sx: 768, sy: 512 }
         };
+        // Preload unique boss room backgrounds.  Each boss fight uses its own
+        // pixel art scene, stored in the same directory.  If these images are
+        // missing or fail to load, the game will gracefully fall back to the
+        // area background or a solid colour.
+        const bossBackgrounds = {
+            dragon: new Image(),
+            derolle: new Image(),
+            volopt: new Image(),
+            falz: new Image()
+        };
+        bossBackgrounds.dragon.src = 'boss_background_dragon.png';
+        bossBackgrounds.derolle.src = 'boss_background_derolle.png';
+        bossBackgrounds.volopt.src = 'boss_background_volopt.png';
+        bossBackgrounds.falz.src = 'boss_background_falz.png';
 
         class Game {
             constructor(canvas, playerClass) {
@@ -323,6 +337,12 @@
                     rareEffect: null,
                     slowTimer: 0
                 };
+
+        // Track which boss is currently active.  When a boss spawns,
+        // spawnBossSequence will set this value to the boss's type
+        // (e.g. 'dragon', 'derolle', 'volopt', 'falz').  When the boss
+        // is defeated, killEnemy resets this property to null.
+        this.currentBossType = null;
                 if (this.playerClass === 'hunter') {
                     this.player.lives = 5;
                     this.player.speed = 5;
@@ -375,6 +395,12 @@
                     rare: () => this.playSfx(1200, 'square', 1.0, 0.3)
                 };
                 this.initInputs();
+
+        // Assign the preloaded images to this instance so that render()
+        // can access them.  The global bossBackgrounds object is
+        // defined outside the class and contains Image objects keyed by
+        // boss type.
+        this.bossBackgrounds = bossBackgrounds;
                 // Store a reference to the global background image. It will
                 // load asynchronously; when complete the render method will
                 // draw the appropriate quadrant based on the current area.
@@ -459,6 +485,9 @@
             }
             spawnBossSequence(name, type, color) {
                 this.bossSpawnedForLevel = true;
+                // Record the type of boss that is about to spawn so that
+                // render() can display the appropriate boss room background.
+                this.currentBossType = type;
                 const warning = document.getElementById('boss-warning');
                 warning.innerHTML = `WARNING<br>${name.toUpperCase()}`;
                 warning.style.display = 'block';
@@ -726,15 +755,32 @@
                 // Draw background depending on loaded image. If the composite
                 // image is ready, crop the appropriate quadrant according to
                 // the current area. Otherwise fall back to a solid colour.
-                if (this.backgroundImg && this.backgroundImg.complete) {
-                    const coord = areaCoords[this.area] || { sx: 0, sy: 0 };
-                    const sw = 768;
-                    const sh = 512;
-                    ctx.drawImage(this.backgroundImg, coord.sx, coord.sy, sw, sh,
-                                  0, 0, this.width, this.height);
-                } else {
-                    ctx.fillStyle = this.areaColors[this.area] || '#0a0e1a';
-                    ctx.fillRect(0, 0, this.width, this.height);
+                /* Draw the appropriate background.  If a boss fight is in
+                 * progress (currentBossType is set), use the boss-specific
+                 * background.  Otherwise draw the map area background.  We
+                 * still guard against broken images by checking naturalWidth.
+                 */
+                let drewBackground = false;
+                if (this.currentBossType && this.bossBackgrounds[this.currentBossType]) {
+                    const bImg = this.bossBackgrounds[this.currentBossType];
+                    if (bImg.complete && bImg.naturalWidth > 0) {
+                        ctx.drawImage(bImg, 0, 0, this.width, this.height);
+                        drewBackground = true;
+                    }
+                }
+                if (!drewBackground) {
+                    // Fall back to the area background (composite quadrants).
+                    if (this.backgroundImg && this.backgroundImg.complete && this.backgroundImg.naturalWidth > 0) {
+                        const coord = areaCoords[this.area] || { sx: 0, sy: 0 };
+                        const sw = 768;
+                        const sh = 512;
+                        ctx.drawImage(this.backgroundImg, coord.sx, coord.sy, sw, sh,
+                                      0, 0, this.width, this.height);
+                    } else {
+                        // Final fallback: plain colour by area.
+                        ctx.fillStyle = this.areaColors[this.area] || '#0a0e1a';
+                        ctx.fillRect(0, 0, this.width, this.height);
+                    }
                 }
                 ctx.save();
                 if (this.player.invincible > 0 && Math.floor(this.frame / 5) % 2 === 0) ctx.globalAlpha = 0.5;
@@ -1021,6 +1067,11 @@
                     // if (Math.random() < 0.05) {
                     //     this.spawnPowerUp();
                     // }
+                }
+                // When a boss is defeated, clear the currentBossType so that
+                // the game returns to the standard area background.
+                if (e.isBoss) {
+                    this.currentBossType = null;
                 }
             }
             takeHit() {
