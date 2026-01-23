@@ -6,13 +6,13 @@
     <title>PSOBB Mag Timer</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* This container occupies the full space below your sticky nav */
+        /* Centers the card in the space below the sticky nav */
         .mag-tool-container {
             display: flex;
             flex-direction: column;
-            justify-content: center; /* Vertical center */
-            align-items: center;     /* Horizontal center */
-            min-height: calc(100vh - 60px); /* Adjusts for header height */
+            justify-content: center;
+            align-items: center;
+            min-height: calc(100vh - 60px); 
             margin: 0;
             padding: 20px;
             box-sizing: border-box;
@@ -26,47 +26,75 @@
             border: 2px solid var(--border);
             text-align: center;
             width: 100%;
-            max-width: 340px; /* Limits width on desktop */
+            max-width: 340px;
             position: relative;
             transition: all 0.5s;
         }
 
-        /* --- UI VARIABLES SYNC --- */
-        .status-label { 
-            text-transform: uppercase; 
-            letter-spacing: 3px; 
-            font-size: 0.8rem; 
-            color: var(--blue); 
-            font-weight: 800; 
-        }
-        
-        #timer-display { 
-            font-size: 4.5rem; 
-            font-weight: bold; 
-            font-family: 'Courier New', monospace; 
-            margin: 5px 0; 
-            color: var(--text);
+        /* --- MAG ANIMATION --- */
+        .mag-container {
+            height: 120px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 10px;
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
         }
 
+        .mag {
+            width: 60px;
+            height: 60px;
+            background: #ff7b72; /* Mag color */
+            border-radius: 15px;
+            position: relative;
+            z-index: 2;
+            box-shadow: inset -5px -5px 0 rgba(0,0,0,0.2);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .mag::before, .mag::after {
+            content: '';
+            position: absolute;
+            top: 25px;
+            width: 10px;
+            height: 2px;
+            background: #000;
+        }
+        .mag::before { left: 12px; }
+        .mag::after { right: 12px; }
+
+        .scenery { display: none; position: absolute; width: 100%; height: 100%; top: 0; left: 0; }
+        .sun { width: 30px; height: 30px; background: #ffdf5d; border-radius: 50%; position: absolute; top: 10px; right: 20px; box-shadow: 0 0 10px #ffdf5d; }
+        .grass { position: absolute; bottom: 0; width: 100%; height: 20px; background: #2ea043; }
+        .tree { position: absolute; bottom: 20px; left: 20px; width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-bottom: 30px solid #1b4d2e; }
+
+        /* --- STATES --- */
+        .zzz { position: absolute; right: 80px; top: 20px; opacity: 0; animation: zzz-fly 4s linear infinite; color: var(--blue); font-weight: bold; }
+        .excited .mag { background: #f2ce5b; animation: bounce 0.5s infinite; }
+        .excited .mag::before, .excited .mag::after { content: '♥'; background: none; color: #ff7b72; font-size: 14px; top: 15px; height: auto; }
+        .walking .scenery { display: block; }
+        .walking .mag { animation: walk 1s ease-in-out infinite; background: #88ccff; }
+
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes walk { 0%, 100% { transform: translateX(-5px) rotate(-5deg); } 50% { transform: translateX(5px) rotate(5deg); } }
+        @keyframes zzz-fly { 0% { opacity: 0; transform: translate(0,0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(30px, -40px); } }
+
+        /* --- UI --- */
+        .status-label { text-transform: uppercase; letter-spacing: 3px; font-size: 0.8rem; color: var(--blue); font-weight: 800; }
+        #timer-display { font-size: 4.5rem; font-weight: bold; font-family: 'Courier New', monospace; margin: 5px 0; color: var(--text); }
         .controls { margin-top: 15px; display: flex; flex-direction: column; gap: 8px; }
         
-        button { 
-            background: #21262d; 
-            border: 1px solid var(--border); 
-            color: var(--text); 
-            padding: 12px; 
-            cursor: pointer; 
-            border-radius: 8px; 
-            font-weight: bold; 
-            transition: 0.2s;
-            font-size: 16px; /* Prevents mobile zoom */
-        }
-        
+        button { background: #21262d; border: 1px solid var(--border); color: var(--text); padding: 12px; cursor: pointer; border-radius: 8px; font-weight: bold; transition: 0.2s; font-size: 16px; }
         #startBtn { border-color: var(--blue); color: var(--blue); }
         #forceBtn { border-color: var(--gold); color: var(--gold); }
         #breakBtn { border-color: #2ea043; color: #2ea043; }
-
-        /* ... existing animation CSS ... */
+        
+        .feeding-active { color: var(--gold) !important; }
+        .break-active { background-color: #061e0b !important; }
+        .break-card { border-color: #2ea043 !important; }
     </style>
 </head>
 <body>
@@ -75,17 +103,100 @@
     <div class="nav-links">
         <a href="index.html" class="nav-link">Drop Charts</a>
         <a href="mag.html" class="nav-link active">Mag Tool</a>
-        <a href="booma.html" class="nav-link active">?</a>
-    </div>
+        <a href="booma.html" class="nav-link">?</a> </div>
 </nav>
 
 <div class="mag-tool-container">
     <div class="timer-card" id="card">
+        <div class="mag-container sleepy" id="mag-box">
+            <div class="scenery"><div class="sun"></div><div class="tree"></div><div class="grass"></div></div>
+            <div class="zzz-box"><div class="zzz" style="animation-delay: 0s;">Z</div><div class="zzz" style="animation-delay: 2s;">z</div></div>
+            <div class="mag"></div>
         </div>
+
+        <div id="status" class="status-label">Ready</div>
+        <div id="timer-display">03:30</div>
+       
+        <div class="controls">
+            <button id="startBtn" onclick="restartFullCycle()">START (3:30)</button>
+            <button id="forceBtn" onclick="forceFeedingWindow()">FORCE FEEDING ALERT</button>
+            <button id="breakBtn" onclick="takeBreak()">TAKE A BREAK</button>
+        </div>
+    </div>
 </div>
 
 <script>
-    /* ... existing timer logic ... */
+    let timeLeft = 210, isFeedingMode = false, timerId = null, isPaused = true, audioCtx;
+
+    const display = document.getElementById('timer-display');
+    const statusLabel = document.getElementById('status');
+    const card = document.getElementById('card');
+    const magBox = document.getElementById('mag-box');
+
+    function playZeldaChime() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const notes = [392.00, 493.88, 587.33, 783.99], now = audioCtx.currentTime;
+        notes.forEach((freq, i) => {
+            const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, now + (i * 0.1));
+            gain.gain.setValueAtTime(0, now + (i * 0.1));
+            gain.gain.linearRampToValueAtTime(0.1, now + (i * 0.1) + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + (i * 0.1) + 0.4);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(now + (i * 0.1)); osc.stop(now + (i * 0.1) + 0.4);
+        });
+    }
+
+    function runTimer() {
+        if (isPaused) return;
+        timeLeft--;
+        if (timeLeft < 0) {
+            if (!isFeedingMode) triggerFeeding();
+            else resetToDigestion();
+        }
+        updateDisplay();
+    }
+
+    function triggerFeeding() {
+        isFeedingMode = true; timeLeft = 10;
+        statusLabel.textContent = "FEEDING TIME!"; statusLabel.style.color = "var(--gold)";
+        display.className = 'feeding-active'; magBox.className = 'mag-container excited';
+        playZeldaChime();
+    }
+
+    function resetToDigestion() {
+        isFeedingMode = false; timeLeft = 210;
+        statusLabel.textContent = "DIGESTING..."; statusLabel.style.color = "var(--blue)";
+        document.body.className = ''; card.className = 'timer-card'; display.className = '';
+        magBox.className = 'mag-container sleepy'; updateDisplay();
+    }
+
+    function restartFullCycle() {
+        if (!audioCtx) audioCtx = new AudioContext();
+        clearInterval(timerId); isPaused = false; resetToDigestion();
+        timerId = setInterval(runTimer, 1000);
+    }
+
+    function forceFeedingWindow() {
+        if (!audioCtx) audioCtx = new AudioContext();
+        clearInterval(timerId); isPaused = false; triggerFeeding();
+        timerId = setInterval(runTimer, 1000);
+    }
+
+    function takeBreak() {
+        clearInterval(timerId); isPaused = true;
+        statusLabel.textContent = "TOUCHING GRASS"; statusLabel.style.color = "#2ea043";
+        document.body.className = 'break-active'; card.className = 'timer-card break-card';
+        magBox.className = 'mag-container walking'; display.textContent = "--:--";
+    }
+
+    function updateDisplay() {
+        const min = Math.floor(timeLeft / 60), sec = timeLeft % 60;
+        display.textContent = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+    }
+
+    updateDisplay();
 </script>
 </body>
 </html>
