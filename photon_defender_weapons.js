@@ -3,7 +3,7 @@
 
 /* =========================
    VARIETY PACK: Weapons + Bullet Hell + Elites
-   Drop this into your <script> AFTER enemyData/areaEnemies,
+   Drop this into your AFTER enemyData/areaEnemies,
    and then apply the small edits noted below.
    ========================= */
 
