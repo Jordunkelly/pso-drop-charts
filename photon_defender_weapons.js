@@ -1,3 +1,6 @@
+
+
+
 /* =========================
    VARIETY PACK: Weapons + Bullet Hell + Elites
    Drop this into your <script> AFTER enemyData/areaEnemies,
