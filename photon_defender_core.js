@@ -191,8 +191,10 @@ class Game {
         p.invincible = 60;
         if (p.lives <= 0) {
           this.running = false;
+          this.postScore();
           alert("Mission Failed");
         }
+
       }
     }
   }
