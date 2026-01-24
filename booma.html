@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PSO Photon Defender 1</title>
+    <title>PSO Photon Defender</title>
     <link rel="stylesheet" href="style.css">
     <!--
         This copy of the original Photon Defender has been modified to address
@@ -224,11 +224,6 @@
         }
         @media (pointer: coarse) { .mobile-hint { display: block; } }
     </style>
-    
-    <script src="photon_defender_core.js"></script>
-    <script src="photon_defender_maps.js"></script>
-    <script src="photon_defender_enemies.js"></script>
-    <script src="photon_defender_weapons.js"></script>
 </head>
 <body>
     <div id="nav-placeholder"></div>
@@ -284,5 +279,1716 @@
             <div class="mobile-hint">Touch & Drag to Move • Double Tap to Blast</div>
         </div>
     </div>
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx6T_nPSiK2jQIyWI09Jgcf2g8q9F_6JENVPWoaGbWoft2xIGOCJpnbehX2VJwGXpc/exec";
+        // load nav
+        fetch('nav.html')
+            .then(res => res.text())
+            .then(data => {
+                const holder = document.getElementById('nav-placeholder');
+                if(holder) holder.innerHTML = data;
+                const link = document.querySelector('a[href="booma.html"]');
+                if (link) link.classList.add('active');
+            }).catch(e => console.log("Nav not found"));
+        // Preload map background image and cropping coordinates for each area.  This
+        // composite image contains four quadrants representing Forest, Caves,
+        // Mines and Ruins. Each quadrant is 768x512 pixels in the 1536x1024 image.
+        const areaBackgroundImg = new Image();
+        areaBackgroundImg.src = 'areas_background.png';
+        // Source coordinates for cropping each area from the composite image.
+        const areaCoords = {
+            forest: { sx: 0,   sy: 0   },
+            caves:  { sx: 768, sy: 0   },
+            mines:  { sx: 0,   sy: 512 },
+            ruins:  { sx: 768, sy: 512 }
+        };
+        // Preload unique boss room backgrounds.  Each boss fight uses its own
+        // pixel art scene, stored in the same directory.  If these images are
+        // missing or fail to load, the game will gracefully fall back to the
+        // area background or a solid colour.
+        const bossBackgrounds = {
+            dragon: new Image(),
+            derolle: new Image(),
+            volopt: new Image(),
+            falz: new Image()
+        };
+        bossBackgrounds.dragon.src = 'boss_background_dragon.png';
+        bossBackgrounds.derolle.src = 'boss_background_derolle.png';
+        bossBackgrounds.volopt.src = 'boss_background_volopt.png';
+        bossBackgrounds.falz.src = 'boss_background_falz.png';
+
+        // Preload character sprites for each class.  These images should
+        // reside in the same directory as this HTML file.  If an image
+        // fails to load, the game will fall back to drawing a triangle
+        // representation for the player.  Naming convention: sprite-hunter.png,
+        // sprite-ranger.png, sprite-mage.png (force class uses mage sprite).
+        const spriteImages = {
+            hunter: new Image(),
+            ranger: new Image(),
+            force:  new Image()
+        };
+        spriteImages.hunter.src = 'sprite-hunter.png';
+        spriteImages.ranger.src = 'sprite-ranger.png';
+        spriteImages.force.src  = 'sprite-mage.png';
+
+        /*
+         * Define stats for each enemy type, including new area‑specific and
+         * elite enemies.  Each entry specifies the sprite dimensions,
+         * hitpoints, speed, colour and whether the enemy can shoot.  Elite
+         * enemies (isElite: true) have more HP and unique bullet hell
+         * patterns, and they drop powerups more often when defeated.
+         */
+        const enemyData = {
+            // Forest
+            rappy:   { w: 36, h: 36, hp: 1,  speed: 3,   color: '#facc15', canShoot: false, isElite: false },
+            booma:   { w: 42, h: 42, hp: 2,  speed: 2.5, color: '#2ea043', canShoot: false, isElite: false },
+            sinow:   { w: 50, h: 50, hp: 3,  speed: 3.5, color: '#c084fc', canShoot: true,  isElite: false },
+            alrappy:{ w: 36, h: 36, hp: 3,  speed: 2.5, color: '#f87171', canShoot: true,  isElite: true  },
+            // Forest elite: Hildebear – a large creature that lumbers
+            // slowly and attacks with a radial shockwave.  Its shots are
+            // slower than other elites but have large hitboxes.  Treat as
+            // elite so it appears infrequently.
+            hildebear: { w: 80, h: 80, hp: 6, speed: 1.8, color: '#78350f', canShoot: true, isElite: true },
+            // Caves
+            evilshark:{ w: 48, h: 48, hp: 3,  speed: 3,   color: '#0ea5e9', canShoot: false, isElite: false },
+            poisonlily:{w: 44, h: 50, hp: 2,  speed: 2.5, color: '#6d28d9', canShoot: true,  isElite: false },
+            grassass:{ w: 38, h: 38, hp: 2,  speed: 3.5, color: '#15803d', canShoot: false, isElite: false },
+            nano:    { w: 60, h: 60, hp: 5,  speed: 2,   color: '#c084fc', canShoot: true,  isElite: true  },
+            // Mines
+            baranz:  { w: 80, h: 80, hp: 8,  speed: 1.5, color: '#ef4444', canShoot: true,  isElite: true  },
+            gilchic:{ w: 44, h: 50, hp: 3,  speed: 2.5, color: '#8b5cf6', canShoot: true,  isElite: false },
+            canane: { w: 60, h: 60, hp: 6,  speed: 1.8, color: '#3b82f6', canShoot: true,  isElite: true  },
+            // Ruins
+            dimeni:  { w: 50, h: 50, hp: 4,  speed: 2.8, color: '#eab308', canShoot: false, isElite: false },
+            chaos:   { w: 80, h: 80, hp: 8,  speed: 1.8, color: '#ef4444', canShoot: true,  isElite: true  }
+        };
+
+        /*
+         * Map each area to the list of enemy type keys that can appear there.
+         * Rare/elite enemies are included but will be selected less often.
+         */
+        const areaEnemies = {
+            forest: ['rappy','booma','sinow','alrappy','hildebear'],
+            caves:  ['booma','sinow','evilshark','poisonlily','grassass','nano'],
+            mines:  ['sinow','baranz','gilchic','canane'],
+            ruins:  ['booma','sinow','dimeni','chaos']
+        };
+
+        /*
+         * Utility: lighten a hex colour by a percentage.  Takes a hex string
+         * (e.g. "#ef4444") and returns a new colour string with RGB values
+         * increased towards 255 by the specified percent.  Used to create
+         * telegraph colours for bosses when they are about to attack.
+         */
+        function lightenColor(color, percent) {
+            try {
+                let num = parseInt(color.slice(1), 16);
+                let r = (num >> 16) & 0xFF;
+                let g = (num >> 8) & 0xFF;
+                let b = num & 0xFF;
+                r = Math.min(255, Math.round(r + (255 - r) * percent));
+                g = Math.min(255, Math.round(g + (255 - g) * percent));
+                b = Math.min(255, Math.round(b + (255 - b) * percent));
+                return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+            } catch(e) {
+                return color;
+            }
+        }
+
+        class Game {
+            constructor(canvas, playerClass) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.width = canvas.width;
+                this.height = canvas.height;
+                this.running = false;
+                this.playerClass = playerClass || 'hunter';
+                this.player = {
+                    x: 50, y: this.height / 2 - 20, w: 40, h: 40,
+                    dy: 0, dx: 0,
+                    speed: 5, lives: 3, invincible: 0,
+                    weaponLevel: 1,
+                    syncTimer: 1000,
+                    maxSync: 1000,
+                    shootInterval: 12,
+                    damageMultiplier: 1.0,
+                    rareTimer: 0,
+                    // rareEffect tracks which rare upgrade is active (hunter, ranger, force) or null
+                    rareEffect: null,
+                    slowTimer: 0,
+                    // Weapon type indicates the current weapon build.  For
+                    // hunters this remains 'normal' (large sabers); for
+                    // rangers this may be 'handgun','shotgun','rifle' or
+                    // 'bazooka'; for force this is 'tech'.
+                    weaponType: 'normal',
+                    // Element for force characters: 'fire','lightning','ice'
+                    element: 'fire',
+                    // Shields absorb hits before lives are reduced.  Each shield
+                    // collected via a powerup allows the player to take one hit
+                    // without losing a life.  Shields are displayed next to
+                    // hearts.  Starts at zero.
+                    shield: 0
+                };
+
+        // Track which boss is currently active.  When a boss spawns,
+        // spawnBossSequence will set this value to the boss's type
+        // (e.g. 'dragon', 'derolle', 'volopt', 'falz').  When the boss
+        // is defeated, killEnemy resets this property to null.
+        this.currentBossType = null;
+                if (this.playerClass === 'hunter') {
+                    // Hunters are tanky and slow: grant more lives and lower speed
+                    this.player.lives = 7;
+                    this.player.speed = 3;
+                    this.magRate = 1.0;
+                    this.player.damage = 0.8;
+                    this.player.weaponType = 'normal';
+                } else if (this.playerClass === 'ranger') {
+                    // Rangers are fast but fragile: standard lives and high speed
+                    this.player.lives = 3;
+                    this.player.speed = 9;
+                    this.magRate = 1.0;
+                    this.player.damage = 0.5;
+                    // Start with a handgun; other guns will be unlocked through upgrades
+                    this.player.weaponType = 'handgun';
+                } else if (this.playerClass === 'force') {
+                    // Mages have few lives but powerful tech; give a second life
+                    this.player.lives = 2;
+                    this.player.speed = 3;
+                    this.magRate = 2.0;
+                    this.player.shootInterval = 25;
+                    this.player.damage = 0.4;
+                    // Start with fire element
+                    this.player.weaponType = 'tech';
+                    this.player.element = 'fire';
+                }
+                this.score = 0;
+                this.highScore = parseInt(localStorage.getItem('psoHighScore') || '0', 10);
+                this.level = 1;
+                this.frame = 0;
+                this.spawnRate = 60;
+                this.bullets = [];
+                this.enemies = [];
+                this.powerUps = [];
+                this.enemyBullets = [];
+                this.blastEnergy = 0;
+                this.bossSpawnedForLevel = false;
+                // Track enemy kills to determine when to level up and spawn bosses.
+                this.killsThisLevel = 0;
+                // Determine how many kills are required for the next level.  Start
+                // with a moderate number and increase slightly with each level.
+                this.levelTargetKills = 30;
+                // Current area (used to change background). Initially start in forest.
+                this.area = 'forest';
+                // Colours representing each map area. These can be tuned to taste.
+                this.areaColors = {
+                    forest: '#052e16', // dark green
+                    caves: '#0e2433',  // deep blue
+                    mines: '#2e2e2e',  // dark grey
+                    ruins: '#40263e'   // purple
+                };
+                this.input = { up: false, down: false, left: false, right: false, shoot: false, blast: false };
+                this.lastTouchEnd = 0;
+                this.isTouchActive = false;
+                this.sounds = {
+                    shoot: (freq = 880) => this.playSfx(freq, 'square', 0.08, 0.05),
+                    hit: () => this.playSfx(440, 'square', 0.1),
+                    explode: () => this.playSfx(220, 'sawtooth', 0.3),
+                    power: () => this.playSfx(620, 'triangle', 0.2),
+                    blast: () => this.playSfx(110, 'sine', 0.5, 0.2),
+                    warning: () => this.playSfx(150, 'sawtooth', 0.8, 0.2),
+                    levelup: () => this.playSfx(880, 'triangle', 0.5, 0.2),
+                    powerdown: () => this.playSfx(150, 'square', 0.5, 0.2),
+                    rare: () => this.playSfx(1200, 'square', 1.0, 0.3)
+                };
+                this.initInputs();
+
+        // Assign the preloaded images to this instance so that render()
+        // can access them.  The global bossBackgrounds object is
+        // defined outside the class and contains Image objects keyed by
+        // boss type.
+        this.bossBackgrounds = bossBackgrounds;
+
+        // Store sprite images for class avatars.  If these images are
+        // unavailable or fail to load, the game will draw a triangle
+        // representation instead.  See the spriteImages definition in
+        // the global scope above.
+        this.spriteImages = spriteImages;
+
+        // Bind methods that may be used as callbacks to ensure that
+        // `this` always refers to the Game instance.  Without binding,
+        // calling spawnEnemy() from within other methods (e.g. inside
+        // spawnEnemyBullet) could result in an undefined context if
+        // JavaScript's `this` is rebound (for example, when using the
+        // function as an event handler).  Binding here prevents errors
+        // like “spawnEnemy is not a function”.
+        this.spawnEnemy = this.spawnEnemy.bind(this);
+        this.spawnEnemyBullet = this.spawnEnemyBullet.bind(this);
+                // Store a reference to the global background image. It will
+                // load asynchronously; when complete the render method will
+                // draw the appropriate quadrant based on the current area.
+                this.backgroundImg = areaBackgroundImg;
+            }
+            initInputs() {
+                window.addEventListener('keydown', (e) => {
+                    if (!this.running) return;
+                    if (e.code === 'ArrowUp' || e.code === 'KeyW') this.input.up = true;
+                    if (e.code === 'ArrowDown' || e.code === 'KeyS') this.input.down = true;
+                    if (e.code === 'ArrowLeft' || e.code === 'KeyA') this.input.left = true;
+                    if (e.code === 'ArrowRight' || e.code === 'KeyD') this.input.right = true;
+                    if (e.code === 'Space') this.input.shoot = true;
+                    if (e.code === 'ShiftLeft' || e.code === 'KeyX') this.input.blast = true;
+                });
+                window.addEventListener('keyup', (e) => {
+                    if (!this.running) return;
+                    if (e.code === 'ArrowUp' || e.code === 'KeyW') this.input.up = false;
+                    if (e.code === 'ArrowDown' || e.code === 'KeyS') this.input.down = false;
+                    if (e.code === 'ArrowLeft' || e.code === 'KeyA') this.input.left = false;
+                    if (e.code === 'ArrowRight' || e.code === 'KeyD') this.input.right = false;
+                    if (e.code === 'Space') this.input.shoot = false;
+                    if (e.code === 'ShiftLeft' || e.code === 'KeyX') this.input.blast = false;
+                });
+                const getTouchPos = (e) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const scaleY = this.canvas.height / rect.height;
+                    const scaleX = this.canvas.width / rect.width;
+                    return {
+                        x: (e.touches[0].clientX - rect.left) * scaleX,
+                        y: (e.touches[0].clientY - rect.top) * scaleY
+                    };
+                };
+                this.canvas.addEventListener('touchstart', (e) => {
+                    if (!this.running) return;
+                    e.preventDefault();
+                    this.isTouchActive = true;
+                    this.input.shoot = true;
+                    const currentTime = new Date().getTime();
+                    const tapLength = currentTime - this.lastTouchEnd;
+                    if (tapLength < 300 && tapLength > 0) this.triggerBlast();
+                    this.lastTouchEnd = currentTime;
+                    const pos = getTouchPos(e);
+                    this.handleTouchMove(pos.x, pos.y);
+                }, {passive: false});
+                this.canvas.addEventListener('touchmove', (e) => {
+                    if (!this.running) return;
+                    e.preventDefault();
+                    const pos = getTouchPos(e);
+                    this.handleTouchMove(pos.x, pos.y);
+                }, {passive: false});
+                this.canvas.addEventListener('touchend', (e) => {
+                    if (!this.running) return;
+                    e.preventDefault();
+                    if (e.touches.length === 0) {
+                        this.isTouchActive = false;
+                        this.input.shoot = false;
+                        this.player.dy = 0;
+                        this.player.dx = 0;
+                    }
+                }, {passive: false});
+            }
+            handleTouchMove(xPos, yPos) {
+                this.player.y = yPos - (this.player.h / 2);
+                this.player.x = xPos - (this.player.w / 2);
+            }
+            triggerBlast() {
+                if (this.blastEnergy >= 100) {
+                    this.input.blast = true;
+                    setTimeout(() => this.input.blast = false, 200);
+                }
+            }
+            start() {
+                this.running = true;
+                this.loop();
+            }
+            loop() {
+                if (!this.running) return;
+                this.update();
+                this.render();
+                requestAnimationFrame(() => this.loop());
+            }
+            spawnBossSequence(name, type, color) {
+                this.bossSpawnedForLevel = true;
+                // Record the type of boss that is about to spawn so that
+                // render() can display the appropriate boss room background.
+                this.currentBossType = type;
+                const warning = document.getElementById('boss-warning');
+                warning.innerHTML = `WARNING<br>${name.toUpperCase()}`;
+                warning.style.display = 'block';
+                this.sounds.warning();
+                this.enemies = [];
+                setTimeout(() => {
+                    warning.style.display = 'none';
+                    // Reduce boss HP to make fights less punishing. The first boss
+                    // (dragon on level 5) receives a higher starting value but
+                    // overall health values are lower than before. See issue
+                    // report “boss is too hard. less hp on boss. slightly easier
+                    // for first boss.”
+                    // Further reduce boss HP to address feedback that fights
+                    // remain too long.  Base HP starts lower and scales
+                    // modestly with level.  Dragon on level 5 still gets a
+                    // slightly larger pool.
+                    let baseHp = 500;
+                    if (type === 'dragon' && this.level === 5) baseHp = 800;
+                    // Scale by 150 HP per level instead of 200
+                    let hp = baseHp + (this.level * 150);
+                    let boss = {
+                        type: type,
+                        isBoss: true,
+                        x: this.width + 100,
+                        y: this.height/2 - 75,
+                        w: 150,
+                        h: 150,
+                        hp: hp,
+                        maxHp: hp,
+                        speed: 2,
+                        color: color,
+                        baseColor: color,
+                        canShoot: true,
+                        shotTimer: 60,
+                        telegraph: 0,
+                        telegraphColor: null,
+                        patternIndex: 0
+                    };
+                    this.enemies.push(boss);
+
+                    // Spawn a handful of add‑on enemies alongside the boss.
+                    // These smaller enemies provide an opportunity to earn
+                    // upgrades during the boss fight.  They are marked with
+                    // alwaysDrops=true so that they will always drop a
+                    // weapon upgrade when defeated.  Their types alternate
+                    // between booma and sinow to introduce variety.
+                    for (let i = 0; i < 3; i++) {
+                        const addType = (i % 2 === 0) ? 'booma' : 'sinow';
+                        let minion = { type: addType, alwaysDrops: true, canShoot: false };
+                        // Position add‑ons slightly off‑screen to the right so they
+                        // enter the battlefield shortly after the boss.  Stagger
+                        // their vertical positions across the screen.
+                        minion.x = this.width + 150 + i * 60;
+                        minion.y = Math.random() * (this.height - 60);
+                        if (addType === 'booma') {
+                            Object.assign(minion, { w: 42, h: 42, hp: 2, maxHp: 2, speed: 2.5, color: '#2ea043', canShoot: false });
+                        } else if (addType === 'sinow') {
+                            Object.assign(minion, { w: 50, h: 50, hp: 3, maxHp: 3, speed: 3.5, color: '#c084fc', canShoot: true });
+                        }
+                        this.enemies.push(minion);
+                    }
+                }, 3000);
+            }
+            update() {
+                this.frame++;
+                // Determine if a boss is currently active.  This flag
+                // must be defined before any references below (e.g. to
+                // prevent reference errors).  It is recomputed at the
+                // beginning of each update cycle.
+                let isBossActive = this.enemies.some(e => e.isBoss);
+                // Remove time‑based level progression.  Levels now advance
+                // based on the number of enemies defeated (killsThisLevel).
+                // The old timer‑based mechanic that incremented the level
+                // every 1500 frames has been removed to prevent bosses
+                // from spawning while a previous boss is still alive.  See
+                // the kill threshold check near the end of this update
+                // method for the new progression logic.
+                // Determine the current map area based on the player's level.
+                // Levels 1–4: forest, 5–9: caves, 10–14: mines, 15+: ruins.
+                if (this.level < 5) {
+                    this.area = 'forest';
+                } else if (this.level < 10) {
+                    this.area = 'caves';
+                } else if (this.level < 15) {
+                    this.area = 'mines';
+                } else {
+                    this.area = 'ruins';
+                }
+                // Spawn a boss only when the appropriate level is reached
+                // and no other boss is currently active.  Without the
+                // isBossActive check, a new boss could spawn while the
+                // previous one is still alive if the level advances due to
+                // kills.  The bossSpawnedForLevel flag prevents multiple
+                // spawns for the same level.
+                if (!this.bossSpawnedForLevel && !isBossActive) {
+                    if (this.level === 5) this.spawnBossSequence('Dragon', 'dragon', '#eab308');
+                    else if (this.level === 10) this.spawnBossSequence('De Rol Le', 'derolle', '#a855f7');
+                    else if (this.level === 15) this.spawnBossSequence('Vol Opt', 'volopt', '#ef4444');
+                    else if (this.level === 20) this.spawnBossSequence('Dark Falz', 'falz', '#c084fc');
+                }
+                if (this.player.rareTimer > 0) {
+                    this.player.rareTimer--;
+                    if (this.player.rareTimer === 0) {
+                        // Rare effect wears off: hide notification and clear effect
+                        document.getElementById('rare-notification').style.display = 'none';
+                        this.player.rareEffect = null;
+                    } else if (this.player.rareEffect === 'force' && this.player.rareTimer % 15 === 0) {
+                        // Force rare effect: spawn a vertical homing beam at a random enemy
+                        if(this.enemies.length > 0) {
+                            let target = this.enemies[Math.floor(Math.random() * this.enemies.length)];
+                            this.bullets.push({
+                                x: target.x, y: target.y - 100,
+                                w: 20, h: 100, s: 0,
+                                piercing: true, homing: false, life: 10,
+                                isGrants: true
+                            });
+                        }
+                    }
+                }
+                if (this.player.syncTimer > 0) {
+                    this.player.syncTimer--;
+                } else {
+                    if (this.player.weaponLevel > 1) {
+                        this.player.weaponLevel--;
+                        this.player.syncTimer = this.player.maxSync;
+                        this.sounds.powerdown();
+                        if (this.player.weaponLevel < 10) this.player.damageMultiplier = 1.0;
+                    }
+                }
+                if (!this.isTouchActive) {
+                    if (this.input.up) this.player.dy = -this.player.speed;
+                    else if (this.input.down) this.player.dy = this.player.speed;
+                    else this.player.dy = 0;
+                    this.player.y += this.player.dy;
+                    if (this.input.left) this.player.dx = -this.player.speed;
+                    else if (this.input.right) this.player.dx = this.player.speed;
+                    else this.player.dx = 0;
+                    this.player.x += this.player.dx;
+                }
+                this.player.y = Math.max(0, Math.min(this.height - this.player.h, this.player.y));
+                this.player.x = Math.max(0, Math.min(this.width - this.player.w, this.player.x));
+                let shootRate = this.player.shootInterval;
+                // Ranger rare effect dramatically reduces shoot interval for bullet hell
+                if (this.player.rareTimer > 0 && this.player.rareEffect === 'ranger') shootRate = 2;
+                if (this.input.shoot && this.frame % shootRate === 0) this.shoot();
+                if (this.input.blast && this.blastEnergy >= 100) this.photonBlast();
+                if (this.player.slowTimer > 0) {
+                    this.player.slowTimer--;
+                    if (this.frame % 2 !== 0) return;
+                }
+                // Recompute isBossActive later only if needed; we
+                // maintain the earlier definition at the top of update.
+                if (!isBossActive && this.frame % this.spawnRate === 0) this.spawnEnemy();
+                // Remove the periodic random power‑up spawns.  Players must now
+                // defeat enemies or boss add‑ons to earn weapon upgrades and
+                // consumables.  This line used to call spawnPowerUp every 600
+                // frames but has been removed in response to feedback that
+                // drop rates were too high and random upgrades undermined
+                // progression.
+                // if (this.frame % 600 === 0) this.spawnPowerUp();
+                this.bullets.forEach((b, i) => {
+                    if (b.isGrants) {
+                        b.y += 20;
+                    } else {
+                        b.x += b.s;
+                        if (b.homing) {
+                            let nearest = null;
+                            let minDist = 9999;
+                            this.enemies.forEach(e => {
+                                let dist = Math.hypot(e.x - b.x, e.y - b.y);
+                                if (dist < minDist && e.x > b.x) {
+                                    minDist = dist;
+                                    nearest = e;
+                                }
+                            });
+                            if (nearest) {
+                                let dy = nearest.y - b.y;
+                                let turnSpeed = 1.0;
+                                if (Math.abs(dy) < turnSpeed) b.y += dy;
+                                else b.y += Math.sign(dy) * turnSpeed;
+                            }
+                        }
+                    }
+                    if (b.x > this.width || b.x < 0 || b.y < 0 || b.y > this.height) {
+                        this.bullets.splice(i, 1);
+                    } else if (b.life && --b.life <= 0) {
+                        this.bullets.splice(i, 1);
+                    }
+                });
+                this.enemies.forEach((e, i) => {
+                    if (e.isBoss) {
+                        if (e.x > this.width - e.w - 20) {
+                            e.x -= e.speed;
+                        } else {
+                            e.x = (this.width - e.w - 20) + Math.sin(this.frame / 70) * 40;
+                        }
+                        let sweepRange = (this.height - 100);
+                        e.y = (this.height/2 - e.h/2) + Math.sin(this.frame / 60) * (sweepRange / 2);
+                    } else {
+                        e.x -= e.speed;
+                        if (e.type === 'sinow') e.y += Math.sin(this.frame / 10) * e.speed;
+                    }
+                    if (this.checkCollision(e, this.player) && this.player.invincible <= 0) {
+                        // Hunter rare effect grants temporary invincibility
+                        if (!(this.player.rareTimer > 0 && this.player.rareEffect === 'hunter')) {
+                            this.takeHit();
+                            if (!e.isBoss) {
+                                this.enemies.splice(i, 1);
+                                return;
+                            }
+                        }
+                    }
+                    if (e.x + e.w < 0) this.enemies.splice(i, 1);
+                    if (e.canShoot) {
+                        e.shotTimer--;
+                        if (e.isBoss) {
+                            // Bosses telegraph their attacks: when the shot timer
+                            // expires and no telegraph is in progress, begin a
+                            // telegraph period.  During telegraph, the boss
+                            // changes colour (lighter) and enlarges.  When
+                            // telegraph ends, the attack is executed.
+                            if (e.telegraph > 0) {
+                                e.telegraph--;
+                                if (e.telegraph === 0) {
+                                    // Telegraph finished: fire the attack
+                                    this.spawnEnemyBullet(e);
+                                    // Reset boss colour
+                                    e.color = e.baseColor;
+                                    // Set next shot timer for bosses.  Longer
+                                    // cooldown produces bullet hell without
+                                    // overwhelming the player.  Add some
+                                    // randomness to avoid monotony.
+                                    e.shotTimer = 100 + Math.random() * 40;
+                                }
+                            } else if (e.shotTimer <= 0) {
+                                // Begin telegraph
+                                e.telegraph = 30; // telegraph duration in frames
+                                // Compute lighter colour for telegraph effect
+                                e.telegraphColor = lightenColor(e.baseColor, 0.5);
+                                e.color = e.telegraphColor;
+                                // Reset shot timer to 0 so that telegraph countdown
+                                // handles the firing schedule
+                                e.shotTimer = 0;
+                            }
+                        } else {
+                            // Non-boss shooting behaviour remains unchanged
+                            if (e.shotTimer <= 0) {
+                                this.spawnEnemyBullet(e);
+                                e.shotTimer = 90 + Math.random() * 20;
+                            }
+                        }
+                    }
+                });
+                this.powerUps.forEach((p, i) => {
+                    p.x -= p.speed;
+                    if (this.checkCollision(p, this.player)) {
+                        this.applyPowerUp(p);
+                        this.powerUps.splice(i, 1);
+                        return;
+                    }
+                    if (p.x + p.w < 0) this.powerUps.splice(i, 1);
+                });
+                this.bullets.forEach((b, bi) => {
+                    this.enemies.forEach((e, ei) => {
+                        if (this.checkCollision(b, e)) {
+                            let baseDmg = this.player.damage;
+                            let dmg = baseDmg * this.player.damageMultiplier;
+                            if (this.player.rareTimer > 0) {
+                                // Hunter rare effect dramatically increases damage
+                                if (this.player.rareEffect === 'hunter') dmg = 10;
+                                // Force rare effect grants moderate damage boost
+                                if (this.player.rareEffect === 'force') dmg = 5;
+                            }
+                            e.hp -= dmg;
+                            this.sounds.hit();
+                            if (!b.piercing) this.bullets.splice(bi, 1);
+                            if (e.hp <= 0) {
+                                this.killEnemy(e);
+                                this.enemies.splice(ei, 1);
+                            }
+                        }
+                    });
+                });
+                if (this.player.weaponType === 'laser') {
+                    const beamY1 = this.player.y + this.player.h * 0.25;
+                    const beamY2 = this.player.y + this.player.h * 0.75;
+                    this.enemies.forEach((e, ei) => {
+                        if (e.x + e.w > this.player.x + this.player.w && e.y < beamY2 && e.y + e.h > beamY1) {
+                            e.hp -= (0.5 * this.player.damageMultiplier);
+                            if (e.hp <= 0) {
+                                this.killEnemy(e);
+                                this.enemies.splice(ei, 1);
+                            }
+                        }
+                    });
+                }
+                this.enemyBullets.forEach((eb, ei) => {
+                    eb.x -= (eb.vx || eb.s || 0);
+                    eb.y += (eb.vy || 0);
+                    if (this.checkCollision(eb, this.player) && this.player.invincible <= 0) {
+                        // Hunter rare effect confers invincibility against enemy bullets
+                        if (!(this.player.rareTimer > 0 && this.player.rareEffect === 'hunter')) {
+                            this.takeHit();
+                            this.enemyBullets.splice(ei, 1);
+                            return;
+                        }
+                    }
+                    if (eb.x + eb.w < 0 || eb.y + eb.h < 0 || eb.y > this.height) this.enemyBullets.splice(ei, 1);
+                });
+                if (this.player.invincible > 0) this.player.invincible--;
+                document.getElementById('score').textContent = this.score;
+                let lvlDisplay = this.player.weaponLevel >= 10 ? "10 (MAX)" : this.player.weaponLevel;
+                document.getElementById('level').textContent = lvlDisplay;
+                // Update lives display
+                document.getElementById('lives').textContent = this.player.lives;
+                document.getElementById('dmg-mult').textContent = "DMG: x" + this.player.damageMultiplier.toFixed(2);
+                document.getElementById('blast-fill').style.width = Math.min(this.blastEnergy, 100) + '%';
+                let syncPct = (this.player.syncTimer / this.player.maxSync) * 100;
+                document.getElementById('sync-fill').style.width = syncPct + '%';
+
+                // Update the weapon/tech display in the HUD.  Display the current
+                // weapon or element depending on the class.  Hunters show
+                // "LASER" when the beam is active, otherwise "SABER".
+                // Rangers show their equipped gun type (handgun, shotgun,
+                // rifle, bazooka).  Forces show their current element.
+                const weaponLabelEl = document.getElementById('weapon-info');
+                if (weaponLabelEl) {
+                    const lvlText = ` L${Math.min(this.player.weaponLevel, 10)}`;
+                    if (this.playerClass === 'hunter') {
+                        const label = (this.player.weaponType === 'laser') ? 'LASER' : 'SABER';
+                        weaponLabelEl.textContent = label + lvlText;
+                    } else if (this.playerClass === 'ranger') {
+                        const gunMap = { handgun:'HANDGUN', shotgun:'SHOTGUN', rifle:'RIFLE', bazooka:'BAZOOKA' };
+                        const label = gunMap[this.player.weaponType] || this.player.weaponType.toUpperCase();
+                        weaponLabelEl.textContent = label + lvlText;
+                    } else if (this.playerClass === 'force') {
+                        const techMap = { fire:'FIRE', lightning:'LIGHTNING', ice:'ICE' };
+                        const label = techMap[this.player.element] || (this.player.element || '').toUpperCase();
+                        weaponLabelEl.textContent = label + lvlText;
+                    }
+                }
+
+                // ---------------- LEVEL PROGRESSION BY KILL COUNT ----------------
+                // After handling all per‑frame updates, check whether the
+                // player has defeated enough enemies to progress to the next
+                // level.  Do not level up if a boss is currently active;
+                // instead wait until after the boss is defeated.  When the
+                // kill threshold is reached and no boss is present, increase
+                // the level, reset the kill counter, and compute a new
+                // threshold for subsequent levels.  Also reduce the spawn
+                // interval slightly to increase difficulty over time and
+                // allow the next boss to spawn when its level milestone is
+                // reached.
+                if (!isBossActive && this.killsThisLevel >= this.levelTargetKills) {
+                    this.level++;
+                    this.killsThisLevel = 0;
+                    // Increase the target kills slightly for each level to
+                    // reflect progression; start with a base of 30 and add
+                    // 5 per level.
+                    this.levelTargetKills = 30 + (this.level * 5);
+                    // Decrease spawnRate to increase enemy density over
+                    // time, but never drop below 15 frames between spawns.
+                    this.spawnRate = Math.max(15, this.spawnRate - 5);
+                    // Allow boss spawning for the new level when it reaches
+                    // the appropriate milestone (5, 10, 15, etc.).
+                    this.bossSpawnedForLevel = false;
+                }
+            }
+            render() {
+                const ctx = this.ctx;
+                ctx.clearRect(0, 0, this.width, this.height);
+                // Draw background depending on loaded image. If the composite
+                // image is ready, crop the appropriate quadrant according to
+                // the current area. Otherwise fall back to a solid colour.
+                /* Draw the appropriate background.  If a boss fight is in
+                 * progress (currentBossType is set), use the boss-specific
+                 * background.  Otherwise draw the map area background.  We
+                 * still guard against broken images by checking naturalWidth.
+                 */
+                let drewBackground = false;
+                if (this.currentBossType && this.bossBackgrounds[this.currentBossType]) {
+                    const bImg = this.bossBackgrounds[this.currentBossType];
+                    if (bImg.complete && bImg.naturalWidth > 0) {
+                        ctx.drawImage(bImg, 0, 0, this.width, this.height);
+                        drewBackground = true;
+                    }
+                }
+                if (!drewBackground) {
+                    // Fall back to the area background (composite quadrants).
+                    if (this.backgroundImg && this.backgroundImg.complete && this.backgroundImg.naturalWidth > 0) {
+                        const coord = areaCoords[this.area] || { sx: 0, sy: 0 };
+                        const sw = 768;
+                        const sh = 512;
+                        ctx.drawImage(this.backgroundImg, coord.sx, coord.sy, sw, sh,
+                                      0, 0, this.width, this.height);
+                    } else {
+                        // Final fallback: plain colour by area.
+                        ctx.fillStyle = this.areaColors[this.area] || '#0a0e1a';
+                        ctx.fillRect(0, 0, this.width, this.height);
+                    }
+                }
+                // Draw the player avatar.  If a sprite image exists for
+                // this class and has loaded, draw it scaled to the
+                // player's bounding box.  Otherwise fall back to the
+                // original triangle indicator coloured by class.  Apply
+                // invincibility flicker and rare effect glow as
+                // overlays.  After drawing, render small dots below the
+                // character to indicate weapon level.
+                ctx.save();
+                // Flicker when invincible
+                if (this.player.invincible > 0 && Math.floor(this.frame / 5) % 2 === 0) {
+                    ctx.globalAlpha = 0.5;
+                }
+                // Rare effect glow
+                if (this.player.rareTimer > 0 && this.player.rareEffect) {
+                    ctx.shadowBlur = 20;
+                    const glowMap = { hunter:'#ef4444', ranger:'#22c55e', force:'#a855f7' };
+                    ctx.shadowColor = glowMap[this.player.rareEffect] || '#ef4444';
+                }
+                const spriteImg = this.spriteImages[this.playerClass];
+                if (spriteImg && spriteImg.complete && spriteImg.naturalWidth > 0) {
+                    // Disable smoothing to preserve crisp pixel art when scaling
+                    const prevSmoothing = ctx.imageSmoothingEnabled;
+                    ctx.imageSmoothingEnabled = false;
+                    ctx.drawImage(spriteImg, this.player.x, this.player.y, this.player.w, this.player.h);
+                    // Restore previous smoothing setting
+                    ctx.imageSmoothingEnabled = prevSmoothing;
+                } else {
+                    // Fallback triangle in class colour
+                    if (this.playerClass === 'hunter') ctx.fillStyle = '#f97316';
+                    else if (this.playerClass === 'ranger') ctx.fillStyle = '#22c55e';
+                    else ctx.fillStyle = '#a855f7';
+                    ctx.beginPath();
+                    ctx.moveTo(this.player.x, this.player.y + this.player.h / 2);
+                    ctx.lineTo(this.player.x + this.player.w, this.player.y);
+                    ctx.lineTo(this.player.x + this.player.w, this.player.y + this.player.h);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                // Reset shadow for subsequent drawings
+                ctx.shadowBlur = 0;
+                // Draw weapon level dots beneath the player
+                ctx.fillStyle = '#ffffff';
+                const lvlDots = Math.min(10, this.player.weaponLevel);
+                for (let i = 0; i < lvlDots; i++) {
+                    ctx.fillRect(this.player.x + (i * 4), this.player.y + this.player.h + 5, 3, 3);
+                }
+                ctx.restore();
+                this.bullets.forEach(b => {
+                    if (b.isGrants) {
+                        ctx.fillStyle = '#facc15';
+                        ctx.fillRect(b.x, b.y, b.w, b.h);
+                    } else {
+                        // Use bullet colour if specified, otherwise fall back to default blue
+                        ctx.fillStyle = b.color || '#58a6ff';
+                        ctx.fillRect(b.x, b.y, b.w, b.h);
+                    }
+                });
+                // If the hunter's weapon type has become a continuous laser, draw
+                // the beam across the screen so it is visually apparent.
+                if (this.player.weaponType === 'laser') {
+                    const xStart = this.player.x + this.player.w;
+                    const beamY = this.player.y + this.player.h * 0.25;
+                    const beamH = this.player.h * 0.5;
+                    ctx.fillStyle = '#58a6ff';
+                    ctx.globalAlpha = 0.6;
+                    ctx.fillRect(xStart, beamY, this.width - xStart, beamH);
+                    ctx.globalAlpha = 1.0;
+                }
+                this.enemies.forEach(e => {
+                    ctx.fillStyle = e.color;
+                    ctx.fillRect(e.x, e.y, e.w, e.h);
+                    ctx.fillStyle = '#262b31';
+                    ctx.fillRect(e.x, e.y - 10, e.w, 6);
+                    ctx.fillStyle = e.isBoss ? '#ef4444' : '#68c896';
+                    ctx.fillRect(e.x, e.y - 10, e.w * (e.hp / e.maxHp), 6);
+                });
+                this.powerUps.forEach(p => {
+                    ctx.fillStyle = p.color;
+                    /*
+                     * Draw powerups with distinct shapes based on type.  Rare
+                     * drops (types beginning with "rare-") are drawn as
+                     * glowing rectangles.  Hunter weapon upgrades are
+                     * squares; ranger guns use circles, triangles, diamonds
+                     * and rectangles to represent handgun, shotgun, bazooka
+                     * and rifle respectively; force techs use triangles,
+                     * diamonds and hexagons for fire, lightning and ice.
+                     * Consumables (heal, shield, blast) remain circles.
+                     */
+                    const t = p.type || '';
+                    if (t.startsWith('rare')) {
+                        ctx.shadowBlur = 15;
+                        ctx.shadowColor = p.color;
+                        ctx.fillRect(p.x, p.y, p.w, p.h);
+                        ctx.shadowBlur = 0;
+                        return;
+                    }
+                    // Determine shape based on type
+                    // Helper functions to draw polygons
+                    function drawTriangle(x, y, w, h) {
+                        ctx.beginPath();
+                        ctx.moveTo(x + w/2, y); // top
+                        ctx.lineTo(x + w, y + h); // bottom right
+                        ctx.lineTo(x, y + h); // bottom left
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                    function drawDiamond(x, y, w, h) {
+                        ctx.beginPath();
+                        ctx.moveTo(x + w/2, y); // top
+                        ctx.lineTo(x + w, y + h/2); // right
+                        ctx.lineTo(x + w/2, y + h); // bottom
+                        ctx.lineTo(x, y + h/2); // left
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                    function drawPentagon(x, y, w, h) {
+                        const cx = x + w / 2;
+                        const cy = y + h / 2;
+                        const r = w / 2;
+                        ctx.beginPath();
+                        for (let i = 0; i < 5; i++) {
+                            const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+                            const px = cx + r * Math.cos(angle);
+                            const py = cy + r * Math.sin(angle);
+                            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                        }
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                    function drawHexagon(x, y, w, h) {
+                        const cx = x + w / 2;
+                        const cy = y + h / 2;
+                        const r = w / 2;
+                        ctx.beginPath();
+                        for (let i = 0; i < 6; i++) {
+                            const angle = (Math.PI * 2 * i) / 6 - Math.PI / 2;
+                            const px = cx + r * Math.cos(angle);
+                            const py = cy + r * Math.sin(angle);
+                            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                        }
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                    // Choose shape
+                    if (t === 'weapon-hunter') {
+                        // Hunters upgrade: square
+                        ctx.fillRect(p.x, p.y, p.w, p.h);
+                    } else if (t.startsWith('gun-handgun')) {
+                        // Handgun: circle
+                        ctx.beginPath();
+                        ctx.arc(p.x + p.w / 2, p.y + p.h / 2, p.w / 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else if (t.startsWith('gun-shotgun')) {
+                        // Shotgun: triangle
+                        drawTriangle(p.x, p.y, p.w, p.h);
+                    } else if (t.startsWith('gun-rifle')) {
+                        // Rifle: vertical rectangle (taller than wide)
+                        const rw = p.w * 0.4;
+                        const rh = p.h * 1.2;
+                        ctx.fillRect(p.x + (p.w - rw)/2, p.y + (p.h - rh)/2, rw, rh);
+                    } else if (t.startsWith('gun-bazooka')) {
+                        // Bazooka: diamond
+                        drawDiamond(p.x, p.y, p.w, p.h);
+                    } else if (t.startsWith('tech-fire')) {
+                        // Fire: triangle
+                        drawTriangle(p.x, p.y, p.w, p.h);
+                    } else if (t.startsWith('tech-lightning')) {
+                        // Lightning: diamond
+                        drawDiamond(p.x, p.y, p.w, p.h);
+                    } else if (t.startsWith('tech-ice')) {
+                        // Ice: hexagon
+                        drawHexagon(p.x, p.y, p.w, p.h);
+                    } else if (t === 'heal' || t === 'shield' || t === 'blast') {
+                        // Consumables: circle
+                        ctx.beginPath();
+                        ctx.arc(p.x + p.w / 2, p.y + p.h / 2, p.w / 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else {
+                        // Default: circle
+                        ctx.beginPath();
+                        ctx.arc(p.x + p.w / 2, p.y + p.h / 2, p.w / 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+                this.enemyBullets.forEach(eb => {
+                    ctx.fillStyle = eb.color || '#f87171';
+                    ctx.fillRect(eb.x, eb.y, eb.w, eb.h);
+                });
+
+                // Draw player lives as heart icons outside the HUD.  This
+                // provides a visual, PSO‑inspired representation of the
+                // remaining HP.  Hearts are coloured to match the player's
+                // class and spaced evenly along the top-left of the canvas.
+                const heartSize = 16;
+                ctx.font = heartSize + 'px Arial';
+                const heartColorMap = { hunter: '#f97316', ranger: '#22c55e', force: '#a855f7' };
+                ctx.fillStyle = heartColorMap[this.playerClass] || '#f87171';
+                for (let i = 0; i < this.player.lives; i++) {
+                    const hx = 10 + i * (heartSize + 4);
+                    const hy = 8;
+                    ctx.fillText('❤', hx, hy + heartSize);
+                }
+                // Draw shield icons (🛡️) next to hearts to indicate extra hits
+                ctx.fillStyle = '#38bdf8';
+                for (let i = 0; i < this.player.shield; i++) {
+                    const sx = 10 + (this.player.lives + i) * (heartSize + 4);
+                    const sy = 8;
+                    ctx.fillText('🛡️', sx, sy + heartSize);
+                }
+            }
+            shoot() {
+                this.sounds.shoot();
+                let offsets = [0];
+                // Basic bullet properties.  Each weapon type will override
+                // these as necessary.  Includes a colour field so that
+                // different guns and elements can appear visually distinct.
+                let bulletProps = { w: 12, h: 4, s: 8, piercing: false, homing: false, life: 999, color: null };
+                const lvl = this.player.weaponLevel;
+                if (this.player.rareTimer > 0) {
+                    // Rare patterns are determined by the active rare effect rather than the player's class
+                    if (this.player.rareEffect === 'hunter') {
+                        bulletProps.w = 300; bulletProps.h = 400; bulletProps.s = 15; bulletProps.piercing = true;
+                        offsets = [0];
+                    } else if (this.player.rareEffect === 'ranger') {
+                        offsets = [-100,-80,-60,-40,-20,0,20,40,60,80,100];
+                    } else if (this.player.rareEffect === 'force') {
+                        bulletProps.w = 8; bulletProps.h = 8; bulletProps.s = 12; bulletProps.homing = true;
+                        offsets = [0];
+                    }
+                } else {
+                    if (this.playerClass === 'hunter') {
+                        // Hunters fire large sabers.  Increase the height
+                        // dramatically as levels increase to emphasise area
+                        // control.  Hunters remain 'normal' weapon type; at
+                        // level 10 the saber becomes a laser.
+                        bulletProps.w = 12;
+                        bulletProps.h = 50 + (lvl * 6);
+                        bulletProps.s = 6;
+                        bulletProps.life = 60;
+                        bulletProps.color = '#f97316';
+                        if (lvl >= 4) offsets = [-25, 25];
+                        if (lvl >= 7) offsets = [-35, 0, 35];
+                        if (lvl >= 10) {
+                            bulletProps.h = 120;
+                            bulletProps.piercing = true;
+                            this.player.weaponType = 'laser';
+                        } else {
+                            this.player.weaponType = 'normal';
+                        }
+                    } else if (this.playerClass === 'ranger') {
+                        /* Rangers have multiple gun types.  Determine
+                         * behaviour based on this.player.weaponType.  Level
+                         * increases adjust spread and bullet size/speed.
+                         */
+                        const gun = this.player.weaponType;
+                        if (gun === 'handgun') {
+                            // Handgun: balanced single shots that gain speed and
+                            // modest spread at higher levels.  Increase
+                            // width slightly at high levels to make the
+                            // bullets more noticeable.
+                            bulletProps.w = (lvl >= 10 ? 18 : (lvl >= 7 ? 16 : 14));
+                            bulletProps.h = 4;
+                            bulletProps.s = (lvl >= 10 ? 20 : (lvl >= 7 ? 18 : 15));
+                            bulletProps.color = '#34d399';
+                            if (lvl >= 4) offsets = [-10, 10];
+                            if (lvl >= 7) offsets = [-20, -10, 0, 10, 20];
+                            if (lvl >= 10) offsets = [-30,-20,-10,0,10,20,30];
+                        } else if (gun === 'shotgun') {
+                            // Shotgun: fires multiple pellets.  Pellet size and
+                            // number increase with level.  Speed increases
+                            // slightly at higher levels.
+                            bulletProps.w = (lvl >= 10 ? 16 : (lvl >= 7 ? 14 : (lvl >= 4 ? 12 : 8)));
+                            bulletProps.h = (lvl >= 10 ? 8 : (lvl >= 7 ? 7 : 6));
+                            bulletProps.s = (lvl >= 10 ? 12 : (lvl >= 7 ? 11 : 10));
+                            bulletProps.color = '#f87171';
+                            offsets = [-10, 0, 10];
+                            if (lvl >= 4) offsets = [-20,-10,0,10,20];
+                            if (lvl >= 7) offsets = [-30,-20,-10,0,10,20,30];
+                            if (lvl >= 10) offsets = [-40,-30,-20,-10,0,10,20,30,40];
+                        } else if (gun === 'rifle') {
+                            // Rifle: long, powerful rounds.  Bullet size and
+                            // speed scale with level.  Slight spread at
+                            // higher levels but primarily single shot.
+                            bulletProps.w = (lvl >= 10 ? 34 : (lvl >= 7 ? 32 : (lvl >= 4 ? 30 : 28)));
+                            bulletProps.h = 4;
+                            bulletProps.s = (lvl >= 10 ? 24 : (lvl >= 7 ? 22 : (lvl >= 4 ? 20 : 18)));
+                            bulletProps.color = '#facc15';
+                            offsets = [0];
+                            if (lvl >= 4) offsets = [-5, 5];
+                            if (lvl >= 7) offsets = [-10, 0, 10];
+                            if (lvl >= 10) offsets = [-15,-5,5,15];
+                        } else if (gun === 'bazooka') {
+                            // Bazooka: slow, massive shells.  Shell size and
+                            // spread increase significantly at higher levels.
+                            bulletProps.w = (lvl >= 10 ? 36 : (lvl >= 7 ? 32 : (lvl >= 4 ? 28 : 26)));
+                            bulletProps.h = bulletProps.w;
+                            bulletProps.s = (lvl >= 10 ? 7 : (lvl >= 7 ? 6 : 5));
+                            bulletProps.piercing = true;
+                            bulletProps.color = '#c084fc';
+                            offsets = [0];
+                            if (lvl >= 4) offsets = [-8, 8];
+                            if (lvl >= 7) offsets = [-16, 0, 16];
+                            if (lvl >= 10) offsets = [-24,-12,0,12,24];
+                        } else {
+                            // Fallback to handgun with balanced stats
+                            bulletProps.w = (lvl >= 10 ? 18 : (lvl >= 7 ? 16 : 14));
+                            bulletProps.h = 4;
+                            bulletProps.s = (lvl >= 10 ? 20 : (lvl >= 7 ? 18 : 15));
+                            bulletProps.color = '#34d399';
+                            if (lvl >= 4) offsets = [-10, 10];
+                            if (lvl >= 7) offsets = [-20, -10, 0, 10, 20];
+                            if (lvl >= 10) offsets = [-30,-20,-10,0,10,20,30];
+                        }
+                    } else if (this.playerClass === 'force') {
+                        /* Force characters use techs.  Determine the
+                         * behaviour based on current element.  Fire: large
+                         * flames with moderate speed; Lightning: fast,
+                         * homing bolts; Ice: slow, piercing crystals.  Offsets
+                         * increase with level.
+                         */
+                        const elem = this.player.element || 'fire';
+                        if (elem === 'fire') {
+                            // Fire tech: emphasise large, fiery explosions as
+                            // levels increase.  Increase the size of the
+                            // projectile dramatically and ramp up speed at
+                            // high levels.  Offsets widen to create a wide
+                            // spread of flames.  Colours remain bright
+                            // orange/red.
+                            if (lvl >= 10) {
+                                bulletProps.w = 40; bulletProps.h = 40; bulletProps.s = 8;
+                                offsets = [-45, -15, 15, 45];
+                            } else if (lvl >= 7) {
+                                bulletProps.w = 32; bulletProps.h = 32; bulletProps.s = 7;
+                                offsets = [-30, 0, 30];
+                            } else if (lvl >= 4) {
+                                bulletProps.w = 26; bulletProps.h = 26; bulletProps.s = 6;
+                                offsets = [-20, 20];
+                            } else {
+                                bulletProps.w = 20; bulletProps.h = 20; bulletProps.s = 5;
+                                offsets = [0];
+                            }
+                            bulletProps.piercing = false;
+                            bulletProps.homing = false;
+                            bulletProps.color = '#f97316';
+                        } else if (elem === 'lightning') {
+                            // Lightning tech: unleash increasingly fast bolts.
+                            // Speed and size scale with level; offsets spread
+                            // out widely at higher tiers.  Lightning bolts
+                            // home towards targets.
+                            if (lvl >= 10) {
+                                bulletProps.w = 16; bulletProps.h = 16; bulletProps.s = 20;
+                                offsets = [-35, -15, 15, 35];
+                            } else if (lvl >= 7) {
+                                bulletProps.w = 14; bulletProps.h = 14; bulletProps.s = 16;
+                                offsets = [-20, 0, 20];
+                            } else if (lvl >= 4) {
+                                bulletProps.w = 12; bulletProps.h = 12; bulletProps.s = 14;
+                                offsets = [-10, 10];
+                            } else {
+                                bulletProps.w = 10; bulletProps.h = 10; bulletProps.s = 12;
+                                offsets = [0];
+                            }
+                            bulletProps.piercing = false;
+                            bulletProps.homing = true;
+                            bulletProps.color = '#facc15';
+                        } else if (elem === 'ice') {
+                            // Ice tech: slow but massive shards that fill the
+                            // screen.  At higher levels the crystals become
+                            // much larger and offsets widen dramatically.
+                            if (lvl >= 10) {
+                                bulletProps.w = 40; bulletProps.h = 40; bulletProps.s = 2;
+                                offsets = [-40, -20, -10, 0, 10, 20, 40];
+                            } else if (lvl >= 7) {
+                                bulletProps.w = 30; bulletProps.h = 30; bulletProps.s = 3;
+                                offsets = [-25, 0, 25];
+                            } else if (lvl >= 4) {
+                                bulletProps.w = 24; bulletProps.h = 24; bulletProps.s = 3;
+                                offsets = [-15, 15];
+                            } else {
+                                bulletProps.w = 20; bulletProps.h = 20; bulletProps.s = 3;
+                                offsets = [0];
+                            }
+                            bulletProps.piercing = true;
+                            bulletProps.homing = false;
+                            bulletProps.color = '#38bdf8';
+                        } else {
+                            // Fallback: treat as fire
+                            bulletProps.w = 14;
+                            bulletProps.h = 14;
+                            bulletProps.s = 6;
+                            bulletProps.color = '#f97316';
+                            offsets = [0];
+                            if (lvl >= 4) offsets = [-15, 15];
+                            if (lvl >= 7) offsets = [-25, 0, 25];
+                            if (lvl >= 10) offsets = [-35,-15,15,35];
+                        }
+                    }
+                }
+                // Special global behaviours: if weaponType was set to 'spread'
+                // or 'pierce' from prior upgrades (legacy), honour them.
+                if (this.player.weaponType === 'spread') offsets = [-20, -10, 0, 10, 20];
+                if (this.player.weaponType === 'pierce') bulletProps.piercing = true;
+                // Laser does not spawn discrete bullets but is drawn in render()
+                if (this.player.weaponType === 'laser') return;
+                offsets.forEach(offsetY => {
+                    this.bullets.push({
+                        x: this.player.x + this.player.w,
+                        y: this.player.y + this.player.h / 2 - (bulletProps.h/2) + offsetY,
+                        w: bulletProps.w, h: bulletProps.h, s: bulletProps.s,
+                        piercing: bulletProps.piercing, homing: bulletProps.homing, life: bulletProps.life,
+                        color: bulletProps.color
+                    });
+                });
+            }
+            photonBlast() {
+                this.sounds.blast();
+                this.blastEnergy = 0;
+                this.enemies.forEach(e => { e.hp -= 50; if(e.hp <= 0) this.killEnemy(e, true); });
+                this.enemies = this.enemies.filter(e => e.hp > 0);
+            }
+            spawnEnemy() {
+                /*
+                 * Spawn an enemy appropriate for the current area.  Each area
+                 * has its own list of possible enemies defined in
+                 * areaEnemies.  When choosing an enemy, avoid spawning
+                 * elite types too often by retrying selection if an elite is
+                 * picked and a random roll fails.  This keeps rare foes
+                 * uncommon without hard‑coding weights into the array.
+                 */
+                const pool = areaEnemies[this.area] || ['rappy'];
+                let type;
+                let attempts = 0;
+                do {
+                    type = pool[Math.floor(Math.random() * pool.length)];
+                    attempts++;
+                    // If the chosen type is an elite, allow it only about 10% of
+                    // the time to maintain rarity.  On subsequent attempts we
+                    // progressively relax the condition to avoid an infinite
+                    // loop in edge cases.
+                } while (enemyData[type] && enemyData[type].isElite && Math.random() > (0.1 + attempts * 0.05) && attempts < 5);
+                // Fall back to a default type if selection fails
+                if (!type || !enemyData[type]) type = 'rappy';
+                const def = enemyData[type];
+                // Construct the enemy using its definition.  Spread its
+                // vertical position across the canvas height.  The x
+                // coordinate starts off‑screen to the right.
+                const e = {
+                    type: type,
+                    x: this.width,
+                    y: Math.random() * (this.height - def.h),
+                    w: def.w,
+                    h: def.h,
+                    hp: def.hp,
+                    maxHp: def.hp,
+                    speed: def.speed,
+                    color: def.color,
+                    canShoot: def.canShoot,
+                    isElite: def.isElite
+                };
+                this.enemies.push(e);
+            }
+            spawnPowerUp() {
+                const rand = Math.random();
+                // Default to a weapon data upgrade
+                let type = 'weapondata';
+                let color = '#f97316';
+                /*
+                 * Rares now come in three flavours – one for each archetype.  Rare
+                 * drops are intentionally scarce; only about 1 % of spawns result in
+                 * any rare (split evenly between hunter/ranger/force types).  Heal
+                 * pickups occur roughly 5 %, blast pickups about 6 %, and
+                 * weapon data fills the rest.
+                 */
+                if (rand < 0.01) {
+                    // Rare drops are much less frequent (1% chance total). Choose one of three types.
+                    const rareTypes = ['rare-hunter','rare-ranger','rare-force'];
+                    type = rareTypes[Math.floor(Math.random() * rareTypes.length)];
+                    const colorMap = { 'rare-hunter':'#ef4444', 'rare-ranger':'#22c55e', 'rare-force':'#a855f7' };
+                    color = colorMap[type];
+                } else if (rand < 0.06) {
+                    // Heal drops occur 5% of the time
+                    type = 'heal';
+                    color = '#34d399';
+                } else if (rand < 0.12) {
+                    // Blast energy drops occur 6% of the time
+                    type = 'blast';
+                    color = '#f472b6';
+                }
+                // Increase the size of powerup icons to make them stand out.
+                let size = (type.startsWith('rare')) ? 32 : 28;
+                this.powerUps.push({ x: this.width, y: Math.random()*(this.height-30), w: size, h: size, type: type, speed: 2, color: color });
+            }
+            applyPowerUp(p) {
+                this.player.syncTimer = this.player.maxSync;
+                // Any rare drop (rare-hunter, rare-ranger, rare-force) activates a
+                // timed special effect based on the suffix after 'rare-'. If
+                // p.type is exactly 'rare' (legacy), default to hunter.
+                if (p.type.startsWith('rare')) {
+                    this.player.rareTimer = 3600;
+                    // Determine which effect should apply. Split on '-' to
+                    // extract the suffix; default to 'hunter' if missing.
+                    const parts = p.type.split('-');
+                    this.player.rareEffect = parts.length > 1 ? parts[1] : 'hunter';
+                    document.getElementById('rare-notification').style.display = 'block';
+                    this.sounds.rare();
+                    // Grant the player a minimum of 5 lives when rare is collected
+                    this.player.lives = Math.max(this.player.lives, 5);
+                } else if (p.type === 'weapon-hunter') {
+                    // Hunters: upgrade weapon level or damage multiplier
+                    if (this.player.weaponLevel < 10) {
+                        this.player.weaponLevel++;
+                        this.sounds.levelup();
+                        this.showFloatText("LVL UP!", this.player.x, this.player.y);
+                    } else {
+                        this.player.damageMultiplier += 0.1;
+                        this.showFloatText("+DMG", this.player.x, this.player.y);
+                        this.sounds.power();
+                    }
+                } else if (p.type && p.type.startsWith('gun-')) {
+                    // Rangers: gun upgrades.  Extract the gun type after 'gun-'
+                    const newGun = p.type.split('-')[1];
+                    // If switching to a different gun, reset level to 1 and change weapon
+                    if (this.player.weaponType !== newGun) {
+                        this.player.weaponType = newGun;
+                        this.player.weaponLevel = 1;
+                        this.showFloatText(newGun.toUpperCase(), this.player.x, this.player.y);
+                        this.sounds.levelup();
+                    } else {
+                        if (this.player.weaponLevel < 10) {
+                            this.player.weaponLevel++;
+                            this.sounds.levelup();
+                            this.showFloatText("LVL UP!", this.player.x, this.player.y);
+                        } else {
+                            this.player.damageMultiplier += 0.1;
+                            this.showFloatText("+DMG", this.player.x, this.player.y);
+                            this.sounds.power();
+                        }
+                    }
+                } else if (p.type && p.type.startsWith('tech-')) {
+                    // Force: tech element upgrade. Extract the element after 'tech-'
+                    const newElem = p.type.split('-')[1];
+                    // Ensure weapon type is tech
+                    this.player.weaponType = 'tech';
+                    if (this.player.element !== newElem) {
+                        this.player.element = newElem;
+                        this.player.weaponLevel = 1;
+                        this.showFloatText(newElem.toUpperCase(), this.player.x, this.player.y);
+                        this.sounds.levelup();
+                    } else {
+                        if (this.player.weaponLevel < 10) {
+                            this.player.weaponLevel++;
+                            this.sounds.levelup();
+                            this.showFloatText("LVL UP!", this.player.x, this.player.y);
+                        } else {
+                            this.player.damageMultiplier += 0.1;
+                            this.showFloatText("+DMG", this.player.x, this.player.y);
+                            this.sounds.power();
+                        }
+                    }
+                } else if (p.type === 'heal') {
+                    // Heal restores one life up to a max of 10
+                    this.player.lives = Math.min(10, this.player.lives + 1);
+                } else if (p.type === 'shield') {
+                    // Shield grants an extra hit point that is consumed before lives
+                    this.player.shield = Math.min(5, this.player.shield + 1);
+                    this.showFloatText("+SHIELD", this.player.x, this.player.y);
+                } else if (p.type === 'blast') {
+                    this.blastEnergy = Math.min(100, this.blastEnergy + 50);
+                }
+                // Play the generic power sound for consumables only (heal, shield, blast).  Do not
+                // play it for weapon upgrades or rare effects to avoid
+                // overlap with level up sounds.
+                if (!(p.type && (p.type.startsWith('rare') || p.type.startsWith('weapon') || p.type.startsWith('gun') || p.type.startsWith('tech')))) {
+                    this.sounds.power();
+                }
+            }
+            showFloatText(text, x, y) {
+                const el = document.createElement('div');
+                el.className = 'dmg-float';
+                el.innerText = text;
+                el.style.left = (this.canvas.offsetLeft + x) + 'px';
+                el.style.top = (this.canvas.offsetTop + y) + 'px';
+                document.getElementById('dmg-container').appendChild(el);
+                setTimeout(() => el.remove(), 1500);
+            }
+            spawnEnemyBullet(e) {
+                const bullets = [];
+                // Bosses have their own bullet patterns with multiple phases
+                if (e.isBoss) {
+                    // Determine which pattern to use.  Use a random pattern for
+                    // variation.  Each boss type has three patterns.
+                    const patternIndex = Math.floor(Math.random() * 3);
+                    if (e.type === 'dragon') {
+                        switch (patternIndex) {
+                            case 0:
+                                // Two large fireballs.  Slower than before to allow dodging.
+                                bullets.push({ x: e.x, y: e.y + e.h/2 - 15, w: 40, h: 20, vx: 4, vy: 0, color: '#ff7b72' });
+                                bullets.push({ x: e.x, y: e.y + e.h/2 + 15, w: 40, h: 20, vx: 4, vy: 0, color: '#ff7b72' });
+                                break;
+                            case 1:
+                                // Vertical spread: five bullets with slight vertical offsets.
+                                [-2, -1, 0, 1, 2].forEach(offset => {
+                                    bullets.push({ x: e.x, y: e.y + e.h/2 + offset * 15, w: 20, h: 10, vx: 3, vy: offset * 0.6, color: '#eab308' });
+                                });
+                                break;
+                            case 2:
+                            default:
+                                // Radial ring: 12 bullets in all directions.
+                                for (let i = 0; i < 12; i++) {
+                                    const angle = (i / 12) * Math.PI * 2;
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 12, h: 12, vx: Math.cos(angle) * 2.5 - 1.2, vy: Math.sin(angle) * 2.5, color: '#f87171' });
+                                }
+                                break;
+                        }
+                    } else if (e.type === 'derolle') {
+                        switch (patternIndex) {
+                            case 0:
+                                // Spiral vertical spread: seven bullets with vertical velocities from -4 to 4
+                                [-4, -3, -2, -1, 0, 1, 2, 3, 4].forEach(vy => {
+                                    bullets.push({ x: e.x, y: e.y + e.h/2, w: 18, h: 18, vx: 3, vy: vy * 0.6, color: '#a855f7' });
+                                });
+                                break;
+                            case 1:
+                                // Radial pattern: 16 bullets outward
+                                for (let i = 0; i < 16; i++) {
+                                    const angle = (i / 16) * Math.PI * 2;
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle) * 2.5 - 1.2, vy: Math.sin(angle) * 2.5, color: '#a855f7' });
+                                }
+                                break;
+                            case 2:
+                            default:
+                                // Cross pattern: 12 bullets in a cross and diagonal formation
+                                const crossAngles = [0, Math.PI/2, Math.PI, 3*Math.PI/2, Math.PI/4, 3*Math.PI/4, 5*Math.PI/4, 7*Math.PI/4];
+                                crossAngles.forEach(angle => {
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle) * 2.5 - 1.2, vy: Math.sin(angle) * 2.5, color: '#c084fc' });
+                                });
+                                break;
+                        }
+                    } else if (e.type === 'volopt') {
+                        switch (patternIndex) {
+                            case 0:
+                                // Horizontal lasers: two large beams
+                                bullets.push({ x: e.x, y: e.y + 20, w: 30, h: 6, vx: 5, vy: 0, color: '#ef4444' });
+                                bullets.push({ x: e.x, y: e.y + e.h - 20, w: 30, h: 6, vx: 5, vy: 0, color: '#ef4444' });
+                                break;
+                            case 1:
+                                // Radial ring: 12 bullets outward
+                                for (let i = 0; i < 12; i++) {
+                                    const angle = (i / 12) * Math.PI * 2;
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 12, h: 12, vx: Math.cos(angle) * 3 - 1.5, vy: Math.sin(angle) * 3, color: '#e2e8f0' });
+                                }
+                                break;
+                            case 2:
+                            default:
+                                // Spread: eight bullets with slight vertical offsets
+                                [-3, -2, -1, 0, 1, 2, 3].forEach(vy => {
+                                    bullets.push({ x: e.x, y: e.y + e.h/2 + vy * 10, w: 20, h: 10, vx: 4, vy: vy * 0.6, color: '#c084fc' });
+                                });
+                                break;
+                        }
+                    } else if (e.type === 'falz') {
+                        switch (patternIndex) {
+                            case 0:
+                                // Dense radial ring: 20 bullets outward
+                                for (let i = 0; i < 20; i++) {
+                                    const angle = (i / 20) * Math.PI * 2;
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle) * 3 - 1.5, vy: Math.sin(angle) * 3, color: '#e2e8f0' });
+                                }
+                                break;
+                            case 1:
+                                // Spiral burst: 12 bullets with alternating speeds
+                                for (let i = 0; i < 12; i++) {
+                                    const angle = (i / 12) * Math.PI * 2;
+                                    const speedX = Math.cos(angle) * (i % 2 === 0 ? 2 : 4);
+                                    const speedY = Math.sin(angle) * (i % 2 === 0 ? 4 : 2);
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: speedX - 1.2, vy: speedY, color: '#e2e8f0' });
+                                }
+                                break;
+                            case 2:
+                            default:
+                                // Double ring: two offset rings of 8 bullets each
+                                for (let i = 0; i < 8; i++) {
+                                    const angle1 = (i / 8) * Math.PI * 2;
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle1) * 2.5 - 1.2, vy: Math.sin(angle1) * 2.5, color: '#e2e8f0' });
+                                    const angle2 = ((i + 0.5) / 8) * Math.PI * 2;
+                                    bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 15, h: 15, vx: Math.cos(angle2) * 4 - 1.2, vy: Math.sin(angle2) * 4, color: '#e2e8f0' });
+                                }
+                                break;
+                        }
+                        // Falz special: when the force is fully powered, slow time a bit
+                        if (this.playerClass === 'force' && this.player.weaponLevel >= 10) {
+                            this.player.slowTimer = 120;
+                        }
+                    }
+                } else {
+                    /*
+                     * Bullet patterns for standard and elite enemies.  To
+                     * encourage “bullet hell” gameplay without overwhelming
+                     * players, non‑boss projectiles travel slower than
+                     * previous versions and often include radial spreads.
+                     */
+                    if (e.type === 'sinow') {
+                        // Two horizontal slashes
+                        bullets.push({ x: e.x, y: e.y + e.h/2 - 5, w: 10, h: 4, vx: 5, vy: 0, color: '#f87171' });
+                        bullets.push({ x: e.x, y: e.y + e.h/2 + 5, w: 10, h: 4, vx: 5, vy: 0, color: '#f87171' });
+                    } else if (e.type === 'baranz') {
+                        // Spread shot of three slower bullets
+                        [-2, 0, 2].forEach(vy => bullets.push({ x: e.x, y: e.y + e.h/2 - 3, w: 14, h: 6, vx: 4, vy: vy, color: '#ef4444' }));
+                    } else if (e.type === 'alrappy') {
+                        // Forest elite: radial burst of eight shots
+                        for (let i = 0; i < 8; i++) {
+                            const angle = (i / 8) * Math.PI * 2;
+                            bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 8, h: 8, vx: Math.cos(angle) * 3 - 1.5, vy: Math.sin(angle) * 3, color: '#f87171' });
+                        }
+                    } else if (e.type === 'nano') {
+                        // Caves elite: spiral of six shots with varying vy
+                        [-3,-2,-1,1,2,3].forEach(vy => {
+                            bullets.push({ x: e.x, y: e.y + e.h/2, w: 12, h: 6, vx: 3, vy: vy, color: '#c084fc' });
+                        });
+                    } else if (e.type === 'canane') {
+                        // Mines elite: 12 bullet ring slower speeds
+                        for (let i = 0; i < 12; i++) {
+                            const angle = (i / 12) * Math.PI * 2;
+                            bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 10, h: 10, vx: Math.cos(angle) * 2.5 - 1.2, vy: Math.sin(angle) * 2.5, color: '#3b82f6' });
+                        }
+                    } else if (e.type === 'chaos') {
+                        // Ruins elite: double ring of 16 bullets
+                        for (let i = 0; i < 8; i++) {
+                            const angle1 = (i / 8) * Math.PI * 2;
+                            bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 12, h: 12, vx: Math.cos(angle1) * 2.5 - 1.2, vy: Math.sin(angle1) * 2.5, color: '#ef4444' });
+                            const angle2 = ((i + 0.5) / 8) * Math.PI * 2;
+                            bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 12, h: 12, vx: Math.cos(angle2) * 3.5 - 1.2, vy: Math.sin(angle2) * 3.5, color: '#ef4444' });
+                        }
+                    } else if (e.type === 'hildebear') {
+                        // Hildebear: radial shockwave of six large bullets
+                        for (let i = 0; i < 6; i++) {
+                            const angle = (i / 6) * Math.PI * 2;
+                            bullets.push({ x: e.x + e.w/2, y: e.y + e.h/2, w: 20, h: 20, vx: Math.cos(angle) * 2 - 1, vy: Math.sin(angle) * 2, color: '#78350f' });
+                        }
+                    } else if (e.type === 'poisonlily') {
+                        // Shoots three vertically oriented poison orbs downward/upward
+                        [-2, 0, 2].forEach(vy => bullets.push({ x: e.x, y: e.y + e.h/2, w: 10, h: 10, vx: 2, vy: vy * 0.5, color: '#6d28d9' }));
+                    } else if (e.type === 'gilchic') {
+                        // Mines shooter: horizontal beam and two angled shots
+                        bullets.push({ x: e.x, y: e.y + e.h/2 - 8, w: 8, h: 8, vx: 4, vy: -1, color: '#8b5cf6' });
+                        bullets.push({ x: e.x, y: e.y + e.h/2 + 8, w: 8, h: 8, vx: 4, vy: 1, color: '#8b5cf6' });
+                    } else if (e.type === 'dimeni') {
+                        // Ruins common shooter: simple slow bullets
+                        bullets.push({ x: e.x, y: e.y + e.h/2, w: 10, h: 10, vx: 2.5, vy: 0, color: '#eab308' });
+                    }
+                }
+                bullets.forEach(bullet => this.enemyBullets.push(bullet));
+            }
+            killEnemy(e, fromBlast=false) {
+                this.sounds.explode();
+                this.score += e.maxHp * 10;
+                if (!fromBlast) {
+                    // Award blast energy proportional to enemy max HP
+                    this.blastEnergy = Math.min(100, this.blastEnergy + (e.maxHp * 0.5 * this.magRate));
+                    /*
+                     * When an enemy is defeated there is now only a chance to
+                     * drop a weapon upgrade.  Feedback indicated the previous
+                     * behaviour (100 % drop rate) caused players to max out
+                     * their weapons too quickly.  The dropChance defaults to
+                     * 0.4 (40 %) but can be overridden by the enemy object
+                     * setting alwaysDrops=true.  Boss add‑ons use this flag to
+                     * guarantee a drop.
+                     */
+                    const dropChance = (e.alwaysDrops ? 1 : 0.4);
+                    if (Math.random() < dropChance) {
+                        // By default, defeated enemies drop a weapon data.  In
+                        // addition, there is a very small chance of dropping a
+                        // heal or shield to prolong long runs.  Elite
+                        // enemies have an increased chance to drop a heal or
+                        // shield instead of a weapon.  Bosses always drop
+                        // additional consumables (handled below).
+                        // Determine the appropriate weapon drop based on class.  Hunters
+                        // receive a generic upgrade ('weapon-hunter'), rangers
+                        // receive one of four gun types, and forces receive one of
+                        // three tech elements.  If the player is fully
+                        // upgraded (weaponLevel >= 10), subsequent weapon drops
+                        // will increase the damage multiplier instead when
+                        // collected.
+                        let dropType;
+                        let dropColor;
+                        if (this.playerClass === 'hunter') {
+                            dropType = 'weapon-hunter';
+                            dropColor = '#f97316';
+                        } else if (this.playerClass === 'ranger') {
+                            const gunTypes = ['gun-handgun','gun-shotgun','gun-rifle','gun-bazooka'];
+                            dropType = gunTypes[Math.floor(Math.random()*gunTypes.length)];
+                            const cMap = {
+                                'gun-handgun':'#34d399',
+                                'gun-shotgun':'#f87171',
+                                'gun-rifle':'#facc15',
+                                'gun-bazooka':'#c084fc'
+                            };
+                            dropColor = cMap[dropType] || '#58a6ff';
+                        } else if (this.playerClass === 'force') {
+                            const techTypes = ['tech-fire','tech-lightning','tech-ice'];
+                            dropType = techTypes[Math.floor(Math.random()*techTypes.length)];
+                            const cMap = {
+                                'tech-fire':'#f97316',
+                                'tech-lightning':'#facc15',
+                                'tech-ice':'#38bdf8'
+                            };
+                            dropColor = cMap[dropType] || '#58a6ff';
+                        } else {
+                            // Fallback
+                            dropType = 'weapon-hunter';
+                            dropColor = '#f97316';
+                        }
+                        // Determine whether this drop becomes a heal or shield
+                        // instead of a weapon.  Elite foes drop consumables
+                        // more frequently than regular foes.
+                        let healChance = e.isElite ? 0.1 : 0.02;
+                        let shieldChance = e.isElite ? 0.05 : 0.01;
+                        const roll = Math.random();
+                        if (roll < shieldChance) {
+                            dropType = 'shield';
+                            dropColor = '#38bdf8';
+                        } else if (roll < shieldChance + healChance) {
+                            dropType = 'heal';
+                            dropColor = '#34d399';
+                        }
+                        this.powerUps.push({
+                            x: e.x,
+                            y: e.y,
+                            w: 24,
+                            h: 24,
+                            type: dropType,
+                            speed: 2,
+                            color: dropColor
+                        });
+                    }
+                    // Bosses drop an extra powerup to reward completion.  For
+                    // bosses, always drop a blast recharge plus a heal or
+                    // shield.
+                    if (e.isBoss) {
+                        // Drop blast
+                        this.powerUps.push({ x: e.x, y: e.y, w: 24, h: 24, type:'blast', speed:2, color:'#f472b6' });
+                        // Drop heal or shield
+                        const t = (Math.random() < 0.5) ? 'heal' : 'shield';
+                        const cMap = { heal:'#34d399', shield:'#38bdf8' };
+                        this.powerUps.push({ x: e.x + 26, y: e.y, w: 24, h: 24, type:t, speed:2, color:cMap[t] });
+                    }
+                }
+                // Increment kill counter for level progression when a non-boss enemy is defeated.
+                // Bosses themselves do not count toward the kill threshold; defeating
+                // them triggers level advancement separately.
+                if (!e.isBoss) {
+                    this.killsThisLevel++;
+                }
+                // When a boss is defeated, clear the currentBossType so that
+                // the game returns to the standard area background.
+                if (e.isBoss) {
+                    this.currentBossType = null;
+                }
+            }
+            takeHit() {
+                this.sounds.explode();
+                // If the player has shields, consume a shield before losing a life
+                if (this.player.shield > 0) {
+                    this.player.shield--;
+                } else {
+                    this.player.lives--;
+                }
+                this.player.invincible = 120;
+                if(this.player.weaponLevel > 1) this.player.weaponLevel--;
+                if (this.player.weaponLevel < 10) this.player.damageMultiplier = 1.0;
+                document.getElementById('canvas').classList.add('shake-effect');
+                setTimeout(() => document.getElementById('canvas').classList.remove('shake-effect'), 400);
+                if (this.player.lives <= 0) this.gameOver();
+            }
+            gameOver() {
+                this.running = false;
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('psoHighScore', this.score.toString());
+                }
+                const ctx = this.ctx;
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(0,0,this.width,this.height);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 40px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText('GAME OVER', this.width/2, this.height/2 - 40);
+                ctx.font = '20px Courier New';
+                ctx.fillText('FINAL SCORE: ' + this.score, this.width/2, this.height/2);
+                ctx.fillText('HIGH SCORE: ' + this.highScore, this.width/2, this.height/2 + 30);
+                document.getElementById('retryBtn').style.display = 'block';
+                document.getElementById('scoreForm').style.display = 'flex';
+                document.getElementById('leaderboard').style.display = 'block';
+                this.fetchHighScores();
+            }
+            fetchHighScores() {
+                const lbContent = document.getElementById('lb-content');
+                lbContent.innerHTML = "Loading...";
+                fetch(SCRIPT_URL + "?action=get", { mode: 'cors' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.length === 0) {
+                        lbContent.innerHTML = "<div style='text-align:center; padding:10px;'>No scores yet. Be the first!</div>";
+                        return;
+                    }
+                    let html = "";
+                    data.forEach(entry => {
+                        let cClass = entry.charClass ? entry.charClass.toLowerCase() : 'unknown';
+                        html += `
+                        <div class="lb-row">
+                            <span class="lb-name">${entry.name.substring(0, 10)}</span>
+                            <span class="lb-class c-${cClass}">${cClass.charAt(0).toUpperCase() + cClass.slice(1)}</span>
+                            <span class="lb-score">${entry.score}</span>
+                        </div>`;
+                    });
+                    lbContent.innerHTML = html;
+                })
+                .catch(err => {
+                    lbContent.innerHTML = "Error loading scores.";
+                    console.error(err);
+                });
+            }
+            checkCollision(a, b) {
+                return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+            }
+            playSfx(freq, type, dur, vol = 0.1) {
+                try {
+                    if (!window.audioCtx) window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = window.audioCtx.createOscillator();
+                    const gain = window.audioCtx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, window.audioCtx.currentTime);
+                    gain.gain.setValueAtTime(vol, window.audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.00001, window.audioCtx.currentTime + dur);
+                    osc.connect(gain); gain.connect(window.audioCtx.destination);
+                    osc.start(); osc.stop(window.audioCtx.currentTime + dur);
+                } catch(e) {}
+            }
+        }
+        const canvas = document.getElementById('canvas');
+        let game = null;
+        function startGame(className) {
+            document.getElementById('classSelect').style.display = 'none';
+            document.getElementById('scoreForm').style.display = 'none';
+            document.getElementById('leaderboard').style.display = 'none';
+            document.getElementById('retryBtn').style.display = 'none';
+            game = new Game(canvas, className);
+            game.start();
+        }
+        document.getElementById('retryBtn').addEventListener('click', () => {
+            document.getElementById('retryBtn').style.display = 'none';
+            document.getElementById('scoreForm').style.display = 'none';
+            document.getElementById('leaderboard').style.display = 'none';
+            document.getElementById('classSelect').style.display = 'grid';
+            const submitBtn = document.getElementById('submitScoreBtn');
+            submitBtn.disabled = false;
+            submitBtn.textContent = "SUBMIT SCORE";
+        });
+        document.getElementById('submitScoreBtn').addEventListener('click', () => {
+            const name = document.getElementById('playerName').value.trim().toUpperCase();
+            if(!name) { alert("ENTER NAME FIRST"); return; }
+            if(!game) return;
+            const btn = document.getElementById('submitScoreBtn');
+            btn.textContent = "SENDING...";
+            btn.disabled = true;
+            const targetUrl = `${SCRIPT_URL}?name=${encodeURIComponent(name)}&score=${game.score}&level=${game.level}&class=${game.playerClass}`;
+            fetch(targetUrl, { method: 'GET', mode: 'no-cors' })
+            .then(() => {
+                alert("SCORE UPLOADED!");
+                btn.textContent = "SENT!";
+                game.fetchHighScores();
+            }).catch(e => {
+                console.error(e);
+                alert("ERROR UPLOADING");
+                btn.textContent = "RETRY";
+                btn.disabled = false;
+            });
+        });
+    </script>
 </body>
 </html>
