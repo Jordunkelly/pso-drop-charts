@@ -14,13 +14,13 @@
 // Base enemy definitions. Each entry specifies the sprite dimensions,
 // hitpoints, speed, colour and whether the enemy can shoot. Elite
 // enemies have more HP and unique behaviours.
-const enemyData = {
+/*const enemyData = {
   rappy:    { w: 36, h: 36, hp: 1,  speed: 3,   color: '#facc15', canShoot: true,  shootFreq: 120 },
   booma:    { w: 42, h: 42, hp: 3,  speed: 2,   color: '#2ea043', canShoot: false },
   sinow:    { w: 50, h: 50, hp: 5,  speed: 3.5, color: '#c084fc', canShoot: true,  shootFreq: 90 },
   hildebear:{ w: 80, h: 80, hp: 15, speed: 1.5, color: '#78350f', canShoot: true,  isElite: true, shootFreq: 150 },
   baranz:   { w: 75, h: 75, hp: 20, speed: 1.2, color: '#ef4444', canShoot: true,  isElite: true, shootFreq: 180 }
-};
+};*/
 
 // Map each area to the list of enemy type keys that can appear there.
 // Rare/elite enemies are included but will be selected less often.
