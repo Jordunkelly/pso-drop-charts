@@ -237,6 +237,7 @@
             <div class="hud">
                 <div>
                     SCORE: <span id="score">0</span>
+                    &nbsp;|&nbsp; BOSS IN: <span id="boss-counter">30</span>
                     &nbsp;|&nbsp; LVL: <span id="level">1</span>
                     &nbsp;|&nbsp; LIVES: <span id="lives">0</span>
                     &nbsp;|&nbsp; <span id="dmg-mult" style="color:#facc15; font-weight:bold;">DMG: x1.00</span>
@@ -397,6 +398,9 @@
 
         class Game {
             constructor(canvas, playerClass) {
+                this.bossKillTarget = 30;
+                this.killsToBoss = this.bossKillTarget;
+
                 this.canvas = canvas;
                 this.ctx = canvas.getContext('2d');
                 this.width = canvas.width;
@@ -626,10 +630,14 @@
                     // remain too long.  Base HP starts lower and scales
                     // modestly with level.  Dragon on level 5 still gets a
                     // slightly larger pool.
-                    let baseHp = 500;
-                    if (type === 'dragon' && this.level === 5) baseHp = 800;
-                    // Scale by 150 HP per level instead of 200
-                    let hp = baseHp + (this.level * 150);
+                   // MUCH lower HP – bosses rely on patterns, not sponge HP
+                    let baseHp = 120;          // was 500–800
+                    let hpScale = 20;          // was 150 per level
+                    let hp = baseHp + (this.level * hpScale);
+                    
+                    // Dragon slightly beefier, but still reasonable
+                    if (type === 'dragon') hp += 40;
+
                     let boss = {
                         type: type,
                         isBoss: true,
@@ -674,6 +682,8 @@
                 }, 3000);
             }
             update() {
+                document.getElementById('boss-counter').textContent = this.killsToBoss;
+
                 this.frame++;
                 // Determine if a boss is currently active.  This flag
                 // must be defined before any references below (e.g. to
@@ -704,12 +714,26 @@
                 // previous one is still alive if the level advances due to
                 // kills.  The bossSpawnedForLevel flag prevents multiple
                 // spawns for the same level.
-                if (!this.bossSpawnedForLevel && !isBossActive) {
-                    if (this.level === 5) this.spawnBossSequence('Dragon', 'dragon', '#eab308');
-                    else if (this.level === 10) this.spawnBossSequence('De Rol Le', 'derolle', '#a855f7');
-                    else if (this.level === 15) this.spawnBossSequence('Vol Opt', 'volopt', '#ef4444');
-                    else if (this.level === 20) this.spawnBossSequence('Dark Falz', 'falz', '#c084fc');
+               if (!isBossActive && this.killsToBoss <= 0 && !this.bossSpawnedForLevel) {
+                    const bossTable = [
+                        { name:'Dragon',  type:'dragon',  color:'#eab308' },
+                        { name:'De Rol Le',type:'derolle', color:'#a855f7' },
+                        { name:'Vol Opt',  type:'volopt',  color:'#ef4444' },
+                        { name:'Dark Falz',type:'falz',    color:'#c084fc' }
+                    ];
+                
+                    const bossIndex = Math.min(
+                        Math.floor(this.level / 3),
+                        bossTable.length - 1
+                    );
+                
+                    const boss = bossTable[bossIndex];
+                    this.spawnBossSequence(boss.name, boss.type, boss.color);
+                
+                    this.bossSpawnedForLevel = true;
+                    this.killsToBoss = this.bossKillTarget;
                 }
+
                 if (this.player.rareTimer > 0) {
                     this.player.rareTimer--;
                     if (this.player.rareTimer === 0) {
@@ -1863,7 +1887,9 @@
                 // them triggers level advancement separately.
                 if (!e.isBoss) {
                     this.killsThisLevel++;
+                    this.killsToBoss = Math.max(0, this.killsToBoss - 1);
                 }
+
                 // When a boss is defeated, clear the currentBossType so that
                 // the game returns to the standard area background.
                 if (e.isBoss) {
