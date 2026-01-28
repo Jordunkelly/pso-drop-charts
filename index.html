@@ -383,6 +383,7 @@
       $("#nextBtn").prop('disabled', currentPage === maxPages);
 
       pageData.forEach(function(r) {
+        if r.Episode == "4" continue;
         var rateVal = parseRate(r._fraction) * 100;
         var dispRate = (rateVal > 1) ? rateVal.toFixed(1)+"%" : rateVal.toFixed(5) + "%";
         
@@ -463,4 +464,5 @@
   </script>
 </body>
 </html>
+
 
