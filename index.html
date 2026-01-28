@@ -42,6 +42,7 @@
     .content-section {
       max-width: 1200px;
       margin: 0 auto;
+      padding-bottom: 60px; /* Space for pagination footer */
     }
 
     .controls {
@@ -82,7 +83,7 @@
     .table-container {
       width: 100%;
       overflow-x: auto;
-      min-height: 80vh;
+      min-height: 60vh;
     }
 
     table {
@@ -163,7 +164,47 @@
     @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
 
     /* =========================================
-       4. MOBILE CARD VIEW
+       4. PAGINATION FOOTER
+       ========================================= */
+    .pagination-bar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 15px;
+      padding: 20px;
+      background: var(--bg-header);
+      border-top: 1px solid var(--border);
+      margin-top: 10px;
+    }
+
+    .page-btn {
+      background: #334155;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    .page-btn:hover:not(:disabled) {
+      background: var(--primary);
+      color: #000;
+    }
+
+    .page-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    #pageInfo {
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* =========================================
+       5. MOBILE CARD VIEW
        ========================================= */
     @media screen and (max-width: 768px) {
       /* Base resets to break table structure */
@@ -237,7 +278,6 @@
     .then(res => res.text())
     .then(data => {
         document.getElementById('nav-placeholder').innerHTML = data;
-        // Simple active tab logic
         const currentPage = window.location.pathname.split("/").pop() || "index.html";
         document.querySelectorAll('.nav-link').forEach(link => {
             if (link.getAttribute('href') === currentPage) link.classList.add('active');
@@ -270,6 +310,12 @@
         <tbody></tbody>
       </table>
     </div>
+
+    <div class="pagination-bar" id="paginationBar" style="display:none;">
+      <button class="page-btn" id="prevBtn" onclick="changePage(-1)">Previous</button>
+      <span id="pageInfo">Page 1 of 1</span>
+      <button class="page-btn" id="nextBtn" onclick="changePage(1)">Next</button>
+    </div>
   </div>
 
   <script>
@@ -280,7 +326,7 @@
     // UPDATED MODERN COLORS (Vibrant Pastels for Dark Mode)
     var SECTION_ID_COLORS = {
       VIRIDIA:    "#4ade80", // Bright Green
-      GREENILL:   "#22c55e", // Green
+      GREENNILL:  "#22c55e", // Green (Updated Spelling)
       SKYLY:      "#38bdf8", // Sky Blue
       BLUEFULL:   "#3b82f6", // Blue
       PURPLENUM:  "#c084fc", // Purple
@@ -294,7 +340,12 @@
     var csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS-nCzkALWoSyKOLXNORN_zgy2ONKn4Hcwi-jQNHCgmEW8DJ7yX3AyO9Uod44ecEUwklr76Dw4-p1o0/pub?gid=2126274177&single=true&output=csv";
 
     var masterData = [];
+    var filteredData = [];
     var currentSort = { col: null, dir: 'asc' };
+    
+    // PAGINATION VARS
+    var currentPage = 1;
+    var rowsPerPage = 100; // Safe for mobile
 
     $(document).ready(function() {
       fetchDropData();
@@ -340,13 +391,12 @@
       populateSelect("#idFilter", Array.from(ids).sort(), "ID");
 
       $("#loading").hide();
-      $("#dropTable").fadeIn();
+      $("#dropTable, #paginationBar").fadeIn();
       applyFilters();
     }
 
     function populateSelect(sel, items, label, fixed) {
       var $el = $(sel);
-      // Keep first option
       $el.find('option:not(:first)').remove();
       
       items.forEach(function(val) {
@@ -360,10 +410,9 @@
       var sVal = $("#nameSearch").val().toUpperCase().trim();
       var tVal = $("#tierFilter").val();
       var dVal = $("#diffFilter").val();
-      var iVal = $("#idFilter").val(); // Already Uppercase from value
+      var iVal = $("#idFilter").val();
 
-      var filtered = masterData.filter(function(r) {
-        // Multi-term search (e.g. "Arms V502")
+      filteredData = masterData.filter(function(r) {
         var matchesName = true;
         if (sVal) {
             var terms = sVal.split(" ");
@@ -376,15 +425,17 @@
                (!iVal || r._id === iVal);
       });
 
-      if (currentSort.col) sortData(filtered);
-      renderTable(filtered);
+      if (currentSort.col) sortData(filteredData);
+      
+      // RESET TO PAGE 1 ON FILTER CHANGE
+      currentPage = 1;
+      renderTable();
     }
 
     function sortData(data) {
       var col = currentSort.col;
       var dir = currentSort.dir === 'asc' ? 1 : -1;
       data.sort(function(a, b) {
-        // Special Numeric Sort for Rate
         if (col === 'Current %') {
              var rateA = parseRate(a._fraction);
              var rateB = parseRate(b._fraction);
@@ -401,11 +452,37 @@
         return parseInt(p[0]) / parseInt(p[1]);
     }
 
-    function renderTable(data) {
+    /* =========================================
+       PAGINATION LOGIC
+       ========================================= */
+    function changePage(dir) {
+      var maxPages = Math.ceil(filteredData.length / rowsPerPage);
+      var newPage = currentPage + dir;
+      
+      if (newPage > 0 && newPage <= maxPages) {
+        currentPage = newPage;
+        renderTable();
+        // Scroll to top of table on page change
+        document.querySelector('.content-section').scrollIntoView({behavior: 'smooth'});
+      }
+    }
+
+    function renderTable() {
       var $tbody = $("#dropTable tbody").empty();
       var RARE_MOBS = ["HILDEBLUE","NAR LILY","POUILLY SLIME","AL RAPPY","PAL RAPPY","LOVE RAPPY","MIL LILY","PAZUZU","DORPHON ECLAIR","KONDRIEU"];
       
-      data.slice(0, 100).forEach(function(r) { // Limit render for speed
+      // PAGINATION SLICE
+      var start = (currentPage - 1) * rowsPerPage;
+      var end = start + rowsPerPage;
+      var pageData = filteredData.slice(start, end);
+      
+      // UPDATE CONTROLS
+      var maxPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
+      $("#pageInfo").text(`Page ${currentPage} of ${maxPages} (${filteredData.length} items)`);
+      $("#prevBtn").prop('disabled', currentPage === 1);
+      $("#nextBtn").prop('disabled', currentPage === maxPages);
+
+      pageData.forEach(function(r) {
         var rateVal = parseRate(r._fraction) * 100;
         var dispRate = (rateVal > 1) ? rateVal.toFixed(1)+"%" : rateVal.toFixed(5) + "%";
         var odds = (rateVal > 0) ? (100 / rateVal) : 0;
@@ -418,7 +495,6 @@
         var idColor = SECTION_ID_COLORS[r._id] || "#fff";
         var wikiUrl = "https://wiki.pioneer2.net/w/" + encodeURIComponent((r.ItemName||"").trim().replace(/\s+/g,'_'));
 
-        // Rearranged Columns slightly for better Mobile flow
         var row = `
           <tr>
             <td data-label="Ep">${r.Episode}</td>
@@ -426,7 +502,8 @@
             <td data-label="ID">
               <span class="tag" style="background:${idColor};">${r.Section}</span>
             </td>
-            <td data-label="Map">${r.Section}</td> <td data-label="Entity" ${rareClass}>${r.Entity}</td>
+            <td data-label="Map">${r.Section}</td>
+            <td data-label="Entity" ${rareClass}>${r.Entity}</td>
             <td data-label="Item Name">
               <a href="${wikiUrl}" target="_blank" class="wiki-link">${r.ItemName}</a>
               ${tierHtml}
@@ -440,7 +517,9 @@
         $tbody.append(row);
       });
 
-      if (data.length === 0) $tbody.append('<tr><td colspan="7" style="text-align:center; padding:30px; opacity:0.5;">No drops found. Try adjusting filters.</td></tr>');
+      if (filteredData.length === 0) {
+        $tbody.append('<tr><td colspan="7" style="text-align:center; padding:30px; opacity:0.5;">No drops found. Try adjusting filters.</td></tr>');
+      }
     }
 
     $("input, select").on("keyup change", applyFilters);
