@@ -620,9 +620,45 @@
       currentSort.col = col;
       applyFilters();
     });
+
+
+    /* =========================================
+       MODAL LOGIC
+       ========================================= */
+    function openWikiModal(e, url, name) {
+      e.preventDefault(); // Stop new tab opening
+      
+      // The Magic: ?action=render strips the sidebar/header from MediaWiki
+      var cleanUrl = url + "?action=render"; 
+      
+      $("#modalTitle").text(name);
+      $("#wikiFrame").attr("src", cleanUrl);
+      $("#wikiModal").css("display", "flex").hide().fadeIn(200);
+      
+      // Lock body scroll
+      $("body").css("overflow", "hidden");
+    }
+
+    function closeModal() {
+      $("#wikiModal").fadeOut(200, function() {
+        $("#wikiFrame").attr("src", ""); // Clear src to stop audio/video if any
+        $("body").css("overflow", ""); // Unlock scroll
+      });
+    }
+
+    // Close if clicking outside the modal content
+    $("#wikiModal").on("click", function(e) {
+      if (e.target === this) closeModal();
+    });
+
+    // Close on Escape key
+    $(document).on("keydown", function(e) {
+      if (e.key === "Escape") closeModal();
+    });
   </script>
 </body>
 </html>
+
 
 
 
