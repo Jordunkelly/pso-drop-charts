@@ -62,163 +62,176 @@
   </div>
 
   <script>
-  /* =========================================
-    LOGIC & DATA - JSON LIBRARY VERSION
-   ========================================= */
-    
+    /* =========================================
+       3. LOGIC & DATA
+       ========================================= */
+
     // --- CONFIG ---
     var SECTION_ID_COLORS = {
-        Viridia: "#22C55E", Greenill: "#16A34A", Skyly: "#38BDF8", Bluefull: "#2563EB",
-        Purplenum: "#A855F7", Pinkal: "#EC4899", Redria: "#EF4444", Oran: "#F97316",
-        Yellowboze: "#FACC15", Whitill: "#E5E7EB"
+      Viridia: "#22C55E", Greenill: "#16A34A", Skyly: "#38BDF8", Bluefull: "#2563EB",
+      Purplenum: "#A855F7", Pinkal: "#EC4899", Redria: "#EF4444", Oran: "#F97316",
+      Yellowboze: "#FACC15", Whitill: "#E5E7EB"
     };
-    
-    // URL for your new exported JSON file
-    var jsonUrl = "pso_drop_table_export.json"; 
-    // Your Tier List remains a CSV for now
+
+    var csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS-nCzkALWoSyKOLXNORN_zgy2ONKn4Hcwi-jQNHCgmEW8DJ7yX3AyO9Uod44ecEUwklr76Dw4-p1o0/pub?gid=0&single=true&output=csv";
     var tierUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS-nCzkALWoSyKOLXNORN_zgy2ONKn4Hcwi-jQNHCgmEW8DJ7yX3AyO9Uod44ecEUwklr76Dw4-p1o0/pub?gid=292779988&single=true&output=csv";
-    
+
     var masterData = [];
     var globalTierMap = new Map();
     var currentSort = { col: null, dir: 'asc' };
-    
+
     // --- INIT ---
     $(document).ready(function() {
-        // 1. Load Tier List First
-        Papa.parse(tierUrl, {
-            download: true,
-            header: true,
-            complete: function(results) {
-                (results.data || []).forEach(function(row) {
-                    if (row["ITEM NAME"]) {
-                        globalTierMap.set(row["ITEM NAME"].trim().toUpperCase(), row["TIER RANK"]);
-                    }
-                });
-                // 2. Load the Library JSON
-                fetchDropData();
+      // 1. Load Tier List first
+      Papa.parse(tierUrl, {
+        download: true,
+        header: true,
+        complete: function(results) {
+          (results.data || []).forEach(function(row) {
+            if (row["ITEM NAME"]) {
+              globalTierMap.set(row["ITEM NAME"].trim().toUpperCase(), row["TIER RANK"]);
             }
-        });
-    });
-    
-    function fetchDropData() {
-        fetch(jsonUrl)
-            .then(response => response.json())
-            .then(jsonData => {
-                processNestedJson(jsonData);
-            })
-            .catch(err => {
-                console.error(err);
-                $("#loading").text("Error loading JSON database. Check file path.");
-            });
-    }
-    
-    // --- FLATTEN NESTED JSON ---
-    function processNestedJson(root) {
-        var tiers = new Set(), diffs = new Set(), ids = new Set();
-        var flattened = [];
-    
-        // Navigate: Normal -> Episode -> Difficulty -> Section -> Entity
-        const base = root.Normal;
-    
-        for (let epKey in base) {
-            for (let diffKey in base[epKey]) {
-                for (let secKey in base[epKey][diffKey]) {
-                    let entities = base[epKey][diffKey][secKey];
-    
-                    for (let entName in entities) {
-                        let dropData = entities[entName];
-    
-                        // Handle standard vs multi-drop (condensed) logic
-                        let dropList = Array.isArray(dropData[0]) ? dropData : [dropData];
-    
-                        dropList.forEach(drop => {
-                            let fraction = drop[0];
-                            let hexId = drop[1];
-    
-                            // Mapping for the UI
-                            let itemName = entName; // Note: You may want a Hex-to-Name map later
-                            let nameUpper = itemName.toUpperCase();
-                            let tier = globalTierMap.get(nameUpper) || "";
-    
-                            if (tier) tiers.add(tier);
-                            diffs.add(diffKey);
-                            ids.add(secKey);
-    
-                            flattened.push({
-                                Episode: epKey.replace("Episode", ""),
-                                Difficulty: diffKey,
-                                SectionID: secKey,
-                                Entity: entName,
-                                Name: itemName,
-                                HexId: hexId,
-                                "Rate_Raw": fraction, // e.g., "1/8192"
-                                _nameUpper: nameUpper,
-                                _tier: tier,
-                                _diff: diffKey,
-                                _id: secKey
-                            });
-                        });
-                    }
-                }
-            }
+          });
+          // 2. Then load Drop Data
+          fetchDropData();
         }
-    
-        masterData = flattened;
-    
-        // Populate UI filters
-        populateSelect("#tierFilter", Array.from(tiers).sort(), "Tier");
-        populateSelect("#diffFilter", ["Normal", "Hard", "Very Hard", "Ultimate"], "Diff", true);
-        populateSelect("#idFilter", Array.from(ids).sort(), "ID");
-    
-        $("#loading").hide();
-        $("#dropTable").fadeIn();
-        applyFilters();
+      });
+    });
+
+    function fetchDropData() {
+      Papa.parse(csvUrl, {
+        download: true,
+        header: true,
+        complete: function(results) {
+          processData(results.data || []);
+        },
+        error: function() { $("#loading").text("Error loading data."); }
+      });
     }
-    
-    // --- RENDER TABLE ---
-    function renderTable(data) {
-        var $tbody = $("#dropTable tbody").empty();
-        var RARE_MOBS = ["HILDEBLUE", "NAR LILY", "POUILLY SLIME", "AL RAPPY", "PAL RAPPY", "MIL LILY", "KONDRIEU"];
-        var limit = 200; 
+
+    function processData(rawData) {
+      var tiers = new Set(), diffs = new Set(), ids = new Set();
+
+      masterData = rawData.filter(r => r.Name && r.Name.trim()).map(r => {
+        var nameUpper = r.Name.trim().toUpperCase();
+        var tier = globalTierMap.get(nameUpper) || "";
         
-        data.slice(0, limit).forEach(function(r) {
-            // Calculate Rate from Fraction (e.g., "1/8192")
-            let rate = 0;
-            if (r.Rate_Raw.includes('/')) {
-                let parts = r.Rate_Raw.split('/');
-                rate = (parseInt(parts[0]) / parseInt(parts[1])) * 100;
-            } else {
-                rate = parseFloat(r.Rate_Raw);
-            }
-    
-            var dispRate = (rate > 1) ? rate.toFixed(1) + "%" : rate.toFixed(6) + "%";
-            var odds = (rate > 0) ? (100 / rate) : 0;
-            var dispOdds = (odds > 10) ? Math.round(odds).toLocaleString() : odds.toFixed(2);
-    
-            var isRare = RARE_MOBS.some(x => r.Entity.toUpperCase().includes(x));
-            var tierHtml = r._tier ? `<span class="tier-tag tier-${r._tier.toLowerCase()}">${r._tier}</span>` : "";
-            var idColor = SECTION_ID_COLORS[r._id] || "#555";
-    
-            var row = `
-                <tr class="${isRare ? 'row-rare' : ''}">
-                    <td>${r.Episode}</td>
-                    <td>${r.Difficulty}</td>
-                    <td>${r.SectionID}</td>
-                    <td>${r.Entity}</td>
-                    <td><a href="#" class="wiki-link">${r.Name}</a> ${tierHtml}</td>
-                    <td>${dispRate}<br><small style="opacity:0.6">1/${dispOdds}</small></td>
-                    <td><span class="tag" style="background:${idColor};">${r.SectionID}</span></td>
-                </tr>
-            `;
-            $tbody.append(row);
+        if (tier) tiers.add(tier);
+        if (r.Difficulty) diffs.add(r.Difficulty.trim());
+        if (r.SectionID) ids.add(r.SectionID.trim());
+
+        return Object.assign({}, r, {
+          _nameUpper: nameUpper,
+          _tier: tier,
+          _diff: r.Difficulty ? r.Difficulty.trim() : "",
+          _id: r.SectionID ? r.SectionID.trim() : ""
         });
-    
-        if (data.length === 0) $tbody.append('<tr><td colspan="7">No drops found.</td></tr>');
+      });
+
+      // Fill Dropdowns
+      populateSelect("#tierFilter", Array.from(tiers).sort(), "Tier");
+      populateSelect("#diffFilter", ["Normal","Hard","Very Hard","Ultimate"], "Diff", true);
+      populateSelect("#idFilter", Array.from(ids).sort(), "ID");
+
+      $("#loading").hide();
+      $("#dropTable").fadeIn();
+      applyFilters();
     }
+
+    function populateSelect(sel, items, label, fixed) {
+      var $el = $(sel).empty().append('<option value="">All ' + label + 's</option>');
+      items.forEach(function(val) {
+        if (!val) return;
+        if (fixed && !masterData.some(r => r._diff === val)) return;
+        var disp = (val === "U") ? "UBER" : val;
+        $el.append('<option value="' + val + '">' + disp + '</option>');
+      });
+    }
+
+    // --- FILTER & RENDER ---
+    function applyFilters() {
+      var sVal = $("#nameSearch").val().toUpperCase().trim();
+      var tVal = $("#tierFilter").val();
+      var dVal = $("#diffFilter").val();
+      var iVal = $("#idFilter").val();
+
+      var filtered = masterData.filter(function(r) {
+        return (!sVal || r._nameUpper.includes(sVal)) &&
+               (!tVal || r._tier === tVal) &&
+               (!dVal || r._diff === dVal) &&
+               (!iVal || r._id === iVal);
+      });
+
+      if (currentSort.col) sortData(filtered);
+      renderTable(filtered);
+    }
+
+    function sortData(data) {
+      var col = currentSort.col;
+      var dir = currentSort.dir === 'asc' ? 1 : -1;
+      data.sort(function(a, b) {
+        var va = a[col]||"", vb = b[col]||"";
+        if (col === "Current %") return (parseFloat(va)||0 - parseFloat(vb)||0) * dir;
+        return va.toString().localeCompare(vb.toString()) * dir;
+      });
+    }
+
+    function renderTable(data) {
+      var $tbody = $("#dropTable tbody").empty();
+      var RARE_MOBS = ["HILDEBLUE","NAR LILY","POUILLY SLIME","AL RAPPY","PAL RAPPY","LOVE RAPPY","MIL LILY","PAZUZU","DORPHON ECLAIR","KONDRIEU"];
+      var limit = 200; // Performance limit
+      
+      var pageData = data.slice(0, limit);
+
+      pageData.forEach(function(r) {
+        // Rate Calculations
+        var rate = parseFloat(r["Current %"]||0);
+        var dispRate = (rate > 1) ? rate.toFixed(1)+"%" : rate.toFixed(6);
+        var odds = (rate > 0) ? (rate > 1 ? 100/rate : 1/rate) : 0;
+        var dispOdds = (odds > 10) ? Math.round(odds).toLocaleString() : odds.toFixed(2);
+
+        // Visuals
+        var isRare = RARE_MOBS.some(x => (r.Entity||"").toUpperCase().includes(x));
+        var tierHtml = r._tier ? `<span class="tier-tag tier-${r._tier.toLowerCase()}">${r._tier}</span>` : "";
+        var rareHtml = isRare ? `<span class="rare-badge">R</span>` : "";
+        var idColor = SECTION_ID_COLORS[r._id] || "#555";
+        var wikiUrl = "https://wiki.pioneer2.net/w/" + encodeURIComponent((r.Name||"").trim().replace(/\s+/g,'_'));
+
+        var row = `
+          <tr class="${isRare ? 'row-rare' : ''}">
+            <td data-label="Ep">${r.Episode}</td>
+            <td data-label="Diff">${r.Difficulty}</td>
+            <td data-label="Map">${r.Map}</td>
+            <td data-label="Entity">${r.Entity}${rareHtml}</td>
+            <td data-label="Item">
+              <a href="${wikiUrl}" target="_blank" class="wiki-link">${r.Name}</a>
+              ${tierHtml}
+            </td>
+            <td data-label="Rate">
+              ${dispRate} <br><small style="opacity:0.6">1/${dispOdds}</small>
+            </td>
+            <td data-label="ID">
+              <span class="tag" style="background:${idColor};">${r.SectionID}</span>
+            </td>
+          </tr>
+        `;
+        $tbody.append(row);
+      });
+
+      if (data.length === 0) $tbody.append('<tr><td colspan="7" style="text-align:center; padding:20px; opacity:0.6;">No drops found.</td></tr>');
+      else if (data.length > limit) $tbody.append('<tr><td colspan="7" style="text-align:center; padding:10px; opacity:0.6;">' + (data.length-limit) + ' more results hidden...</td></tr>');
+    }
+
+    // --- EVENTS ---
+    $("input, select").on("keyup change", applyFilters);
+    $("th").on("click", function() {
+      var col = $(this).data("sort");
+      if (currentSort.col === col) currentSort.dir = (currentSort.dir === 'asc') ? 'desc' : 'asc';
+      else currentSort = { col: col, dir: 'asc' };
+      applyFilters();
+    });
   </script>
 </body>
 </html>
-
-
 
 
