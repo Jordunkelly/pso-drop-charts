@@ -387,19 +387,36 @@
         // Correct way to skip inside .forEach()
         if (r.Episode == "4") return;
         
+        // Percentage (engine-correct)
         var rateVal = parseRate(r._fraction) * 100;
-        var dispRate = (rateVal > 1) ? rateVal.toFixed(1)+"%" : rateVal.toFixed(5) + "%";
+        var dispRate = (rateVal > 1)
+          ? rateVal.toFixed(1) + "%"
+          : rateVal.toFixed(5) + "%";
         
-        // NO MATH: We use r._rawRate directly from the sheet
-        var displayString = r._rawRate || "1/1"; 
-
+        // Human-readable average kills
+        let avgKills = "";
+        if (r._fraction && r._fraction.includes("/")) {
+          const parts = r._fraction.split("/").map(Number);
+          if (parts.length === 2 && parts[0] > 0 && parts[1] > 0) {
+            avgKills = "~" + Math.round(parts[1] / parts[0]);
+          }
+        }
+        
+        var displayString = avgKills ? `(${avgKills} kills)` : "";
+        
+        // Rarity styling
         var isRare = RARE_MOBS.some(x => (r.Entity||"").toUpperCase().includes(x));
         var rareClass = isRare ? 'style="color:var(--primary); font-weight:bold;"' : '';
         
         var tierHtml = r._tier ? `<span class="tier-tag">${r._tier}</span>` : "";
         var idColor = SECTION_ID_COLORS[r._id] || "#fff";
-        var wikiUrl = "https://wiki.pioneer2.net/w/" + encodeURIComponent((r.ItemName||"").trim().replace(/\s+/g,'_'));
-        var wikiUrlEntity = "https://wiki.pioneer2.net/w/" + encodeURIComponent((r.Entity||"").trim().replace(/\s+/g,'_'));
+        
+        var wikiUrl = "https://wiki.pioneer2.net/w/" +
+          encodeURIComponent((r.ItemName||"").trim().replace(/\s+/g,'_'));
+        
+        var wikiUrlEntity = "https://wiki.pioneer2.net/w/" +
+          encodeURIComponent((r.Entity||"").trim().replace(/\s+/g,'_'));
+
 
         var row = `
           <tr>
@@ -467,6 +484,7 @@
   </script>
 </body>
 </html>
+
 
 
 
