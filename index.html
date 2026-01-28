@@ -8,107 +8,222 @@
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
   
-  <link rel="stylesheet" href="style.css">
-
   <style>
-    /* --- MOBILE & RESPONSIVE FIXES --- */
-    
-    /* 1. Base Controls Layout */
+    /* =========================================
+       1. MODERN CSS VARIABLES & RESET
+       ========================================= */
+    :root {
+      --bg-body: #0f172a;       /* Deep Slate Black */
+      --bg-surface: #1e293b;    /* Lighter Slate for cards/rows */
+      --bg-header: #1e293b;     /* Sticky header bg */
+      --text-main: #f8fafc;     /* White-ish */
+      --text-muted: #94a3b8;    /* Muted Blue-Grey */
+      --border: #334155;        /* Subtle Border */
+      --primary: #38bdf8;       /* PSO Blue/Cyan Accent */
+      --primary-hover: #0ea5e9;
+      --gold: #fbbf24;          /* Rare Item Gold */
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-body);
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+
+    a { text-decoration: none; color: inherit; }
+
+    /* =========================================
+       2. CONTROLS (STICKY HEADER)
+       ========================================= */
+    .content-section {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
     .controls {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
-      padding: 10px;
-      background: #222; /* Dark bg for sticky header */
+      gap: 12px;
+      padding: 15px;
+      background: rgba(30, 41, 59, 0.95); /* Glass-ish effect */
+      backdrop-filter: blur(10px);
       position: sticky;
       top: 0;
       z-index: 100;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-    }
-    
-    .controls input, .controls select {
-      flex: 1 1 45%; /* On mobile, items take 50% width */
-      min-width: 120px;
-      padding: 8px;
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
 
-    /* 2. Desktop Table Styles (Default) */
+    /* Modern Input Styles */
+    .controls input, .controls select {
+      flex: 1 1 200px;
+      padding: 10px 14px;
+      background-color: #020617;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: white;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+
+    .controls input:focus, .controls select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+
+    /* =========================================
+       3. DESKTOP TABLE
+       ========================================= */
     .table-container {
       width: 100%;
-      overflow-x: auto; /* Safety scroll for desktop */
+      overflow-x: auto;
+      min-height: 80vh;
     }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 800px; /* Force scroll on mid-size screens if not using cards */
+      font-size: 14px;
     }
-    th, td {
-      padding: 10px;
+
+    thead {
+      background-color: #0f172a;
+      border-bottom: 2px solid var(--border);
+    }
+
+    th {
+      padding: 12px 16px;
       text-align: left;
-      border-bottom: 1px solid #444;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 12px;
+      cursor: pointer;
+      user-select: none;
     }
-    
-    /* 3. MOBILE CARD VIEW ( The Magic Fix ) */
+
+    th:hover { color: var(--primary); }
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-main);
+    }
+
+    /* Row Hover Effect */
+    tbody tr { transition: background-color 0.15s; }
+    tbody tr:hover { background-color: rgba(56, 189, 248, 0.05); }
+
+    /* Rarity Coloring */
+    .wiki-link {
+      font-weight: 600;
+      color: var(--gold);
+      transition: color 0.2s;
+    }
+    .wiki-link:hover { text-decoration: underline; color: #fff; }
+
+    /* Tags / Badges */
+    .tag {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #000; /* Text inside badges is black for contrast */
+      text-shadow: none;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    /* Tier Tags */
+    .tier-tag {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      background: #334155;
+      color: #cbd5e1;
+      border: 1px solid #475569;
+    }
+
+    /* Loading State */
+    #loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+      font-size: 1.2rem;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+
+    /* =========================================
+       4. MOBILE CARD VIEW
+       ========================================= */
     @media screen and (max-width: 768px) {
-      /* Force table to not be like tables anymore */
-      table, thead, tbody, th, td, tr { 
-        display: block; 
-      }
+      /* Base resets to break table structure */
+      table, thead, tbody, th, td, tr { display: block; }
+      thead tr { position: absolute; top: -9999px; left: -9999px; }
       
-      /* Hide table headers (but not display: none;, for accessibility) */
-      thead tr { 
-        position: absolute;
-        top: -9999px;
-        left: -9999px;
-      }
-      
-      table {
-        min-width: 100%; /* Remove desktop min-width */
-      }
-      
-      tr { 
-        margin: 0 0 1rem 0; 
-        border: 1px solid #444;
-        background: #1e1e1e; /* Card Background */
+      .controls { padding: 10px; gap: 8px; }
+      .controls input, .controls select { flex: 1 1 100%; } /* Full width inputs on mobile */
+
+      tbody tr {
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border);
         border-radius: 8px;
-        padding: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        margin: 12px;
+        padding: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
       }
-      
-      td { 
-        /* Behave like a "row" */
+
+      td {
         border: none;
-        border-bottom: 1px solid #333; 
+        border-bottom: 1px solid rgba(255,255,255,0.05);
         position: relative;
-        padding-left: 40% !important; /* Make space for label */
-        white-space: normal;
-        text-align: right; /* Align value to right */
-        min-height: 28px;
-      }
-      
-      td:last-child {
-        border-bottom: 0;
+        padding: 8px 0 8px 35%; /* Left padding for label space */
+        text-align: right;
+        min-height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
       }
 
-      /* Add the label (Ep, Diff, etc) via CSS using the data-label we added in JS */
-      td:before { 
+      td:last-child { border-bottom: none; }
+
+      /* Pseudo-element for labels (Ep, Diff, etc) */
+      td:before {
+        content: attr(data-label);
         position: absolute;
-        top: 10px;
-        left: 10px;
-        width: 35%; 
-        padding-right: 10px; 
-        white-space: nowrap;
-        text-align: left;
-        font-weight: bold;
-        color: #aaa; /* Label color */
-        content: attr(data-label); 
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 30%;
+        display: flex;
+        align-items: center;
+        font-weight: 600;
+        font-size: 12px;
+        color: var(--text-muted);
+        text-transform: uppercase;
       }
 
-      /* Specific Tweaks for Item Name */
+      /* Specific Mobile Styles */
       td[data-label="Item Name"] {
         font-size: 1.1em;
-        color: #ffcc00;
-        text-align: right;
+        padding-top: 0;
+        padding-bottom: 12px;
+        justify-content: flex-end; /* Align right */
+      }
+      
+      /* Make Rate Stand out */
+      td[data-label="Rate"] {
+        color: var(--primary);
+        font-family: monospace;
       }
     }
   </style>
@@ -116,59 +231,64 @@
 
 <body>
 
- <script>
+<div id="nav-placeholder"></div>
+<script>
     fetch('nav.html')
     .then(res => res.text())
     .then(data => {
         document.getElementById('nav-placeholder').innerHTML = data;
-        const currentPage = window.location.pathname.split("/").pop() || "mag.html";
-        const navLinks = document.querySelectorAll('.nav-link');
-        navLinks.forEach(link => {
-            if (link.getAttribute('href') === currentPage) {
-                link.classList.add('active');
-            }
+        // Simple active tab logic
+        const currentPage = window.location.pathname.split("/").pop() || "index.html";
+        document.querySelectorAll('.nav-link').forEach(link => {
+            if (link.getAttribute('href') === currentPage) link.classList.add('active');
         });
     });
 </script>
-<div id="nav-placeholder"></div>
 
   <div class="content-section">
     <div class="controls">
-      <input type="text" id="nameSearch" placeholder="Search Item..." autocomplete="off" />
-      <select id="tierFilter"><option value="">All Tiers</option></select>
-      <select id="diffFilter"><option value="">All Difficulties</option></select>
-      <select id="idFilter"><option value="">All Section IDs</option></select>
+      <input type="text" id="nameSearch" placeholder="Search Item Name..." autocomplete="off" />
+      <select id="tierFilter"><option value="">Filter by Tier</option></select>
+      <select id="diffFilter"><option value="">Filter by Difficulty</option></select>
+      <select id="idFilter"><option value="">Filter by Section ID</option></select>
     </div>
 
     <div class="table-container">
-      <div id="loading">Loading Database...</div>
+      <div id="loading">Syncing Drop Data...</div>
       <table id="dropTable" style="display:none;">
         <thead>
           <tr>
-            <th data-sort="Episode">Ep</th>
-            <th data-sort="Difficulty">Diff</th>
+            <th data-sort="Episode" style="width:50px;">Ep</th>
+            <th data-sort="Difficulty" style="width:80px;">Diff</th>
+            <th data-sort="SectionID" style="width:100px;">ID</th>
             <th data-sort="Map">Map</th>
-            <th data-sort="Entity">Entity</th>
+            <th data-sort="Entity">Source</th>
             <th data-sort="Name">Item Name</th>
-            <th data-sort="Current %">Rate</th>
-            <th data-sort="SectionID">ID</th>
+            <th data-sort="Current %" style="text-align:right;">Rate / Odds</th>
           </tr>
         </thead>
-        <tbody>
-          </tbody>
+        <tbody></tbody>
       </table>
     </div>
   </div>
 
   <script>
     /* =========================================
-        3. LOGIC & DATA (Single-Source Library)
+        LOGIC & DATA
        ========================================= */
 
+    // UPDATED MODERN COLORS (Vibrant Pastels for Dark Mode)
     var SECTION_ID_COLORS = {
-      Viridia: "#22C55E", Greenill: "#16A34A", Skyly: "#38BDF8", Bluefull: "#2563EB",
-      Purplenum: "#A855F7", Pinkal: "#EC4899", Redria: "#EF4444", Oran: "#F97316",
-      Yellowboze: "#FACC15", Whitill: "#E5E7EB"
+      VIRIDIA:    "#4ade80", // Bright Green
+      GREENILL:   "#22c55e", // Green
+      SKYLY:      "#38bdf8", // Sky Blue
+      BLUEFULL:   "#3b82f6", // Blue
+      PURPLENUM:  "#c084fc", // Purple
+      PINKAL:     "#f472b6", // Pink
+      REDRIA:     "#f87171", // Red
+      ORAN:       "#fb923c", // Orange
+      YELLOWBOZE: "#facc15", // Yellow
+      WHITILL:    "#e2e8f0"  // White/Grey
     };
 
     var csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS-nCzkALWoSyKOLXNORN_zgy2ONKn4Hcwi-jQNHCgmEW8DJ7yX3AyO9Uod44ecEUwklr76Dw4-p1o0/pub?gid=2126274177&single=true&output=csv";
@@ -184,6 +304,7 @@
       Papa.parse(csvUrl, {
         download: true,
         header: true,
+        skipEmptyLines: true,
         complete: function(results) {
           processData(results.data || []);
         },
@@ -209,7 +330,7 @@
           _nameUpper: nameUpper,
           _tier: tier,
           _diff: r.Difficulty ? r.Difficulty.trim() : "",
-          _id: r.Section ? r.Section.trim() : "",
+          _id: r.Section ? r.Section.trim().toUpperCase() : "", // Force Upper for Color Match
           _fraction: fraction
         });
       });
@@ -224,7 +345,10 @@
     }
 
     function populateSelect(sel, items, label, fixed) {
-      var $el = $(sel).empty().append('<option value="">All ' + label + 's</option>');
+      var $el = $(sel);
+      // Keep first option
+      $el.find('option:not(:first)').remove();
+      
       items.forEach(function(val) {
         if (!val) return;
         if (fixed && !masterData.some(r => r._diff === val)) return;
@@ -236,10 +360,17 @@
       var sVal = $("#nameSearch").val().toUpperCase().trim();
       var tVal = $("#tierFilter").val();
       var dVal = $("#diffFilter").val();
-      var iVal = $("#idFilter").val();
+      var iVal = $("#idFilter").val(); // Already Uppercase from value
 
       var filtered = masterData.filter(function(r) {
-        return (!sVal || r._nameUpper.includes(sVal)) &&
+        // Multi-term search (e.g. "Arms V502")
+        var matchesName = true;
+        if (sVal) {
+            var terms = sVal.split(" ");
+            matchesName = terms.every(term => r._nameUpper.includes(term));
+        }
+
+        return matchesName &&
                (!tVal || r._tier === tVal) &&
                (!dVal || r._diff === dVal) &&
                (!iVal || r._id === iVal);
@@ -253,56 +384,63 @@
       var col = currentSort.col;
       var dir = currentSort.dir === 'asc' ? 1 : -1;
       data.sort(function(a, b) {
+        // Special Numeric Sort for Rate
+        if (col === 'Current %') {
+             var rateA = parseRate(a._fraction);
+             var rateB = parseRate(b._fraction);
+             return (rateA - rateB) * dir;
+        }
         var va = a[col]||"", vb = b[col]||"";
-        return va.toString().localeCompare(vb.toString()) * dir;
+        return va.toString().localeCompare(vb.toString(), undefined, {numeric: true}) * dir;
       });
+    }
+
+    function parseRate(frac) {
+        if (!frac || !frac.includes('/')) return 0;
+        var p = frac.split('/');
+        return parseInt(p[0]) / parseInt(p[1]);
     }
 
     function renderTable(data) {
       var $tbody = $("#dropTable tbody").empty();
       var RARE_MOBS = ["HILDEBLUE","NAR LILY","POUILLY SLIME","AL RAPPY","PAL RAPPY","LOVE RAPPY","MIL LILY","PAZUZU","DORPHON ECLAIR","KONDRIEU"];
       
-      data.slice(0, 200).forEach(function(r) {
-        var rate = 0;
-        if (r._fraction && r._fraction.includes('/')) {
-          var parts = r._fraction.split('/');
-          rate = (parseInt(parts[0]) / parseInt(parts[1])) * 100;
-        }
-
-        var dispRate = (rate > 1) ? rate.toFixed(1)+"%" : rate.toFixed(6) + "%";
-        var odds = (rate > 0) ? (100 / rate) : 0;
+      data.slice(0, 100).forEach(function(r) { // Limit render for speed
+        var rateVal = parseRate(r._fraction) * 100;
+        var dispRate = (rateVal > 1) ? rateVal.toFixed(1)+"%" : rateVal.toFixed(5) + "%";
+        var odds = (rateVal > 0) ? (100 / rateVal) : 0;
         var dispOdds = (odds > 10) ? Math.round(odds).toLocaleString() : odds.toFixed(2);
 
         var isRare = RARE_MOBS.some(x => (r.Entity||"").toUpperCase().includes(x));
-        var tierHtml = r._tier ? `<span class="tier-tag tier-${r._tier.toLowerCase()}">${r._tier}</span>` : "";
-        var idColor = SECTION_ID_COLORS[r._id] || "#555";
+        var rareClass = isRare ? 'style="color:var(--primary); font-weight:bold;"' : '';
+        
+        var tierHtml = r._tier ? `<span class="tier-tag">${r._tier}</span>` : "";
+        var idColor = SECTION_ID_COLORS[r._id] || "#fff";
         var wikiUrl = "https://wiki.pioneer2.net/w/" + encodeURIComponent((r.ItemName||"").trim().replace(/\s+/g,'_'));
 
-        /* MOBILE FIX: Added data-label attributes to each TD.
-           This allows CSS to generate the labels (Ep, Diff, etc) inside the card view.
-        */
+        // Rearranged Columns slightly for better Mobile flow
         var row = `
-          <tr class="${isRare ? 'row-rare' : ''}">
+          <tr>
             <td data-label="Ep">${r.Episode}</td>
             <td data-label="Diff">${r.Difficulty}</td>
-            <td data-label="Map">${r.Section}</td> 
-            <td data-label="Entity">${r.Entity}</td>
+            <td data-label="ID">
+              <span class="tag" style="background:${idColor};">${r.Section}</span>
+            </td>
+            <td data-label="Map">${r.Section}</td> <td data-label="Entity" ${rareClass}>${r.Entity}</td>
             <td data-label="Item Name">
               <a href="${wikiUrl}" target="_blank" class="wiki-link">${r.ItemName}</a>
               ${tierHtml}
             </td>
-            <td data-label="Rate">
-              ${dispRate} <br><small style="opacity:0.6">1/${dispOdds}</small>
-            </td>
-            <td data-label="ID">
-              <span class="tag" style="background:${idColor};">${r.Section}</span>
+            <td data-label="Rate" style="text-align:right;">
+              <span style="color:#fff">${dispRate}</span>
+              <br><small style="opacity:0.5; font-size:0.85em;">1 / ${dispOdds}</small>
             </td>
           </tr>
         `;
         $tbody.append(row);
       });
 
-      if (data.length === 0) $tbody.append('<tr><td colspan="7" style="text-align:center; padding:20px;">No drops found.</td></tr>');
+      if (data.length === 0) $tbody.append('<tr><td colspan="7" style="text-align:center; padding:30px; opacity:0.5;">No drops found. Try adjusting filters.</td></tr>');
     }
 
     $("input, select").on("keyup change", applyFilters);
