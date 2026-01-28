@@ -395,6 +395,7 @@
         var tierHtml = r._tier ? `<span class="tier-tag">${r._tier}</span>` : "";
         var idColor = SECTION_ID_COLORS[r._id] || "#fff";
         var wikiUrl = "https://wiki.pioneer2.net/w/" + encodeURIComponent((r.ItemName||"").trim().replace(/\s+/g,'_'));
+        var wikiUrlEntity = "https://wiki.pioneer2.net/w/" + encodeURIComponent((r.Entity||"").trim().replace(/\s+/g,'_'));
 
         var row = `
           <tr>
@@ -404,7 +405,9 @@
               <span class="tag" style="background:${idColor};">${r.Section}</span>
             </td>
             <td data-label="Map">${r.Section}</td>
-            <td data-label="Entity" ${rareClass}>${r.Entity}</td>
+            <td data-label="Entity" ${rareClass}>
+              <a href="${wikiUrlEntity}" class="wiki-link" onclick="openWikiModal(event, '${wikiUrlEntity}', '${r.Entity.replace(/'/g, "\\'")}')">${r.Entity}</a>
+            </td>
             <td data-label="Item Name">
               <a href="${wikiUrl}" class="wiki-link" onclick="openWikiModal(event, '${wikiUrl}', '${r.ItemName.replace(/'/g, "\\'")}')">${r.ItemName}</a>
               ${tierHtml}
@@ -460,3 +463,4 @@
   </script>
 </body>
 </html>
+
