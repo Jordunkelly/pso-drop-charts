@@ -275,70 +275,80 @@
       font-variant-numeric: tabular-nums;
     }
 
-    /* =========================================
-       5. MOBILE CARD VIEW
-       ========================================= */
-    @media screen and (max-width: 768px) {
-      /* Base resets to break table structure */
-      table, thead, tbody, th, td, tr { display: block; }
-      thead tr { position: absolute; top: -9999px; left: -9999px; }
-      
-      .controls { padding: 10px; gap: 8px; }
-      .controls input, .controls select { flex: 1 1 100%; } /* Full width inputs on mobile */
-
-      tbody tr {
-        background-color: var(--bg-surface);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        margin: 12px;
-        padding: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-      }
-
-      td {
-        border: none;
-        border-bottom: 1px solid rgba(255,255,255,0.05);
-        position: relative;
-        padding: 8px 0 8px 35%; /* Left padding for label space */
-        text-align: right;
-        min-height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-      }
-
-      td:last-child { border-bottom: none; }
-
-      /* Pseudo-element for labels (Ep, Diff, etc) */
-      td:before {
-        content: attr(data-label);
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 30%;
-        display: flex;
-        align-items: center;
-        font-weight: 600;
-        font-size: 12px;
-        color: var(--text-muted);
-        text-transform: uppercase;
-      }
-
-      /* Specific Mobile Styles */
-      td[data-label="Item Name"] {
-        font-size: 1.1em;
-        padding-top: 0;
-        padding-bottom: 12px;
-        justify-content: flex-end; /* Align right */
-      }
-      
-      /* Make Rate Stand out */
-      td[data-label="Rate"] {
-        color: var(--primary);
-        font-family: monospace;
-      }
+    /* FORCE MOBILE CARD VIEW */
+  @media screen and (max-width: 768px) {
+    
+    /* 1. Force the Table to break apart */
+    table, thead, tbody, th, td, tr { 
+      display: block !important; 
+      width: 100% !important;
+      box-sizing: border-box;
     }
+    
+    /* 2. Hide Headers completely */
+    thead tr { 
+      position: absolute;
+      top: -9999px;
+      left: -9999px;
+    }
+    
+    /* 3. Style the "Rows" as "Cards" */
+    tbody tr { 
+      margin-bottom: 15px !important;
+      background: #1e1e1e !important; /* Card Color */
+      border: 1px solid #444;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      padding: 10px;
+    }
+    
+    /* 4. Style the "Cells" as lines in the card */
+    td { 
+      border: none !important;
+      border-bottom: 1px solid #333 !important; 
+      position: relative;
+      padding-left: 40% !important; /* Make room for label */
+      text-align: right !important;
+      white-space: normal !important; /* Allow text wrapping */
+      min-height: 30px;
+      display: flex !important; /* Force flex to align label/value */
+      justify-content: flex-end;
+      align-items: center;
+    }
+    
+    td:last-child {
+      border-bottom: none !important;
+    }
+
+    /* 5. Inject Labels via CSS */
+    td::before { 
+      content: attr(data-label); 
+      position: absolute;
+      left: 10px;
+      top: 0;
+      bottom: 0;
+      width: 35%;
+      display: flex;
+      align-items: center;
+      font-weight: bold;
+      color: #38bdf8; /* Blue Label */
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      text-align: left;
+    }
+
+    /* 6. Fix Search Inputs on Mobile */
+    .controls {
+      display: flex !important;
+      flex-direction: column !important; /* Stack inputs */
+      position: static !important; /* Unstick on mobile */
+      gap: 10px !important;
+    }
+    .controls input, .controls select {
+      width: 100% !important;
+      flex: none !important;
+    }
+  }
   </style>
 </head>
 
@@ -658,6 +668,7 @@
   </script>
 </body>
 </html>
+
 
 
 
