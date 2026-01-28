@@ -2,13 +2,116 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PSO BB Brotherhood Drop Tool</title>
 
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+  
+  <link rel="stylesheet" href="style.css">
 
-    <link rel="stylesheet" href="style.css">
+  <style>
+    /* --- MOBILE & RESPONSIVE FIXES --- */
+    
+    /* 1. Base Controls Layout */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 10px;
+      background: #222; /* Dark bg for sticky header */
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+    
+    .controls input, .controls select {
+      flex: 1 1 45%; /* On mobile, items take 50% width */
+      min-width: 120px;
+      padding: 8px;
+    }
+
+    /* 2. Desktop Table Styles (Default) */
+    .table-container {
+      width: 100%;
+      overflow-x: auto; /* Safety scroll for desktop */
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 800px; /* Force scroll on mid-size screens if not using cards */
+    }
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #444;
+    }
+    
+    /* 3. MOBILE CARD VIEW ( The Magic Fix ) */
+    @media screen and (max-width: 768px) {
+      /* Force table to not be like tables anymore */
+      table, thead, tbody, th, td, tr { 
+        display: block; 
+      }
+      
+      /* Hide table headers (but not display: none;, for accessibility) */
+      thead tr { 
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+      }
+      
+      table {
+        min-width: 100%; /* Remove desktop min-width */
+      }
+      
+      tr { 
+        margin: 0 0 1rem 0; 
+        border: 1px solid #444;
+        background: #1e1e1e; /* Card Background */
+        border-radius: 8px;
+        padding: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      }
+      
+      td { 
+        /* Behave like a "row" */
+        border: none;
+        border-bottom: 1px solid #333; 
+        position: relative;
+        padding-left: 40% !important; /* Make space for label */
+        white-space: normal;
+        text-align: right; /* Align value to right */
+        min-height: 28px;
+      }
+      
+      td:last-child {
+        border-bottom: 0;
+      }
+
+      /* Add the label (Ep, Diff, etc) via CSS using the data-label we added in JS */
+      td:before { 
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        width: 35%; 
+        padding-right: 10px; 
+        white-space: nowrap;
+        text-align: left;
+        font-weight: bold;
+        color: #aaa; /* Label color */
+        content: attr(data-label); 
+      }
+
+      /* Specific Tweaks for Item Name */
+      td[data-label="Item Name"] {
+        font-size: 1.1em;
+        color: #ffcc00;
+        text-align: right;
+      }
+    }
+  </style>
 </head>
 
 <body>
@@ -18,12 +121,8 @@
     .then(res => res.text())
     .then(data => {
         document.getElementById('nav-placeholder').innerHTML = data;
-        
-        // AUTOMATIC ACTIVE CLASS LOGIC
-        // This detects which page you are on and highlights the correct tab
         const currentPage = window.location.pathname.split("/").pop() || "mag.html";
         const navLinks = document.querySelectorAll('.nav-link');
-        
         navLinks.forEach(link => {
             if (link.getAttribute('href') === currentPage) {
                 link.classList.add('active');
@@ -66,20 +165,17 @@
         3. LOGIC & DATA (Single-Source Library)
        ========================================= */
 
-    // --- CONFIG ---
     var SECTION_ID_COLORS = {
       Viridia: "#22C55E", Greenill: "#16A34A", Skyly: "#38BDF8", Bluefull: "#2563EB",
       Purplenum: "#A855F7", Pinkal: "#EC4899", Redria: "#EF4444", Oran: "#F97316",
       Yellowboze: "#FACC15", Whitill: "#E5E7EB"
     };
 
-    // Single source of truth: Library CSV
     var csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS-nCzkALWoSyKOLXNORN_zgy2ONKn4Hcwi-jQNHCgmEW8DJ7yX3AyO9Uod44ecEUwklr76Dw4-p1o0/pub?gid=2126274177&single=true&output=csv";
 
     var masterData = [];
     var currentSort = { col: null, dir: 'asc' };
 
-    // --- INIT ---
     $(document).ready(function() {
       fetchDropData();
     });
@@ -100,11 +196,7 @@
 
       masterData = rawData.filter(r => r.ItemName && r.ItemName.trim()).map(r => {
         var nameUpper = r.ItemName.trim().toUpperCase();
-        
-        // Use RANKING column from library for Tier
         var tier = r.Ranking ? r.Ranking.trim() : "";
-        
-        // NVL Logic for fractions
         var fraction = (r.New_Server_Fraction && r.New_Server_Fraction.trim() !== "") 
                         ? r.New_Server_Fraction 
                         : r.Server_Fraction;
@@ -140,7 +232,6 @@
       });
     }
 
-    // --- FILTER & RENDER ---
     function applyFilters() {
       var sVal = $("#nameSearch").val().toUpperCase().trim();
       var tVal = $("#tierFilter").val();
@@ -172,7 +263,6 @@
       var RARE_MOBS = ["HILDEBLUE","NAR LILY","POUILLY SLIME","AL RAPPY","PAL RAPPY","LOVE RAPPY","MIL LILY","PAZUZU","DORPHON ECLAIR","KONDRIEU"];
       
       data.slice(0, 200).forEach(function(r) {
-        // Calculate percentages from fractions
         var rate = 0;
         if (r._fraction && r._fraction.includes('/')) {
           var parts = r._fraction.split('/');
@@ -188,20 +278,23 @@
         var idColor = SECTION_ID_COLORS[r._id] || "#555";
         var wikiUrl = "https://wiki.pioneer2.net/w/" + encodeURIComponent((r.ItemName||"").trim().replace(/\s+/g,'_'));
 
+        /* MOBILE FIX: Added data-label attributes to each TD.
+           This allows CSS to generate the labels (Ep, Diff, etc) inside the card view.
+        */
         var row = `
           <tr class="${isRare ? 'row-rare' : ''}">
-            <td>${r.Episode}</td>
-            <td>${r.Difficulty}</td>
-            <td>${r.Section}</td> 
-            <td>${r.Entity}</td>
-            <td>
+            <td data-label="Ep">${r.Episode}</td>
+            <td data-label="Diff">${r.Difficulty}</td>
+            <td data-label="Map">${r.Section}</td> 
+            <td data-label="Entity">${r.Entity}</td>
+            <td data-label="Item Name">
               <a href="${wikiUrl}" target="_blank" class="wiki-link">${r.ItemName}</a>
               ${tierHtml}
             </td>
-            <td>
+            <td data-label="Rate">
               ${dispRate} <br><small style="opacity:0.6">1/${dispOdds}</small>
             </td>
-            <td>
+            <td data-label="ID">
               <span class="tag" style="background:${idColor};">${r.Section}</span>
             </td>
           </tr>
@@ -209,7 +302,7 @@
         $tbody.append(row);
       });
 
-      if (data.length === 0) $tbody.append('<tr><td colspan="7">No drops found.</td></tr>');
+      if (data.length === 0) $tbody.append('<tr><td colspan="7" style="text-align:center; padding:20px;">No drops found.</td></tr>');
     }
 
     $("input, select").on("keyup change", applyFilters);
@@ -222,7 +315,3 @@
   </script>
 </body>
 </html>
-
-
-
-
