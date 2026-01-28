@@ -7,18 +7,19 @@
 
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+  
   <link rel="stylesheet" href="style.css">
   
   <style>
-      /* =========================================
-       6. WIKI MODAL (Popup)
+    /* =========================================
+       1. WIKI MODAL (Not in style.css)
        ========================================= */
     .modal-overlay {
-      display: none; /* Hidden by default */
+      display: none;
       position: fixed;
       top: 0; left: 0;
       width: 100%; height: 100%;
-      background: rgba(0, 0, 0, 0.85); /* Dark dim background */
+      background: rgba(0, 0, 0, 0.85);
       backdrop-filter: blur(5px);
       z-index: 1000;
       justify-content: center;
@@ -27,12 +28,12 @@
 
     .modal-content {
       position: relative;
-      background: #1e293b; /* Match surface color */
+      background: #1e293b;
       width: 90%;
       max-width: 1000px;
       height: 90%;
       border-radius: 12px;
-      border: 1px solid var(--border);
+      border: 1px solid #30363d;
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
       overflow: hidden;
       display: flex;
@@ -42,7 +43,7 @@
     .modal-header {
       padding: 15px 20px;
       background: #0f172a;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid #30363d;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -51,25 +52,24 @@
     .modal-title {
       font-size: 1.2rem;
       font-weight: 700;
-      color: var(--primary);
+      color: #38bdf8;
     }
 
     .close-btn {
       background: transparent;
       border: none;
-      color: var(--text-muted);
+      color: #94a3b8;
       font-size: 24px;
       cursor: pointer;
       line-height: 1;
     }
     .close-btn:hover { color: #fff; }
 
-    /* The Iframe Container */
     .wiki-frame-container {
       flex: 1;
       width: 100%;
       height: 100%;
-      background: #fff; /* Wiki content expects white bg */
+      background: #fff; 
     }
 
     iframe {
@@ -79,312 +79,111 @@
       display: block;
     }
 
-
-    
     /* =========================================
-       1. MODERN CSS VARIABLES & RESET
+       2. MOBILE OVERRIDES (The Fix)
        ========================================= */
-    :root {
-      --bg-body: #0f172a;       /* Deep Slate Black */
-      --bg-surface: #1e293b;    /* Lighter Slate for cards/rows */
-      --bg-header: #1e293b;     /* Sticky header bg */
-      --text-main: #f8fafc;     /* White-ish */
-      --text-muted: #94a3b8;    /* Muted Blue-Grey */
-      --border: #334155;        /* Subtle Border */
-      --primary: #38bdf8;       /* PSO Blue/Cyan Accent */
-      --primary-hover: #0ea5e9;
-      --gold: #fbbf24;          /* Rare Item Gold */
-    }
+    @media screen and (max-width: 768px) {
+      
+      /* 1. Reset Table Structure */
+      table, thead, tbody, th, td, tr { 
+        display: block !important; 
+        width: 100% !important;
+        box-sizing: border-box !important;
+        min-width: 0 !important;
+      }
+      
+      /* 2. Hide Headers */
+      thead tr { 
+        position: absolute !important;
+        top: -9999px !important;
+        left: -9999px !important;
+      }
+      
+      /* 3. Card Style Rows */
+      tbody tr { 
+        margin-bottom: 15px !important;
+        background: #161b22 !important; 
+        border: 1px solid #30363d !important;
+        border-radius: 8px !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
+        padding: 10px !important;
+      }
+      
+      /* 4. Flexbox Cells */
+      td { 
+        border: none !important;
+        border-bottom: 1px solid #30363d !important; 
+        position: relative !important;
+        padding: 8px 0 !important;
+        text-align: right !important;
+        min-height: 35px !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+      }
+      
+      td:last-child {
+        border-bottom: none !important;
+      }
 
-    * { box-sizing: border-box; }
+      /* 5. The Label */
+      td::before { 
+        content: attr(data-label); 
+        font-weight: 800 !important;
+        color: #58a6ff !important;
+        text-transform: uppercase !important;
+        font-size: 0.75rem !important;
+        text-align: left !important;
+        padding-right: 15px !important;
+      }
 
-    body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background-color: var(--bg-body);
-      color: var(--text-main);
-      line-height: 1.5;
-    }
+      /* 6. The Value */
+      td > * {
+        text-align: right !important;
+        margin-left: auto !important;
+      }
 
-    a { text-decoration: none; color: inherit; }
-
-    /* =========================================
-       2. CONTROLS (STICKY HEADER)
-       ========================================= */
-    .content-section {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding-bottom: 60px; /* Space for pagination footer */
+      /* 7. Controls Stack */
+      .controls {
+        display: flex !important;
+        flex-direction: column !important;
+        position: static !important;
+        gap: 10px !important;
+        grid-template-columns: 1fr !important;
+      }
+      .controls input, .controls select {
+        width: 100% !important;
+      }
     }
-
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      padding: 15px;
-      background: rgba(30, 41, 59, 0.95); /* Glass-ish effect */
-      backdrop-filter: blur(10px);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      border-bottom: 1px solid var(--border);
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-
-    /* Modern Input Styles */
-    .controls input, .controls select {
-      flex: 1 1 200px;
-      padding: 10px 14px;
-      background-color: #020617;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: white;
-      font-size: 14px;
-      transition: all 0.2s ease;
-    }
-
-    .controls input:focus, .controls select:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
-    }
-
-    /* =========================================
-       3. DESKTOP TABLE
-       ========================================= */
-    .table-container {
-      width: 100%;
-      overflow-x: auto;
-      min-height: 60vh;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
-    }
-
-    thead {
-      background-color: #0f172a;
-      border-bottom: 2px solid var(--border);
-    }
-
-    th {
-      padding: 12px 16px;
-      text-align: left;
-      color: var(--text-muted);
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      font-size: 12px;
-      cursor: pointer;
-      user-select: none;
-    }
-
-    th:hover { color: var(--primary); }
-
-    td {
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
-      color: var(--text-main);
-    }
-
-    /* Row Hover Effect */
-    tbody tr { transition: background-color 0.15s; }
-    tbody tr:hover { background-color: rgba(56, 189, 248, 0.05); }
-
-    /* Rarity Coloring */
-    .wiki-link {
-      font-weight: 600;
-      color: var(--gold);
-      transition: color 0.2s;
-    }
-    .wiki-link:hover { text-decoration: underline; color: #fff; }
-
-    /* Tags / Badges */
-    .tag {
-      display: inline-block;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 700;
-      color: #000; /* Text inside badges is black for contrast */
-      text-shadow: none;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-
-    /* Tier Tags */
-    .tier-tag {
-      display: inline-block;
-      margin-left: 8px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 10px;
-      background: #334155;
-      color: #cbd5e1;
-      border: 1px solid #475569;
-    }
-
-    /* Loading State */
-    #loading {
-      text-align: center;
-      padding: 40px;
-      color: var(--text-muted);
-      font-size: 1.2rem;
-      animation: pulse 1.5s infinite;
-    }
-    @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
-
-    /* =========================================
-       4. PAGINATION FOOTER
-       ========================================= */
-    .pagination-bar {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 15px;
-      padding: 20px;
-      background: var(--bg-header);
-      border-top: 1px solid var(--border);
-      margin-top: 10px;
-    }
-
-    .page-btn {
-      background: #334155;
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 600;
-      transition: background 0.2s;
-    }
-
-    .page-btn:hover:not(:disabled) {
-      background: var(--primary);
-      color: #000;
-    }
-
-    .page-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    #pageInfo {
-      color: var(--text-muted);
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* FORCE MOBILE CARD VIEW */
-  @media screen and (max-width: 768px) {
-    
-    /* 1. Force the Table to break apart */
-    table, thead, tbody, th, td, tr { 
-      display: block !important; 
-      width: 100% !important;
-      box-sizing: border-box;
-    }
-    
-    /* 2. Hide Headers completely */
-    thead tr { 
-      position: absolute;
-      top: -9999px;
-      left: -9999px;
-    }
-    
-    /* 3. Style the "Rows" as "Cards" */
-    tbody tr { 
-      margin-bottom: 15px !important;
-      background: #1e1e1e !important; /* Card Color */
-      border: 1px solid #444;
-      border-radius: 8px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-      padding: 10px;
-    }
-    
-    /* 4. Style the "Cells" as lines in the card */
-    td { 
-      border: none !important;
-      border-bottom: 1px solid #333 !important; 
-      position: relative;
-      padding-left: 40% !important; /* Make room for label */
-      text-align: right !important;
-      white-space: normal !important; /* Allow text wrapping */
-      min-height: 30px;
-      display: flex !important; /* Force flex to align label/value */
-      justify-content: flex-end;
-      align-items: center;
-    }
-    
-    td:last-child {
-      border-bottom: none !important;
-    }
-
-    /* 5. Inject Labels via CSS */
-    td::before { 
-      content: attr(data-label); 
-      position: absolute;
-      left: 10px;
-      top: 0;
-      bottom: 0;
-      width: 35%;
-      display: flex;
-      align-items: center;
-      font-weight: bold;
-      color: #38bdf8; /* Blue Label */
-      text-transform: uppercase;
-      font-size: 0.75rem;
-      text-align: left;
-    }
-
-    /* 6. Fix Search Inputs on Mobile */
-    .controls {
-      display: flex !important;
-      flex-direction: column !important; /* Stack inputs */
-      position: static !important; /* Unstick on mobile */
-      gap: 10px !important;
-    }
-    .controls input, .controls select {
-      width: 100% !important;
-      flex: none !important;
-    }
-  }
   </style>
 </head>
 
 <body>
 
   <div id="wikiModal" class="modal-overlay">
-  <div class="modal-content">
-    <div class="modal-header">
-      <span class="modal-title" id="modalTitle">Item Details</span>
-      <button class="close-btn" onclick="closeModal()">&times;</button>
-    </div>
-    <div class="wiki-frame-container">
-      <iframe id="wikiFrame" src=""></iframe>
+    <div class="modal-content">
+      <div class="modal-header">
+        <span class="modal-title" id="modalTitle">Item Details</span>
+        <button class="close-btn" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="wiki-frame-container">
+        <iframe id="wikiFrame" src=""></iframe>
+      </div>
     </div>
   </div>
-</div>
 
-<script>
-    fetch('nav.html')
-    .then(res => res.text())
-    .then(data => {
-        document.getElementById('nav-placeholder').innerHTML = data;
-        
-        // AUTOMATIC ACTIVE CLASS LOGIC
-        // This detects which page you are on and highlights the correct tab
-        const currentPage = window.location.pathname.split("/").pop() || "index.html";
-        const navLinks = document.querySelectorAll('.nav-link');
-        
-        navLinks.forEach(link => {
-            if (link.getAttribute('href') === currentPage) {
-                link.classList.add('active');
-            }
-        });
-    });
-</script>
-<div id="nav-placeholder"></div>
+  <div id="nav-placeholder"></div>
+  <script>
+      fetch('nav.html')
+      .then(res => res.text())
+      .then(data => {
+          document.getElementById('nav-placeholder').innerHTML = data;
+          const currentPage = window.location.pathname.split("/").pop() || "index.html";
+          document.querySelectorAll('.nav-link').forEach(link => {
+              if (link.getAttribute('href') === currentPage) link.classList.add('active');
+          });
+      });
+  </script>
 
   <div class="content-section">
     <div class="controls">
@@ -424,18 +223,17 @@
         LOGIC & DATA
        ========================================= */
 
-    // UPDATED MODERN COLORS (Vibrant Pastels for Dark Mode)
     var SECTION_ID_COLORS = {
-      VIRIDIA:    "#4ade80", // Bright Green
-      GREENNILL:  "#22c55e", // Green (Updated Spelling)
-      SKYLY:      "#38bdf8", // Sky Blue
-      BLUEFULL:   "#3b82f6", // Blue
-      PURPLENUM:  "#c084fc", // Purple
-      PINKAL:     "#f472b6", // Pink
-      REDRIA:     "#f87171", // Red
-      ORAN:       "#fb923c", // Orange
-      YELLOWBOZE: "#facc15", // Yellow
-      WHITILL:    "#e2e8f0"  // White/Grey
+      VIRIDIA:    "#4ade80", 
+      GREENNILL:  "#22c55e", 
+      SKYLY:      "#38bdf8", 
+      BLUEFULL:   "#3b82f6", 
+      PURPLENUM:  "#c084fc", 
+      PINKAL:     "#f472b6", 
+      REDRIA:     "#f87171", 
+      ORAN:       "#fb923c", 
+      YELLOWBOZE: "#facc15", 
+      WHITILL:    "#e2e8f0"  
     };
 
     var csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS-nCzkALWoSyKOLXNORN_zgy2ONKn4Hcwi-jQNHCgmEW8DJ7yX3AyO9Uod44ecEUwklr76Dw4-p1o0/pub?gid=2126274177&single=true&output=csv";
@@ -446,7 +244,7 @@
     
     // PAGINATION VARS
     var currentPage = 1;
-    var rowsPerPage = 100; // Safe for mobile
+    var rowsPerPage = 100;
 
     $(document).ready(function() {
       fetchDropData();
@@ -473,6 +271,17 @@
         var fraction = (r.New_Server_Fraction && r.New_Server_Fraction.trim() !== "") 
                         ? r.New_Server_Fraction 
                         : r.Server_Fraction;
+        
+        // --- NO MATH LOGIC ---
+        // 1. Get Value from Old_Rate (or New_Rate)
+        var rawRateString = (r.New_Server_Fraction && r.New_Server_Fraction.trim() !== "") 
+                             ? r.New_Rate 
+                             : r.Old_Rate;
+        
+        // 2. Remove the apostrophe (') if Pipeline added it
+        if (rawRateString && rawRateString.startsWith("'")) {
+            rawRateString = rawRateString.substring(1);
+        }
 
         if (tier) tiers.add(tier);
         if (r.Difficulty) diffs.add(r.Difficulty.trim());
@@ -482,8 +291,9 @@
           _nameUpper: nameUpper,
           _tier: tier,
           _diff: r.Difficulty ? r.Difficulty.trim() : "",
-          _id: r.Section ? r.Section.trim().toUpperCase() : "", // Force Upper for Color Match
-          _fraction: fraction
+          _id: r.Section ? r.Section.trim().toUpperCase() : "", 
+          _fraction: fraction,
+          _rawRate: rawRateString // Store the raw string for display
         });
       });
 
@@ -499,7 +309,6 @@
     function populateSelect(sel, items, label, fixed) {
       var $el = $(sel);
       $el.find('option:not(:first)').remove();
-      
       items.forEach(function(val) {
         if (!val) return;
         if (fixed && !masterData.some(r => r._diff === val)) return;
@@ -519,7 +328,6 @@
             var terms = sVal.split(" ");
             matchesName = terms.every(term => r._nameUpper.includes(term));
         }
-
         return matchesName &&
                (!tVal || r._tier === tVal) &&
                (!dVal || r._diff === dVal) &&
@@ -527,8 +335,6 @@
       });
 
       if (currentSort.col) sortData(filteredData);
-      
-      // RESET TO PAGE 1 ON FILTER CHANGE
       currentPage = 1;
       renderTable();
     }
@@ -553,17 +359,12 @@
         return parseInt(p[0]) / parseInt(p[1]);
     }
 
-    /* =========================================
-       PAGINATION LOGIC
-       ========================================= */
     function changePage(dir) {
       var maxPages = Math.ceil(filteredData.length / rowsPerPage);
       var newPage = currentPage + dir;
-      
       if (newPage > 0 && newPage <= maxPages) {
         currentPage = newPage;
         renderTable();
-        // Scroll to top of table on page change
         document.querySelector('.content-section').scrollIntoView({behavior: 'smooth'});
       }
     }
@@ -572,12 +373,10 @@
       var $tbody = $("#dropTable tbody").empty();
       var RARE_MOBS = ["HILDEBLUE","NAR LILY","POUILLY SLIME","AL RAPPY","PAL RAPPY","LOVE RAPPY","MIL LILY","PAZUZU","DORPHON ECLAIR","KONDRIEU"];
       
-      // PAGINATION SLICE
       var start = (currentPage - 1) * rowsPerPage;
       var end = start + rowsPerPage;
       var pageData = filteredData.slice(start, end);
       
-      // UPDATE CONTROLS
       var maxPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
       $("#pageInfo").text(`Page ${currentPage} of ${maxPages} (${filteredData.length} items)`);
       $("#prevBtn").prop('disabled', currentPage === 1);
@@ -586,8 +385,9 @@
       pageData.forEach(function(r) {
         var rateVal = parseRate(r._fraction) * 100;
         var dispRate = (rateVal > 1) ? rateVal.toFixed(1)+"%" : rateVal.toFixed(5) + "%";
-        var odds = (rateVal > 0) ? (100 / rateVal) : 0;
-        var dispOdds = (odds > 10) ? Math.round(odds).toLocaleString() : odds.toFixed(2);
+        
+        // NO MATH: We use r._rawRate directly from the sheet
+        var displayString = r._rawRate || "1/1"; 
 
         var isRare = RARE_MOBS.some(x => (r.Entity||"").toUpperCase().includes(x));
         var rareClass = isRare ? 'style="color:var(--primary); font-weight:bold;"' : '';
@@ -599,7 +399,7 @@
         var row = `
           <tr>
             <td data-label="Ep">${r.Episode}</td>
-            <td data-label="Diff">${r.Difficulty}</td>
+            <td data-label="Diff">${r._diff}</td>
             <td data-label="ID">
               <span class="tag" style="background:${idColor};">${r.Section}</span>
             </td>
@@ -611,7 +411,7 @@
             </td>
             <td data-label="Rate" style="text-align:right;">
               <span style="color:#fff">${dispRate}</span>
-              <br><small style="opacity:0.5; font-size:0.85em;">1 / ${dispOdds}</small>
+              <br><small style="opacity:0.5; font-size:0.85em;">${displayString}</small>
             </td>
           </tr>
         `;
@@ -631,48 +431,32 @@
       applyFilters();
     });
 
-
     /* =========================================
        MODAL LOGIC
        ========================================= */
     function openWikiModal(e, url, name) {
-      e.preventDefault(); // Stop new tab opening
-      
-      // The Magic: ?action=render strips the sidebar/header from MediaWiki
+      e.preventDefault();
       var cleanUrl = url + "?action=render"; 
-      
       $("#modalTitle").text(name);
       $("#wikiFrame").attr("src", cleanUrl);
       $("#wikiModal").css("display", "flex").hide().fadeIn(200);
-      
-      // Lock body scroll
       $("body").css("overflow", "hidden");
     }
 
     function closeModal() {
       $("#wikiModal").fadeOut(200, function() {
-        $("#wikiFrame").attr("src", ""); // Clear src to stop audio/video if any
-        $("body").css("overflow", ""); // Unlock scroll
+        $("#wikiFrame").attr("src", ""); 
+        $("body").css("overflow", ""); 
       });
     }
 
-    // Close if clicking outside the modal content
     $("#wikiModal").on("click", function(e) {
       if (e.target === this) closeModal();
     });
 
-    // Close on Escape key
     $(document).on("keydown", function(e) {
       if (e.key === "Escape") closeModal();
     });
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
