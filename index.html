@@ -10,6 +10,77 @@
   <link rel="stylesheet" href="style.css">
   
   <style>
+      /* =========================================
+       6. WIKI MODAL (Popup)
+       ========================================= */
+    .modal-overlay {
+      display: none; /* Hidden by default */
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.85); /* Dark dim background */
+      backdrop-filter: blur(5px);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      position: relative;
+      background: #1e293b; /* Match surface color */
+      width: 90%;
+      max-width: 1000px;
+      height: 90%;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header {
+      padding: 15px 20px;
+      background: #0f172a;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 24px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .close-btn:hover { color: #fff; }
+
+    /* The Iframe Container */
+    .wiki-frame-container {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      background: #fff; /* Wiki content expects white bg */
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+
+    
     /* =========================================
        1. MODERN CSS VARIABLES & RESET
        ========================================= */
@@ -540,6 +611,7 @@
   </script>
 </body>
 </html>
+
 
 
 
