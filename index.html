@@ -344,6 +344,18 @@
 
 <body>
 
+  <div id="wikiModal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Item Details</span>
+      <button class="close-btn" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="wiki-frame-container">
+      <iframe id="wikiFrame" src=""></iframe>
+    </div>
+  </div>
+</div>
+
 <script>
     fetch('nav.html')
     .then(res => res.text())
@@ -584,7 +596,7 @@
             <td data-label="Map">${r.Section}</td>
             <td data-label="Entity" ${rareClass}>${r.Entity}</td>
             <td data-label="Item Name">
-              <a href="${wikiUrl}" target="_blank" class="wiki-link">${r.ItemName}</a>
+              <a href="${wikiUrl}" class="wiki-link" onclick="openWikiModal(event, '${wikiUrl}', '${r.ItemName.replace(/'/g, "\\'")}')">${r.ItemName}</a>
               ${tierHtml}
             </td>
             <td data-label="Rate" style="text-align:right;">
@@ -611,6 +623,7 @@
   </script>
 </body>
 </html>
+
 
 
 
