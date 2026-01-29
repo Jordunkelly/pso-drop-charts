@@ -12,7 +12,7 @@
   
   <style>
     /* =========================================
-       1. WIKI MODAL (Not in style.css)
+       1. WIKI MODAL
        ========================================= */
     .modal-overlay {
       display: none;
@@ -79,12 +79,16 @@
       display: block;
     }
 
+    /* Small stat styling */
+    .stat-cell { font-family: monospace; font-size: 0.9em; color: #cbd5e1; }
+    .special-cell { color: #fcd34d; font-size: 0.85em; }
+
     /* =========================================
-       2. MOBILE OVERRIDES (The Fix)
+       2. MOBILE OVERRIDES
        ========================================= */
     @media screen and (max-width: 768px) {
       
-      /* 1. Reset Table Structure */
+      /* Reset Table Structure */
       table, thead, tbody, th, td, tr { 
         display: block !important; 
         width: 100% !important;
@@ -92,14 +96,14 @@
         min-width: 0 !important;
       }
       
-      /* 2. Hide Headers */
+      /* Hide Headers */
       thead tr { 
         position: absolute !important;
         top: -9999px !important;
         left: -9999px !important;
       }
       
-      /* 3. Card Style Rows */
+      /* Card Style Rows */
       tbody tr { 
         margin-bottom: 15px !important;
         background: #161b22 !important; 
@@ -109,7 +113,7 @@
         padding: 10px !important;
       }
       
-      /* 4. Flexbox Cells */
+      /* Flexbox Cells */
       td { 
         border: none !important;
         border-bottom: 1px solid #30363d !important; 
@@ -126,7 +130,7 @@
         border-bottom: none !important;
       }
 
-      /* 5. The Label */
+      /* The Label */
       td::before { 
         content: attr(data-label); 
         font-weight: 800 !important;
@@ -137,19 +141,17 @@
         padding-right: 15px !important;
       }
 
-      /* 6. The Value */
+      /* The Value */
       td > * {
         text-align: right !important;
         margin-left: auto !important;
       }
 
-      /* 7. Controls Stack */
       .controls {
         display: flex !important;
         flex-direction: column !important;
         position: static !important;
         gap: 10px !important;
-        grid-template-columns: 1fr !important;
       }
       .controls input, .controls select {
         width: 100% !important;
@@ -198,13 +200,17 @@
       <table id="dropTable" style="display:none;">
         <thead>
           <tr>
-            <th data-sort="Episode" style="width:50px;">Ep</th>
-            <th data-sort="Difficulty" style="width:80px;">Diff</th>
-            <th data-sort="SectionID" style="width:100px;">ID</th>
-            <th data-sort="Map">Map</th>
-            <th data-sort="Entity">Source</th>
+            <th data-sort="Episode" style="width:40px;">Ep</th>
+            <th data-sort="Difficulty" style="width:70px;">Diff</th>
+            <th data-sort="SectionID" style="width:90px;">ID</th>
+            <th data-sort="Entity" style="width:120px;">Source</th>
             <th data-sort="Name">Item Name</th>
-            <th data-sort="Current %" style="text-align:right;">Rate / Odds</th>
+            <th data-sort="Type" style="width:80px;">Type</th>
+            <th data-sort="ATP Min" style="width:80px;">ATP</th>
+            <th data-sort="Req" style="width:80px;">Req</th>
+            <th data-sort="Grind" style="width:50px;">Grind</th>
+            <th data-sort="Special">Special</th>
+            <th data-sort="Current %" style="text-align:right; width:90px;">Rate</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -220,7 +226,7 @@
 
   <script>
     /* =========================================
-        LOGIC & DATA
+       LOGIC & DATA
        ========================================= */
 
     var SECTION_ID_COLORS = {
@@ -272,13 +278,10 @@
                         ? r.New_Server_Fraction 
                         : r.Server_Fraction;
         
-        // --- NO MATH LOGIC ---
-        // 1. Get Value from Old_Rate (or New_Rate)
         var rawRateString = (r.New_Server_Fraction && r.New_Server_Fraction.trim() !== "") 
                              ? r.New_Rate 
                              : r.Old_Rate;
         
-        // 2. Remove the apostrophe (') if Pipeline added it
         if (rawRateString && rawRateString.startsWith("'")) {
             rawRateString = rawRateString.substring(1);
         }
@@ -293,7 +296,7 @@
           _diff: r.Difficulty ? r.Difficulty.trim() : "",
           _id: r.Section ? r.Section.trim().toUpperCase() : "", 
           _fraction: fraction,
-          _rawRate: rawRateString // Store the raw string for display
+          _rawRate: rawRateString
         });
       });
 
@@ -342,12 +345,23 @@
     function sortData(data) {
       var col = currentSort.col;
       var dir = currentSort.dir === 'asc' ? 1 : -1;
+      
       data.sort(function(a, b) {
+        // 1. Numeric Sort for Drops
         if (col === 'Current %') {
              var rateA = parseRate(a._fraction);
              var rateB = parseRate(b._fraction);
              return (rateA - rateB) * dir;
         }
+        
+        // 2. Numeric Sort for ATP, Grind, Requirement
+        if (col === 'ATP Min' || col === 'Req' || col === 'Grind') {
+             var valA = parseInt(a[col]) || 0;
+             var valB = parseInt(b[col]) || 0;
+             return (valA - valB) * dir;
+        }
+
+        // 3. Default String Sort
         var va = a[col]||"", vb = b[col]||"";
         return va.toString().localeCompare(vb.toString(), undefined, {numeric: true}) * dir;
       });
@@ -384,16 +398,14 @@
 
       pageData.forEach(function(r) {
         
-        // Correct way to skip inside .forEach()
-        if (r.Episode == "4") return;
+        if (r.Episode == "4") return; // Episode 4 Skip
         
-        // Percentage (engine-correct)
+        // Rate Calculations
         var rateVal = parseRate(r._fraction) * 100;
         var dispRate = (rateVal > 1)
           ? rateVal.toFixed(1) + "%"
           : rateVal.toFixed(5) + "%";
         
-        // Human-readable average kills
         let avgKills = "";
         if (r._fraction && r._fraction.includes("/")) {
           const parts = r._fraction.split("/").map(Number);
@@ -401,10 +413,9 @@
             avgKills = "~" + Math.round(parts[1] / parts[0]);
           }
         }
-        
         var displayString = avgKills ? `(${avgKills} kills)` : "";
         
-        // Rarity styling
+        // Rarity Styling
         var isRare = RARE_MOBS.some(x => (r.Entity||"").toUpperCase().includes(x));
         var rareClass = isRare ? 'style="color:var(--primary); font-weight:bold;"' : '';
         
@@ -417,6 +428,12 @@
         var wikiUrlEntity = "https://wiki.pioneer2.net/w/" +
           encodeURIComponent((r.Entity||"").trim().replace(/\s+/g,'_'));
 
+        // --- NEW DATA FORMATTING ---
+        var atpDisplay = (r["ATP Min"] && r["ATP Max"]) ? `${r["ATP Min"]}-${r["ATP Max"]}` : "-";
+        var reqDisplay = (r.Req) ? `${r.Req} ${r.ReqType || ""}` : "-";
+        var specialDisplay = r.Special || "-";
+        var typeDisplay = r.Type || "-";
+        var grindDisplay = r.Grind || "-";
 
         var row = `
           <tr>
@@ -425,14 +442,19 @@
             <td data-label="ID">
               <span class="tag" style="background:${idColor};">${r.Section}</span>
             </td>
-            <td data-label="Map">${r.Section}</td>
-            <td data-label="Entity" ${rareClass}>
+            <td data-label="Source" ${rareClass}>
               <a href="${wikiUrlEntity}" class="wiki-link" onclick="openWikiModal(event, '${wikiUrlEntity}', '${r.Entity.replace(/'/g, "\\'")}')">${r.Entity}</a>
             </td>
             <td data-label="Item Name">
               <a href="${wikiUrl}" class="wiki-link" onclick="openWikiModal(event, '${wikiUrl}', '${r.ItemName.replace(/'/g, "\\'")}')">${r.ItemName}</a>
               ${tierHtml}
             </td>
+            
+            <td data-label="Type" class="stat-cell">${typeDisplay}</td>
+            <td data-label="ATP" class="stat-cell">${atpDisplay}</td>
+            <td data-label="Req" class="stat-cell">${reqDisplay}</td>
+            <td data-label="Grind" class="stat-cell">${grindDisplay}</td>
+            <td data-label="Special" class="special-cell">${specialDisplay}</td>
             <td data-label="Rate" style="text-align:right;">
               <span style="color:#fff">${dispRate}</span>
               <br><small style="opacity:0.5; font-size:0.85em;">${displayString}</small>
@@ -443,7 +465,7 @@
       });
 
       if (filteredData.length === 0) {
-        $tbody.append('<tr><td colspan="7" style="text-align:center; padding:30px; opacity:0.5;">No drops found. Try adjusting filters.</td></tr>');
+        $tbody.append('<tr><td colspan="11" style="text-align:center; padding:30px; opacity:0.5;">No drops found. Try adjusting filters.</td></tr>');
       }
     }
 
@@ -484,9 +506,3 @@
   </script>
 </body>
 </html>
-
-
-
-
-
-
