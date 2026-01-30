@@ -184,7 +184,8 @@
           document.querySelectorAll('.nav-link').forEach(link => {
               if (link.getAttribute('href') === currentPage) link.classList.add('active');
           });
-      });
+      })
+      .catch(err => console.log('Nav not found, skipping'));
   </script>
 
   <div class="content-section">
@@ -262,43 +263,78 @@
         header: true,
         skipEmptyLines: true,
         complete: function(results) {
+          console.log("CSV loaded successfully:", results.data.length, "rows");
+          console.log("Columns:", results.meta.fields);
+          console.log("First row sample:", results.data[0]);
           processData(results.data || []);
         },
-        error: function() { $("#loading").text("Error loading library data."); }
+        error: function(err) { 
+          console.error("CSV Parse Error:", err);
+          $("#loading").text("Error loading library data."); 
+        }
       });
     }
 
     function processData(rawData) {
       var tiers = new Set(), diffs = new Set(), ids = new Set();
 
-      masterData = rawData.filter(r => r.ItemName && r.ItemName.trim()).map(r => {
+      masterData = rawData.filter(r => {
+        // Must have ItemName and not be empty
+        if (!r.ItemName || !r.ItemName.trim()) return false;
+        // Skip Episode 4
+        if (r.Episode === "4") return false;
+        return true;
+      }).map(r => {
         var nameUpper = r.ItemName.trim().toUpperCase();
         var tier = r.Ranking ? r.Ranking.trim() : "";
-        var fraction = (r.New_Server_Fraction && r.New_Server_Fraction.trim() !== "") 
-                        ? r.New_Server_Fraction 
-                        : r.Server_Fraction;
         
-        var rawRateString = (r.New_Server_Fraction && r.New_Server_Fraction.trim() !== "") 
-                             ? r.New_Rate 
-                             : r.Old_Rate;
+        // PRIORITY: Use New_Server_Fraction if it exists and is not empty, otherwise use Server_Fraction
+        var fraction = "";
+        var rateString = "";
         
-        if (rawRateString && rawRateString.startsWith("'")) {
-            rawRateString = rawRateString.substring(1);
+        if (r.New_Server_Fraction && r.New_Server_Fraction.trim() !== "") {
+          fraction = r.New_Server_Fraction.trim();
+          rateString = r.New_Rate ? r.New_Rate.trim() : "";
+        } else if (r.Server_Fraction && r.Server_Fraction.trim() !== "") {
+          fraction = r.Server_Fraction.trim();
+          rateString = r.Old_Rate ? r.Old_Rate.trim() : "";
+        }
+        
+        // Remove leading apostrophe if present (Excel formatting artifact)
+        if (rateString && rateString.startsWith("'")) {
+          rateString = rateString.substring(1);
         }
 
+        // Collect unique values for filters
         if (tier) tiers.add(tier);
         if (r.Difficulty) diffs.add(r.Difficulty.trim());
         if (r.Section) ids.add(r.Section.trim());
 
-        return Object.assign({}, r, {
+        return {
+          Episode: r.Episode || "",
+          Difficulty: r.Difficulty ? r.Difficulty.trim() : "",
+          Section: r.Section ? r.Section.trim() : "",
+          Entity: r.Entity ? r.Entity.trim() : "",
+          ItemName: r.ItemName.trim(),
+          Type: r.Type || "",
+          "ATP Min": r["ATP Min"] || "",
+          "ATP Max": r["ATP Max"] || "",
+          Req: r.Req || "",
+          ReqType: r.ReqType || "",
+          Grind: r.Grind || "",
+          Special: r.Special || "",
+          Ranking: tier,
           _nameUpper: nameUpper,
           _tier: tier,
           _diff: r.Difficulty ? r.Difficulty.trim() : "",
           _id: r.Section ? r.Section.trim().toUpperCase() : "", 
           _fraction: fraction,
-          _rawRate: rawRateString
-        });
+          _rawRate: rateString
+        };
       });
+
+      console.log("Processed data:", masterData.length, "items");
+      console.log("Sample processed item:", masterData[0]);
 
       populateSelect("#tierFilter", Array.from(tiers).sort(), "Tier");
       populateSelect("#diffFilter", ["Normal","Hard","Very Hard","Ultimate"], "Diff", true);
@@ -398,13 +434,15 @@
 
       pageData.forEach(function(r) {
         
-        if (r.Episode == "4") return; // Episode 4 Skip
-        
         // Rate Calculations
         var rateVal = parseRate(r._fraction) * 100;
-        var dispRate = (rateVal > 1)
-          ? rateVal.toFixed(1) + "%"
-          : rateVal.toFixed(5) + "%";
+        var dispRate = "-";
+        
+        if (rateVal > 0) {
+          dispRate = (rateVal > 1)
+            ? rateVal.toFixed(1) + "%"
+            : rateVal.toFixed(5) + "%";
+        }
         
         let avgKills = "";
         if (r._fraction && r._fraction.includes("/")) {
@@ -428,7 +466,7 @@
         var wikiUrlEntity = "https://wiki.pioneer2.net/w/" +
           encodeURIComponent((r.Entity||"").trim().replace(/\s+/g,'_'));
 
-        // --- NEW DATA FORMATTING ---
+        // --- DATA FORMATTING ---
         var atpDisplay = (r["ATP Min"] && r["ATP Max"]) ? `${r["ATP Min"]}-${r["ATP Max"]}` : "-";
         var reqDisplay = (r.Req) ? `${r.Req} ${r.ReqType || ""}` : "-";
         var specialDisplay = r.Special || "-";
@@ -438,7 +476,7 @@
         var row = `
           <tr>
             <td data-label="Ep">${r.Episode}</td>
-            <td data-label="Diff">${r._diff}</td>
+            <td data-label="Diff">${r.Difficulty}</td>
             <td data-label="ID">
               <span class="tag" style="background:${idColor};">${r.Section}</span>
             </td>
