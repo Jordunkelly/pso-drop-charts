@@ -282,7 +282,8 @@
         // Must have ItemName and not be empty
         if (!r.ItemName || !r.ItemName.trim()) return false;
         // Skip Episode 4
-        if (r.Episode === "4") return false;
+        //if (r.Episode === "4") return false;
+        
         return true;
       }).map(r => {
         var nameUpper = r.ItemName.trim().toUpperCase();
@@ -544,3 +545,4 @@
   </script>
 </body>
 </html>
+
