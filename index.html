@@ -374,19 +374,23 @@
       var tVal = $("#tierFilter").val();
       var dVal = $("#diffFilter").val();
       var iVal = $("#idFilter").val();
-
+      var eVal = $("#epFilter").val();       // ✅ Episode
+      var tyVal = $("#typeFilter").val();    // ✅ Type
+    
       filteredData = masterData.filter(function(r) {
         var matchesName = true;
         if (sVal) {
-            var terms = sVal.split(" ");
-            matchesName = terms.every(term => r._nameUpper.includes(term));
+          var terms = sVal.split(" ");
+          matchesName = terms.every(term => r._nameUpper.includes(term));
         }
         return matchesName &&
-               (!tVal || r._tier === tVal) &&
-               (!dVal || r._diff === dVal) &&
-               (!iVal || r._id === iVal);
+               (!tVal  || r._tier === tVal) &&
+               (!dVal  || r._diff === dVal) &&
+               (!iVal  || r._id   === iVal) &&
+               (!eVal  || r._ep   === eVal) &&      // ✅
+               (!tyVal || r._type === tyVal);        // ✅
       });
-
+    
       if (currentSort.col) sortData(filteredData);
       currentPage = 1;
       renderTable();
@@ -558,5 +562,6 @@
   </script>
 </body>
 </html>
+
 
 
