@@ -282,10 +282,6 @@
       // Add these two sets at the top of processData alongside tiers/diffs/ids
       var tiers = new Set(), diffs = new Set(), ids = new Set(), eps = new Set(), types = new Set();
       
-      // Inside the .map(), add:
-      if (r.Episode) eps.add(r.Episode.trim());
-      if (r.Type && r.Type.trim()) types.add(r.Type.trim());
-      
 
       masterData = rawData.filter(r => {
         // Must have ItemName and not be empty
@@ -294,9 +290,14 @@
         //if (r.Episode === "4") return false;
         
         return true;
-      }).map(r => {
+      }).map(r => 
+        // Inside the .map(), add:
+        if (r.Episode) eps.add(r.Episode.trim());
+        if (r.Type && r.Type.trim()) types.add(r.Type.trim());
+        
         var nameUpper = r.ItemName.trim().toUpperCase();
         var tier = r.Ranking ? r.Ranking.trim() : "";
+        
         
         // PRIORITY: Use New_Server_Fraction if it exists and is not empty, otherwise use Server_Fraction
         var fraction = "";
@@ -562,6 +563,7 @@
   </script>
 </body>
 </html>
+
 
 
 
