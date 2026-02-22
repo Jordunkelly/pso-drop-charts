@@ -79,6 +79,20 @@
     .stat-cell { font-family: monospace; font-size: 0.9em; color: #cbd5e1; }
     .special-cell { color: #fcd34d; font-size: 0.85em; }
 
+    #clearBtn {
+      background: #ef4444;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.85rem;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    #clearBtn:hover { background: #dc2626; }
+
     @media screen and (max-width: 768px) {
       table, thead, tbody, th, td, tr {
         display: block !important;
@@ -127,7 +141,7 @@
         position: static !important;
         gap: 10px !important;
       }
-      .controls input, .controls select { width: 100% !important; }
+      .controls input, .controls select, .controls button { width: 100% !important; }
     }
   </style>
 </head>
@@ -162,12 +176,14 @@
 
   <div class="content-section">
     <div class="controls">
-      <input type="text" id="nameSearch" placeholder="Search Item Name..." autocomplete="off" />
+      <input type="text" id="nameSearch"    placeholder="Search Item Name..."      autocomplete="off" />
+      <input type="text" id="monsterSearch" placeholder="Search Monster/Source..."  autocomplete="off" />
       <select id="epFilter"><option value="">Filter by Episode</option></select>
       <select id="tierFilter"><option value="">Filter by Tier</option></select>
       <select id="diffFilter"><option value="">Filter by Difficulty</option></select>
       <select id="idFilter"><option value="">Filter by Section ID</option></select>
       <select id="typeFilter"><option value="">Filter by Type</option></select>
+      <button id="clearBtn" onclick="clearFilters()">✕ Clear Filters</button>
     </div>
 
     <div class="table-container">
@@ -175,15 +191,15 @@
       <table id="dropTable" style="display:none;">
         <thead>
           <tr>
-            <th data-sort="Episode" style="width:40px;">Ep</th>
+            <th data-sort="Episode"   style="width:40px;">Ep</th>
             <th data-sort="Difficulty" style="width:70px;">Diff</th>
-            <th data-sort="Section" style="width:90px;">ID</th>
-            <th data-sort="Entity" style="width:120px;">Source</th>
+            <th data-sort="Section"   style="width:90px;">ID</th>
+            <th data-sort="Entity"    style="width:120px;">Source</th>
             <th data-sort="ItemName">Item Name</th>
-            <th data-sort="Type" style="width:80px;">Type</th>
-            <th data-sort="ATP Min" style="width:80px;">ATP</th>
-            <th data-sort="Req" style="width:80px;">Req</th>
-            <th data-sort="Grind" style="width:50px;">Grind</th>
+            <th data-sort="Type"      style="width:80px;">Type</th>
+            <th data-sort="ATP Min"   style="width:80px;">ATP</th>
+            <th data-sort="Req"       style="width:80px;">Req</th>
+            <th data-sort="Grind"     style="width:50px;">Grind</th>
             <th data-sort="Special">Special</th>
             <th data-sort="Current %" style="text-align:right; width:90px;">Rate</th>
           </tr>
@@ -215,11 +231,11 @@
 
     var csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS-nCzkALWoSyKOLXNORN_zgy2ONKn4Hcwi-jQNHCgmEW8DJ7yX3AyO9Uod44ecEUwklr76Dw4-p1o0/pub?gid=2126274177&single=true&output=csv";
 
-    var masterData = [];
+    var masterData   = [];
     var filteredData = [];
-    var currentSort = { col: null, dir: 'asc' };
-    var currentPage = 1;
-    var rowsPerPage = 200;
+    var currentSort  = { col: null, dir: 'asc' };
+    var currentPage  = 1;
+    var rowsPerPage  = 200;
 
     $(document).ready(function() {
       fetchDropData();
@@ -250,17 +266,18 @@
         if (!r.ItemName || !r.ItemName.trim()) return false;
         return true;
       }).map(r => {
-        var nameUpper = r.ItemName.trim().toUpperCase();
-        var tier = r.Ranking ? r.Ranking.trim() : "";
+        var nameUpper   = r.ItemName.trim().toUpperCase();
+        var entityUpper = r.Entity ? r.Entity.trim().toUpperCase() : "";
+        var tier        = r.Ranking ? r.Ranking.trim() : "";
 
-        var fraction = "";
+        var fraction   = "";
         var rateString = "";
 
         if (r.New_Server_Fraction && r.New_Server_Fraction.trim() !== "") {
-          fraction = r.New_Server_Fraction.trim();
+          fraction   = r.New_Server_Fraction.trim();
           rateString = r.New_Rate ? r.New_Rate.trim() : "";
         } else if (r.Server_Fraction && r.Server_Fraction.trim() !== "") {
-          fraction = r.Server_Fraction.trim();
+          fraction   = r.Server_Fraction.trim();
           rateString = r.Old_Rate ? r.Old_Rate.trim() : "";
         }
 
@@ -268,7 +285,6 @@
           rateString = rateString.substring(1);
         }
 
-        // Collect filter values
         if (tier) tiers.add(tier);
         if (r.Difficulty) diffs.add(r.Difficulty.trim());
         if (r.Section) ids.add(r.Section.trim());
@@ -276,27 +292,28 @@
         if (r.Type && r.Type.trim()) types.add(r.Type.trim());
 
         return {
-          Episode:    r.Episode || "",
-          Difficulty: r.Difficulty ? r.Difficulty.trim() : "",
-          Section:    r.Section ? r.Section.trim() : "",
-          Entity:     r.Entity ? r.Entity.trim() : "",
-          ItemName:   r.ItemName.trim(),
-          Type:       r.Type || "",
-          "ATP Min":  r["ATP Min"] || "",
-          "ATP Max":  r["ATP Max"] || "",
-          Req:        r.Req || "",
-          ReqType:    r.ReqType || "",
-          Grind:      r.Grind || "",
-          Special:    r.Special || "",
-          Ranking:    tier,
-          _nameUpper: nameUpper,
-          _tier:      tier,
-          _diff:      r.Difficulty ? r.Difficulty.trim() : "",
-          _id:        r.Section ? r.Section.trim().toUpperCase() : "",
-          _ep:        r.Episode ? r.Episode.trim() : "",
-          _type:      r.Type ? r.Type.trim() : "",
-          _fraction:  fraction,
-          _rawRate:   rateString
+          Episode:      r.Episode || "",
+          Difficulty:   r.Difficulty ? r.Difficulty.trim() : "",
+          Section:      r.Section ? r.Section.trim() : "",
+          Entity:       r.Entity ? r.Entity.trim() : "",
+          ItemName:     r.ItemName.trim(),
+          Type:         r.Type || "",
+          "ATP Min":    r["ATP Min"] || "",
+          "ATP Max":    r["ATP Max"] || "",
+          Req:          r.Req || "",
+          ReqType:      r.ReqType || "",
+          Grind:        r.Grind || "",
+          Special:      r.Special || "",
+          Ranking:      tier,
+          _nameUpper:   nameUpper,
+          _entityUpper: entityUpper,
+          _tier:        tier,
+          _diff:        r.Difficulty ? r.Difficulty.trim() : "",
+          _id:          r.Section ? r.Section.trim().toUpperCase() : "",
+          _ep:          r.Episode ? r.Episode.trim() : "",
+          _type:        r.Type ? r.Type.trim() : "",
+          _fraction:    fraction,
+          _rawRate:     rateString
         };
       });
 
@@ -325,6 +342,7 @@
 
     function applyFilters() {
       var sVal  = $("#nameSearch").val().toUpperCase().trim();
+      var mVal  = $("#monsterSearch").val().toUpperCase().trim();
       var tVal  = $("#tierFilter").val();
       var dVal  = $("#diffFilter").val();
       var iVal  = $("#idFilter").val();
@@ -332,12 +350,20 @@
       var tyVal = $("#typeFilter").val();
 
       filteredData = masterData.filter(function(r) {
+        // Item name: all space-separated terms must match
         var matchesName = true;
         if (sVal) {
-          var terms = sVal.split(" ");
-          matchesName = terms.every(term => r._nameUpper.includes(term));
+          matchesName = sVal.split(" ").every(term => r._nameUpper.includes(term));
         }
-        return matchesName &&
+
+        // Monster: all space-separated terms must match entity
+        var matchesMonster = true;
+        if (mVal) {
+          matchesMonster = mVal.split(" ").every(term => r._entityUpper.includes(term));
+        }
+
+        return matchesName    &&
+               matchesMonster &&
                (!tVal  || r._tier === tVal)  &&
                (!dVal  || r._diff === dVal)  &&
                (!iVal  || r._id   === iVal)  &&
@@ -348,6 +374,19 @@
       if (currentSort.col) sortData(filteredData);
       currentPage = 1;
       renderTable();
+    }
+
+    // ✅ Reset all filters and sort state
+    function clearFilters() {
+      $("#nameSearch").val("");
+      $("#monsterSearch").val("");
+      $("#epFilter").val("");
+      $("#tierFilter").val("");
+      $("#diffFilter").val("");
+      $("#idFilter").val("");
+      $("#typeFilter").val("");
+      currentSort = { col: null, dir: 'asc' };
+      applyFilters();
     }
 
     function sortData(data) {
@@ -374,7 +413,7 @@
 
     function changePage(dir) {
       var maxPages = Math.ceil(filteredData.length / rowsPerPage);
-      var newPage = currentPage + dir;
+      var newPage  = currentPage + dir;
       if (newPage > 0 && newPage <= maxPages) {
         currentPage = newPage;
         renderTable();
@@ -383,10 +422,10 @@
     }
 
     function renderTable() {
-      var $tbody = $("#dropTable tbody").empty();
+      var $tbody   = $("#dropTable tbody").empty();
       var RARE_MOBS = ["HILDEBLUE","NAR LILY","POUILLY SLIME","AL RAPPY","PAL RAPPY","LOVE RAPPY","MIL LILY","PAZUZU","DORPHON ECLAIR","KONDRIEU"];
 
-      var start = (currentPage - 1) * rowsPerPage;
+      var start    = (currentPage - 1) * rowsPerPage;
       var pageData = filteredData.slice(start, start + rowsPerPage);
 
       var maxPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
@@ -395,7 +434,7 @@
       $("#nextBtn").prop('disabled', currentPage === maxPages);
 
       pageData.forEach(function(r) {
-        var rateVal = parseRate(r._fraction) * 100;
+        var rateVal  = parseRate(r._fraction) * 100;
         var dispRate = "-";
         if (rateVal > 0) {
           dispRate = (rateVal > 1) ? rateVal.toFixed(1) + "%" : rateVal.toFixed(5) + "%";
@@ -410,24 +449,24 @@
         }
         var displayString = avgKills ? `(${avgKills} kills)` : "";
 
-        var isRare = RARE_MOBS.some(x => (r.Entity||"").toUpperCase().includes(x));
+        var isRare    = RARE_MOBS.some(x => (r.Entity||"").toUpperCase().includes(x));
         var rareClass = isRare ? 'style="color:var(--primary); font-weight:bold;"' : '';
 
         var tierHtml = r._tier ? `<span class="tier-tag">${r._tier}</span>` : "";
-        var idColor = SECTION_ID_COLORS[r._id] || "#fff";
+        var idColor  = SECTION_ID_COLORS[r._id] || "#fff";
 
         var wikiUrl = "https://wiki.pioneer2.net/w/" +
           encodeURIComponent((r.ItemName||"").trim().replace(/\s+/g,'_'));
         var wikiUrlEntity = "https://wiki.pioneer2.net/w/" +
           encodeURIComponent((r.Entity||"").trim().replace(/\s+/g,'_'));
 
-        var atpDisplay  = (r["ATP Min"] && r["ATP Max"]) ? `${r["ATP Min"]}-${r["ATP Max"]}` : "-";
-        var reqDisplay  = r.Req ? `${r.Req} ${r.ReqType || ""}` : "-";
-        var typeDisplay = r.Type || "-";
-        var grindDisplay = r.Grind || "-";
+        var atpDisplay     = (r["ATP Min"] && r["ATP Max"]) ? `${r["ATP Min"]}-${r["ATP Max"]}` : "-";
+        var reqDisplay     = r.Req ? `${r.Req} ${r.ReqType || ""}` : "-";
+        var typeDisplay    = r.Type || "-";
+        var grindDisplay   = r.Grind || "-";
         var specialDisplay = r.Special || "-";
 
-        var row = `
+        $tbody.append(`
           <tr>
             <td data-label="Ep">${r.Episode}</td>
             <td data-label="Diff">${r.Difficulty}</td>
@@ -441,18 +480,17 @@
               <a href="${wikiUrl}" class="wiki-link" onclick="openWikiModal(event, '${wikiUrl}', '${r.ItemName.replace(/'/g, "\\'")}')">${r.ItemName}</a>
               ${tierHtml}
             </td>
-            <td data-label="Type" class="stat-cell">${typeDisplay}</td>
-            <td data-label="ATP" class="stat-cell">${atpDisplay}</td>
-            <td data-label="Req" class="stat-cell">${reqDisplay}</td>
-            <td data-label="Grind" class="stat-cell">${grindDisplay}</td>
+            <td data-label="Type"    class="stat-cell">${typeDisplay}</td>
+            <td data-label="ATP"     class="stat-cell">${atpDisplay}</td>
+            <td data-label="Req"     class="stat-cell">${reqDisplay}</td>
+            <td data-label="Grind"   class="stat-cell">${grindDisplay}</td>
             <td data-label="Special" class="special-cell">${specialDisplay}</td>
             <td data-label="Rate" style="text-align:right;">
               <span style="color:#fff">${dispRate}</span>
               <br><small style="opacity:0.5; font-size:0.85em;">${displayString}</small>
             </td>
           </tr>
-        `;
-        $tbody.append(row);
+        `);
       });
 
       if (filteredData.length === 0) {
