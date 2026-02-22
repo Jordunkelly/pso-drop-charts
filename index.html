@@ -11,9 +11,6 @@
   <link rel="stylesheet" href="style.css">
   
   <style>
-    /* =========================================
-       1. WIKI MODAL
-       ========================================= */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -69,7 +66,7 @@
       flex: 1;
       width: 100%;
       height: 100%;
-      background: #fff; 
+      background: #fff;
     }
 
     iframe {
@@ -79,44 +76,32 @@
       display: block;
     }
 
-    /* Small stat styling */
     .stat-cell { font-family: monospace; font-size: 0.9em; color: #cbd5e1; }
     .special-cell { color: #fcd34d; font-size: 0.85em; }
 
-    /* =========================================
-       2. MOBILE OVERRIDES
-       ========================================= */
     @media screen and (max-width: 768px) {
-      
-      /* Reset Table Structure */
-      table, thead, tbody, th, td, tr { 
-        display: block !important; 
+      table, thead, tbody, th, td, tr {
+        display: block !important;
         width: 100% !important;
         box-sizing: border-box !important;
         min-width: 0 !important;
       }
-      
-      /* Hide Headers */
-      thead tr { 
+      thead tr {
         position: absolute !important;
         top: -9999px !important;
         left: -9999px !important;
       }
-      
-      /* Card Style Rows */
-      tbody tr { 
+      tbody tr {
         margin-bottom: 15px !important;
-        background: #161b22 !important; 
+        background: #161b22 !important;
         border: 1px solid #30363d !important;
         border-radius: 8px !important;
         box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
         padding: 10px !important;
       }
-      
-      /* Flexbox Cells */
-      td { 
+      td {
         border: none !important;
-        border-bottom: 1px solid #30363d !important; 
+        border-bottom: 1px solid #30363d !important;
         position: relative !important;
         padding: 8px 0 !important;
         text-align: right !important;
@@ -125,14 +110,9 @@
         justify-content: space-between !important;
         align-items: center !important;
       }
-      
-      td:last-child {
-        border-bottom: none !important;
-      }
-
-      /* The Label */
-      td::before { 
-        content: attr(data-label); 
+      td:last-child { border-bottom: none !important; }
+      td::before {
+        content: attr(data-label);
         font-weight: 800 !important;
         color: #58a6ff !important;
         text-transform: uppercase !important;
@@ -140,22 +120,14 @@
         text-align: left !important;
         padding-right: 15px !important;
       }
-
-      /* The Value */
-      td > * {
-        text-align: right !important;
-        margin-left: auto !important;
-      }
-
+      td > * { text-align: right !important; margin-left: auto !important; }
       .controls {
         display: flex !important;
         flex-direction: column !important;
         position: static !important;
         gap: 10px !important;
       }
-      .controls input, .controls select {
-        width: 100% !important;
-      }
+      .controls input, .controls select { width: 100% !important; }
     }
   </style>
 </head>
@@ -176,20 +148,19 @@
 
   <div id="nav-placeholder"></div>
   <script>
-      fetch('nav.html')
+    fetch('nav.html')
       .then(res => res.text())
       .then(data => {
-          document.getElementById('nav-placeholder').innerHTML = data;
-          const currentPage = window.location.pathname.split("/").pop() || "index.html";
-          document.querySelectorAll('.nav-link').forEach(link => {
-              if (link.getAttribute('href') === currentPage) link.classList.add('active');
-          });
+        document.getElementById('nav-placeholder').innerHTML = data;
+        const currentPage = window.location.pathname.split("/").pop() || "index.html";
+        document.querySelectorAll('.nav-link').forEach(link => {
+          if (link.getAttribute('href') === currentPage) link.classList.add('active');
+        });
       })
       .catch(err => console.log('Nav not found, skipping'));
   </script>
 
   <div class="content-section">
-    <!-- AFTER -->
     <div class="controls">
       <input type="text" id="nameSearch" placeholder="Search Item Name..." autocomplete="off" />
       <select id="epFilter"><option value="">Filter by Episode</option></select>
@@ -206,9 +177,9 @@
           <tr>
             <th data-sort="Episode" style="width:40px;">Ep</th>
             <th data-sort="Difficulty" style="width:70px;">Diff</th>
-            <th data-sort="SectionID" style="width:90px;">ID</th>
+            <th data-sort="Section" style="width:90px;">ID</th>
             <th data-sort="Entity" style="width:120px;">Source</th>
-            <th data-sort="Name">Item Name</th>
+            <th data-sort="ItemName">Item Name</th>
             <th data-sort="Type" style="width:80px;">Type</th>
             <th data-sort="ATP Min" style="width:80px;">ATP</th>
             <th data-sort="Req" style="width:80px;">Req</th>
@@ -229,21 +200,17 @@
   </div>
 
   <script>
-    /* =========================================
-       LOGIC & DATA
-       ========================================= */
-
     var SECTION_ID_COLORS = {
-      VIRIDIA:    "#4ade80", 
-      GREENNILL:  "#22c55e", 
-      SKYLY:      "#38bdf8", 
-      BLUEFULL:   "#3b82f6", 
-      PURPLENUM:  "#c084fc", 
-      PINKAL:     "#f472b6", 
-      REDRIA:     "#f87171", 
-      ORAN:       "#fb923c", 
-      YELLOWBOZE: "#facc15", 
-      WHITILL:    "#e2e8f0"  
+      VIRIDIA:    "#4ade80",
+      GREENNILL:  "#22c55e",
+      SKYLY:      "#38bdf8",
+      BLUEFULL:   "#3b82f6",
+      PURPLENUM:  "#c084fc",
+      PINKAL:     "#f472b6",
+      REDRIA:     "#f87171",
+      ORAN:       "#fb923c",
+      YELLOWBOZE: "#facc15",
+      WHITILL:    "#e2e8f0"
     };
 
     var csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS-nCzkALWoSyKOLXNORN_zgy2ONKn4Hcwi-jQNHCgmEW8DJ7yX3AyO9Uod44ecEUwklr76Dw4-p1o0/pub?gid=2126274177&single=true&output=csv";
@@ -251,8 +218,6 @@
     var masterData = [];
     var filteredData = [];
     var currentSort = { col: null, dir: 'asc' };
-    
-    // PAGINATION VARS
     var currentPage = 1;
     var rowsPerPage = 200;
 
@@ -266,43 +231,31 @@
         header: true,
         skipEmptyLines: true,
         complete: function(results) {
-          console.log("CSV loaded successfully:", results.data.length, "rows");
+          console.log("CSV loaded:", results.data.length, "rows");
           console.log("Columns:", results.meta.fields);
-          console.log("First row sample:", results.data[0]);
+          console.log("Sample:", results.data[0]);
           processData(results.data || []);
         },
-        error: function(err) { 
+        error: function(err) {
           console.error("CSV Parse Error:", err);
-          $("#loading").text("Error loading library data."); 
+          $("#loading").text("Error loading library data.");
         }
       });
     }
 
     function processData(rawData) {
-      // Add these two sets at the top of processData alongside tiers/diffs/ids
       var tiers = new Set(), diffs = new Set(), ids = new Set(), eps = new Set(), types = new Set();
-      
 
       masterData = rawData.filter(r => {
-        // Must have ItemName and not be empty
         if (!r.ItemName || !r.ItemName.trim()) return false;
-        // Skip Episode 4
-        //if (r.Episode === "4") return false;
-        
         return true;
-      }).map(r => 
-        // Inside the .map(), add:
-        if (r.Episode) eps.add(r.Episode.trim());
-        if (r.Type && r.Type.trim()) types.add(r.Type.trim());
-        
+      }).map(r => {
         var nameUpper = r.ItemName.trim().toUpperCase();
         var tier = r.Ranking ? r.Ranking.trim() : "";
-        
-        
-        // PRIORITY: Use New_Server_Fraction if it exists and is not empty, otherwise use Server_Fraction
+
         var fraction = "";
         var rateString = "";
-        
+
         if (r.New_Server_Fraction && r.New_Server_Fraction.trim() !== "") {
           fraction = r.New_Server_Fraction.trim();
           rateString = r.New_Rate ? r.New_Rate.trim() : "";
@@ -310,49 +263,49 @@
           fraction = r.Server_Fraction.trim();
           rateString = r.Old_Rate ? r.Old_Rate.trim() : "";
         }
-        
-        // Remove leading apostrophe if present (Excel formatting artifact)
+
         if (rateString && rateString.startsWith("'")) {
           rateString = rateString.substring(1);
         }
 
-        // Collect unique values for filters
+        // Collect filter values
         if (tier) tiers.add(tier);
         if (r.Difficulty) diffs.add(r.Difficulty.trim());
         if (r.Section) ids.add(r.Section.trim());
+        if (r.Episode) eps.add(r.Episode.trim());
+        if (r.Type && r.Type.trim()) types.add(r.Type.trim());
 
         return {
-          Episode: r.Episode || "",
+          Episode:    r.Episode || "",
           Difficulty: r.Difficulty ? r.Difficulty.trim() : "",
-          Section: r.Section ? r.Section.trim() : "",
-          Entity: r.Entity ? r.Entity.trim() : "",
-          ItemName: r.ItemName.trim(),
-          Type: r.Type || "",
-          "ATP Min": r["ATP Min"] || "",
-          "ATP Max": r["ATP Max"] || "",
-          Req: r.Req || "",
-          ReqType: r.ReqType || "",
-          Grind: r.Grind || "",
-          Special: r.Special || "",
-          Ranking: tier,
+          Section:    r.Section ? r.Section.trim() : "",
+          Entity:     r.Entity ? r.Entity.trim() : "",
+          ItemName:   r.ItemName.trim(),
+          Type:       r.Type || "",
+          "ATP Min":  r["ATP Min"] || "",
+          "ATP Max":  r["ATP Max"] || "",
+          Req:        r.Req || "",
+          ReqType:    r.ReqType || "",
+          Grind:      r.Grind || "",
+          Special:    r.Special || "",
+          Ranking:    tier,
           _nameUpper: nameUpper,
-          _tier: tier,
-          _diff: r.Difficulty ? r.Difficulty.trim() : "",
-          _id: r.Section ? r.Section.trim().toUpperCase() : "", 
-          _fraction: fraction,
-          _rawRate: rateString
+          _tier:      tier,
+          _diff:      r.Difficulty ? r.Difficulty.trim() : "",
+          _id:        r.Section ? r.Section.trim().toUpperCase() : "",
+          _ep:        r.Episode ? r.Episode.trim() : "",
+          _type:      r.Type ? r.Type.trim() : "",
+          _fraction:  fraction,
+          _rawRate:   rateString
         };
       });
 
-      console.log("Processed data:", masterData.length, "items");
-      console.log("Sample processed item:", masterData[0]);
+      console.log("Processed:", masterData.length, "items");
 
+      populateSelect("#epFilter",   Array.from(eps).sort((a,b) => Number(a) - Number(b)), "Episode");
       populateSelect("#tierFilter", Array.from(tiers).sort(), "Tier");
       populateSelect("#diffFilter", ["Normal","Hard","Very Hard","Ultimate"], "Diff", true);
-      populateSelect("#idFilter", Array.from(ids).sort(), "ID");
-      
-      // Then after the existing populateSelect calls, add:
-      populateSelect("#epFilter", Array.from(eps).sort((a,b) => Number(a) - Number(b)), "Episode");
+      populateSelect("#idFilter",   Array.from(ids).sort(), "ID");
       populateSelect("#typeFilter", Array.from(types).sort(), "Type");
 
       $("#loading").hide();
@@ -371,13 +324,13 @@
     }
 
     function applyFilters() {
-      var sVal = $("#nameSearch").val().toUpperCase().trim();
-      var tVal = $("#tierFilter").val();
-      var dVal = $("#diffFilter").val();
-      var iVal = $("#idFilter").val();
-      var eVal = $("#epFilter").val();       // ✅ Episode
-      var tyVal = $("#typeFilter").val();    // ✅ Type
-    
+      var sVal  = $("#nameSearch").val().toUpperCase().trim();
+      var tVal  = $("#tierFilter").val();
+      var dVal  = $("#diffFilter").val();
+      var iVal  = $("#idFilter").val();
+      var eVal  = $("#epFilter").val();
+      var tyVal = $("#typeFilter").val();
+
       filteredData = masterData.filter(function(r) {
         var matchesName = true;
         if (sVal) {
@@ -385,13 +338,13 @@
           matchesName = terms.every(term => r._nameUpper.includes(term));
         }
         return matchesName &&
-               (!tVal  || r._tier === tVal) &&
-               (!dVal  || r._diff === dVal) &&
-               (!iVal  || r._id   === iVal) &&
-               (!eVal  || r._ep   === eVal) &&      // ✅
-               (!tyVal || r._type === tyVal);        // ✅
+               (!tVal  || r._tier === tVal)  &&
+               (!dVal  || r._diff === dVal)  &&
+               (!iVal  || r._id   === iVal)  &&
+               (!eVal  || r._ep   === eVal)  &&
+               (!tyVal || r._type === tyVal);
       });
-    
+
       if (currentSort.col) sortData(filteredData);
       currentPage = 1;
       renderTable();
@@ -400,32 +353,23 @@
     function sortData(data) {
       var col = currentSort.col;
       var dir = currentSort.dir === 'asc' ? 1 : -1;
-      
-      data.sort(function(a, b) {
-        // 1. Numeric Sort for Drops
-        if (col === 'Current %') {
-             var rateA = parseRate(a._fraction);
-             var rateB = parseRate(b._fraction);
-             return (rateA - rateB) * dir;
-        }
-        
-        // 2. Numeric Sort for ATP, Grind, Requirement
-        if (col === 'ATP Min' || col === 'Req' || col === 'Grind') {
-             var valA = parseInt(a[col]) || 0;
-             var valB = parseInt(b[col]) || 0;
-             return (valA - valB) * dir;
-        }
 
-        // 3. Default String Sort
-        var va = a[col]||"", vb = b[col]||"";
+      data.sort(function(a, b) {
+        if (col === 'Current %') {
+          return (parseRate(a._fraction) - parseRate(b._fraction)) * dir;
+        }
+        if (col === 'ATP Min' || col === 'Req' || col === 'Grind') {
+          return ((parseInt(a[col]) || 0) - (parseInt(b[col]) || 0)) * dir;
+        }
+        var va = a[col] || "", vb = b[col] || "";
         return va.toString().localeCompare(vb.toString(), undefined, {numeric: true}) * dir;
       });
     }
 
     function parseRate(frac) {
-        if (!frac || !frac.includes('/')) return 0;
-        var p = frac.split('/');
-        return parseInt(p[0]) / parseInt(p[1]);
+      if (!frac || !frac.includes('/')) return 0;
+      var p = frac.split('/');
+      return parseInt(p[0]) / parseInt(p[1]);
     }
 
     function changePage(dir) {
@@ -441,56 +385,47 @@
     function renderTable() {
       var $tbody = $("#dropTable tbody").empty();
       var RARE_MOBS = ["HILDEBLUE","NAR LILY","POUILLY SLIME","AL RAPPY","PAL RAPPY","LOVE RAPPY","MIL LILY","PAZUZU","DORPHON ECLAIR","KONDRIEU"];
-      
+
       var start = (currentPage - 1) * rowsPerPage;
-      var end = start + rowsPerPage;
-      var pageData = filteredData.slice(start, end);
-      
+      var pageData = filteredData.slice(start, start + rowsPerPage);
+
       var maxPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
       $("#pageInfo").text(`Page ${currentPage} of ${maxPages} (${filteredData.length} items)`);
       $("#prevBtn").prop('disabled', currentPage === 1);
       $("#nextBtn").prop('disabled', currentPage === maxPages);
 
       pageData.forEach(function(r) {
-        
-        // Rate Calculations
         var rateVal = parseRate(r._fraction) * 100;
         var dispRate = "-";
-        
         if (rateVal > 0) {
-          dispRate = (rateVal > 1)
-            ? rateVal.toFixed(1) + "%"
-            : rateVal.toFixed(5) + "%";
+          dispRate = (rateVal > 1) ? rateVal.toFixed(1) + "%" : rateVal.toFixed(5) + "%";
         }
-        
-        let avgKills = "";
+
+        var avgKills = "";
         if (r._fraction && r._fraction.includes("/")) {
-          const parts = r._fraction.split("/").map(Number);
+          var parts = r._fraction.split("/").map(Number);
           if (parts.length === 2 && parts[0] > 0 && parts[1] > 0) {
             avgKills = "~" + Math.round(parts[1] / parts[0]);
           }
         }
         var displayString = avgKills ? `(${avgKills} kills)` : "";
-        
-        // Rarity Styling
+
         var isRare = RARE_MOBS.some(x => (r.Entity||"").toUpperCase().includes(x));
         var rareClass = isRare ? 'style="color:var(--primary); font-weight:bold;"' : '';
-        
+
         var tierHtml = r._tier ? `<span class="tier-tag">${r._tier}</span>` : "";
         var idColor = SECTION_ID_COLORS[r._id] || "#fff";
-        
+
         var wikiUrl = "https://wiki.pioneer2.net/w/" +
           encodeURIComponent((r.ItemName||"").trim().replace(/\s+/g,'_'));
-        
         var wikiUrlEntity = "https://wiki.pioneer2.net/w/" +
           encodeURIComponent((r.Entity||"").trim().replace(/\s+/g,'_'));
 
-        // --- DATA FORMATTING ---
-        var atpDisplay = (r["ATP Min"] && r["ATP Max"]) ? `${r["ATP Min"]}-${r["ATP Max"]}` : "-";
-        var reqDisplay = (r.Req) ? `${r.Req} ${r.ReqType || ""}` : "-";
-        var specialDisplay = r.Special || "-";
+        var atpDisplay  = (r["ATP Min"] && r["ATP Max"]) ? `${r["ATP Min"]}-${r["ATP Max"]}` : "-";
+        var reqDisplay  = r.Req ? `${r.Req} ${r.ReqType || ""}` : "-";
         var typeDisplay = r.Type || "-";
         var grindDisplay = r.Grind || "-";
+        var specialDisplay = r.Special || "-";
 
         var row = `
           <tr>
@@ -506,7 +441,6 @@
               <a href="${wikiUrl}" class="wiki-link" onclick="openWikiModal(event, '${wikiUrl}', '${r.ItemName.replace(/'/g, "\\'")}')">${r.ItemName}</a>
               ${tierHtml}
             </td>
-            
             <td data-label="Type" class="stat-cell">${typeDisplay}</td>
             <td data-label="ATP" class="stat-cell">${atpDisplay}</td>
             <td data-label="Req" class="stat-cell">${reqDisplay}</td>
@@ -527,6 +461,7 @@
     }
 
     $("input, select").on("keyup change", applyFilters);
+
     $("th").on("click", function() {
       var col = $(this).data("sort");
       currentSort.dir = (currentSort.col === col && currentSort.dir === 'asc') ? 'desc' : 'asc';
@@ -534,12 +469,9 @@
       applyFilters();
     });
 
-    /* =========================================
-       MODAL LOGIC
-       ========================================= */
     function openWikiModal(e, url, name) {
       e.preventDefault();
-      var cleanUrl = url + "?action=render"; 
+      var cleanUrl = url + "?action=render";
       $("#modalTitle").text(name);
       $("#wikiFrame").attr("src", cleanUrl);
       $("#wikiModal").css("display", "flex").hide().fadeIn(200);
@@ -548,8 +480,8 @@
 
     function closeModal() {
       $("#wikiModal").fadeOut(200, function() {
-        $("#wikiFrame").attr("src", ""); 
-        $("body").css("overflow", ""); 
+        $("#wikiFrame").attr("src", "");
+        $("body").css("overflow", "");
       });
     }
 
@@ -563,7 +495,3 @@
   </script>
 </body>
 </html>
-
-
-
-
