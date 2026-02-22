@@ -189,11 +189,14 @@
   </script>
 
   <div class="content-section">
+    <!-- AFTER -->
     <div class="controls">
       <input type="text" id="nameSearch" placeholder="Search Item Name..." autocomplete="off" />
+      <select id="epFilter"><option value="">Filter by Episode</option></select>
       <select id="tierFilter"><option value="">Filter by Tier</option></select>
       <select id="diffFilter"><option value="">Filter by Difficulty</option></select>
       <select id="idFilter"><option value="">Filter by Section ID</option></select>
+      <select id="typeFilter"><option value="">Filter by Type</option></select>
     </div>
 
     <div class="table-container">
@@ -276,7 +279,13 @@
     }
 
     function processData(rawData) {
-      var tiers = new Set(), diffs = new Set(), ids = new Set();
+      // Add these two sets at the top of processData alongside tiers/diffs/ids
+      var tiers = new Set(), diffs = new Set(), ids = new Set(), eps = new Set(), types = new Set();
+      
+      // Inside the .map(), add:
+      if (r.Episode) eps.add(r.Episode.trim());
+      if (r.Type && r.Type.trim()) types.add(r.Type.trim());
+      
 
       masterData = rawData.filter(r => {
         // Must have ItemName and not be empty
@@ -340,6 +349,10 @@
       populateSelect("#tierFilter", Array.from(tiers).sort(), "Tier");
       populateSelect("#diffFilter", ["Normal","Hard","Very Hard","Ultimate"], "Diff", true);
       populateSelect("#idFilter", Array.from(ids).sort(), "ID");
+      
+      // Then after the existing populateSelect calls, add:
+      populateSelect("#epFilter", Array.from(eps).sort((a,b) => Number(a) - Number(b)), "Episode");
+      populateSelect("#typeFilter", Array.from(types).sort(), "Type");
 
       $("#loading").hide();
       $("#dropTable, #paginationBar").fadeIn();
@@ -545,4 +558,5 @@
   </script>
 </body>
 </html>
+
 
